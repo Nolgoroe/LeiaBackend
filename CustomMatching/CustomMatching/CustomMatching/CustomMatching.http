@@ -1,0 +1,6 @@
+@CustomMatching_HostAddress = http://localhost:5184
+
+GET {{CustomMatching_HostAddress}}/Matching/RequestMatch/1
+Accept: application/json
+
+###
