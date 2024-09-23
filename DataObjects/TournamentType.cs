@@ -14,3 +14,4 @@ namespace DataObjects
         public string TournamentTypeName { get; set; }
     }
 }
+  

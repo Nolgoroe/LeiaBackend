@@ -313,7 +313,7 @@ namespace DAL.Migrations
                     b.ToTable("SessionDataTournamentSession");
                 });
 
-            modelBuilder.Entity("DataObjects.PlayerCurrencies", b =>
+            modelBuilder.Entity("DataObjects.PlayerCurrencies", b =>  
                 {
                     b.HasOne("DataObjects.Currencies", null)
                         .WithMany("PlayerCurrencies")

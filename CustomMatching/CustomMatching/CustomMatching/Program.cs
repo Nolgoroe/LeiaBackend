@@ -22,7 +22,7 @@ builder.Services.AddScoped<ITournamentService, TournamentService>();
 var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
-    var leiaContext = scope.ServiceProvider.GetRequiredService<LeiaContext>();
+    var leiaContext = scope.ServiceProvider.GetRequiredService<LeiaContext>();  
     //leiaContext.Database.EnsureDeleted();
     //leiaContext.Database.EnsureCreated();
 }

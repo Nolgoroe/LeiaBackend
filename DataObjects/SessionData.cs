@@ -14,7 +14,7 @@ namespace DataObjects
         [Key]
         public int SessionId { get; set; }
         //public List<Player>? Players { get; set; }
-        public List<TournamentSession> Tournaments { get; set; }
+        public List<TournamentSession> Tournaments { get; set; }  
         public Guid PlayerId { get; set; }
         public Player Player { get; set; }
       

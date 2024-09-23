@@ -18,7 +18,7 @@ namespace DataObjects
         //public int SessionId { get; set; }
         //public SessionData Session { get; set; }
 
-        public double EntryFee { get; set; }
+        public double EntryFee { get; set; }  
         public int EntryFeeCurrencyId { get; set; }
         public Currencies EntryFeeCurrency { get; set; }
 

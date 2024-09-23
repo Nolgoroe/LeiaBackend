@@ -15,7 +15,7 @@ namespace DataObjects
 
         [Key]
         public int TournamentSessionId { get; set; }
-
+          
         public List<Player> Players { get; } = [];
         public List<PlayerTournamentSession> PlayerTournamentSessions { get; } = [];// a link to the MtM table 
         //! THIS IS IMPORTANT!! THE MTM WITH PAYLOAD LINKING TABLES PROPERTIES, MUST ONLY BE { get; } AND INITIALIZED WITH = []; OR ELSE THE MTM CONNECTION DOESN'T WORK RIGHT

@@ -86,7 +86,7 @@ namespace DAL.Migrations
                     CurrencyBalance = table.Column<double>(type: "float", nullable: false)
                 },
                 constraints: table =>
-                {
+                {  
                     table.PrimaryKey("PK_PlayerCurrencies", x => new { x.CurrencyId, x.PlayerId });
                     table.ForeignKey(
                         name: "FK_PlayerCurrencies_Currencies_CurrencyId",

@@ -14,7 +14,7 @@ namespace DataObjects
         /// Do not implement in DB yet
         /// </summary>
         /// 
-        public Guid PlayerId { get; set; }
+        public Guid PlayerId { get; set; }  
         public Player Player { get; set; }
         public DateTime LobbyStart { get; set; } //  when was the app launched
         public DateTime LobbyEnd { get; set; }

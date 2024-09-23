@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 namespace DataObjects
 {
     /// <summary>
-    ///MtM table with payload(=extra data about each link. In this case, what currency balance each player has)
+    ///MtM table with payload(=extra data about each link. In this case, what currency balance each player has)  
     /// </summary>
     public class PlayerCurrencies
     {

@@ -12,7 +12,7 @@ namespace DataObjects
         /// Do not implement in DB yet
         /// </summary>
         
-        public Guid PlayerId { get; set; }
+        public Guid PlayerId { get; set; }  
         public Player Player { get; set; }
         public DateTime TutStart { get; set; } //When did player start the tutorials 
         public DateTime TutEnd { get; set; } // When did player finish the tutorial 

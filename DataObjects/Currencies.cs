@@ -11,7 +11,7 @@ namespace DataObjects
     {
         [Key]
         public int CurrencyId{ get; set; }
-        public string CurrencyName{ get; set; }
+        public string CurrencyName{ get; set; }  
 
         public List<Player> Players { get; } = [];
         public List<PlayerCurrencies> PlayerCurrencies { get; } = [];

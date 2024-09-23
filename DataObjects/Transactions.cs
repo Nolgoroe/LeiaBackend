@@ -22,7 +22,7 @@ namespace DataObjects
         public int CurrencyAmount { get; set; }
         public int TransactionTypeId { get; set; }
         public TransactionType TransactionType { get; set; }
-
+          
 
     }
 }

@@ -318,7 +318,7 @@ namespace DAL.Migrations
 
             modelBuilder.Entity("DataObjects.PlayerCurrencies", b =>
                 {
-                    b.HasOne("DataObjects.Currencies", null)
+                    b.HasOne("DataObjects.Currencies", null)  
                         .WithMany("PlayerCurrencies")
                         //.HasForeignKey("CurrenciesCurrencyId")
                         .HasForeignKey("CurrencyId")

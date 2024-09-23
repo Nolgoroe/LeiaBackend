@@ -25,7 +25,7 @@ namespace CustomMatching.Controllers
         public MatchingController(ILogger<MatchingController> logger, ITournamentService tournamentService, ISuikaDbService suikaDbService)
         {
             _logger = logger;
-            _tournamentService = tournamentService;
+            _tournamentService = tournamentService;  
             _suikaDbService = suikaDbService;
             //OngoingTournaments = new List<MatchSession>();
             _players = new List<Player>()

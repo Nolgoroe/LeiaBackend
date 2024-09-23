@@ -7,12 +7,12 @@ using System.Numerics;
 using System.Reflection.Emit;
 using System.Text;
 using System.Threading.Tasks;
-
+ 
 namespace DataObjects
 {
     public class PlayerData
     {
-        [Key]
+        [Key]  
         public Guid PlayerId { get; set; }
         public string? UserType { get; set; }
         public string? Name { get; set; }

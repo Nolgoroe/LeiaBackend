@@ -30,7 +30,7 @@ namespace DAL
             modelBuilder.Entity<Player>() // this is needed to configure a MtM connection type with a payload (like we made in the PlayerTournamentSession class. With out this we get an error)
                 .HasMany(p => p.TournamentSessions)
                 .WithMany(t => t.Players)
-                .UsingEntity<PlayerTournamentSession>(e => 
+                .UsingEntity<PlayerTournamentSession>(e =>   
                     e.Property(pt => pt.PlayerScore));
 
             modelBuilder.Entity<Player>()
