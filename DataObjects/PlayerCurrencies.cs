@@ -12,7 +12,9 @@ namespace DataObjects
     public class PlayerCurrencies
     {
         public Guid PlayerId { get; set; }
-        public int CurrencyId { get; set; }
+        public Player Player { get; set; }
+        public int CurrenciesId { get; set; }
+        public Currencies Currencies { get; set; }
         public double CurrencyBalance { get; set; }
     }
 }

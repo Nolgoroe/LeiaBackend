@@ -6,6 +6,9 @@ using System;
 using System.Diagnostics;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using DAL;
+using Microsoft.EntityFrameworkCore;
+using System.Drawing;
 
 namespace CustomMatching.Controllers
 {
@@ -18,31 +21,36 @@ namespace CustomMatching.Controllers
         private readonly ILogger<MatchingController> _logger;
         private readonly ITournamentService _tournamentService;
         private readonly ISuikaDbService _suikaDbService;
-        private List<Player> _players;
         //private List<MatchSession> OngoingTournaments;
-        //public bool MatchLoopToggle { get; private set; }
         //public int Counter { get; set; }
         public MatchingController(ILogger<MatchingController> logger, ITournamentService tournamentService, ISuikaDbService suikaDbService)
         {
             _logger = logger;
-            _tournamentService = tournamentService;  
+            _tournamentService = tournamentService;
             _suikaDbService = suikaDbService;
             //OngoingTournaments = new List<MatchSession>();
-            _players = new List<Player>()
-            {
-                //new Player{PlayerId ="4", USD = 20,Score = 1000 },
-                //new Player{PlayerId ="7", USD = 15,Score = 500 },
-                //new Player{PlayerId ="3", USD = 21,Score = 1100 },
-                //new Player{PlayerId ="5", USD = 19,Score = 900 },
-                //new Player{PlayerId ="9", USD = 10,Score = 400 },
-                //new Player{PlayerId ="2", USD = 110,Score = 1400 },
-                //new Player{PlayerId ="8", USD = 14,Score = 400 },
-                //new Player{PlayerId ="1", USD = 111,Score = 1500 },
-                //new Player{PlayerId ="6", USD = 16,Score = 600 },
-            };
 
-            //MatchLoopToggle = true;
             _tournamentService.MatchTimer.Start();
+            _tournamentService.PlayerAddedToTournament += PlayerAddedToTournamentHandler;
+        }
+
+        private void PlayerAddedToTournamentHandler(object? sender, EventArgs e)
+        {
+            if (sender is ValueTuple<int?, int?, Guid[]>)
+            {
+                var (seed, tournamentId, ids) = (ValueTuple<int?, int?, Guid[]>)sender;
+
+                // Array.ForEach<Guid>(ids,id =>  _tournamentService?.PlayersSeeds?.Add(id, seed));
+                foreach (var id in ids)
+                {
+                    if (_tournamentService?.PlayersSeeds?.ContainsKey(id) == false)
+                    {
+                        _tournamentService?.PlayersSeeds?.Add(id, [tournamentId, seed]);
+
+                    }
+                }
+                Debug.WriteLine($"Players: {string.Join(", ", ids/*.Select(id => id.ToString())*/)}, in tournament No. {tournamentId}, with seed No. {seed}, were added");
+            }
         }
 
         [HttpGet, Route("RequestMatch/{playerId}/{matchFee}/{currency}")]
@@ -50,17 +58,21 @@ namespace CustomMatching.Controllers
 
         {
             var player = await _suikaDbService.GetPlayerById(playerId);
-            if (player == null) return NotFound("There is no such player RequestId");
-            var playerBalance = await _suikaDbService.GetPlayerBalance(playerId,currency);
-            if (playerBalance == null) return BadRequest("The player doesn't have a balance of this currency");
-            if (playerBalance < matchFee) return BadRequest("The player doesn't have enough money to join this match");
+            if (player == null) return NotFound("There is no such id");
+            var currenyType = await _suikaDbService.LeiaContext.Currencies.FindAsync(currency);
+            if (currenyType == null) return NotFound("There is no such currency");
+
+            var playerBalance = await _suikaDbService.GetPlayerBalance(playerId, currency);
+            if (playerBalance == null) return BadRequest("The id doesn't have a balance of this currency");
+            if (playerBalance < matchFee) return BadRequest("The id doesn't have enough money to join this match");
             else
             {
                 MatchRequest request = new()
                 {
                     RequestId = new Random().Next(1, 100),
                     Player = player,
-                    MatchFee = matchFee
+                    MatchFee = matchFee,
+                    MatchFeeCurrency = currenyType
                 };
                 _tournamentService.MatchesQueue.Add(request);
 
@@ -74,7 +86,7 @@ namespace CustomMatching.Controllers
         public IActionResult GetWaitingRequests()
         {
             var waiting = _tournamentService.WaitingRequests;
-          return Ok(waiting);
+            return Ok(waiting);
         }
 
         [HttpGet, Route("GetOpenGames")]
@@ -84,18 +96,72 @@ namespace CustomMatching.Controllers
             return Ok(openGames);
         }
 
+        [HttpGet, Route("GetTournamentSeed/{playerId}")]
+        public IActionResult GetTournamentSeed(Guid playerId)
+        {
+            //! and check why a seedIds is added several times 
+            if (_tournamentService.PlayersSeeds.TryGetValue(playerId, out int?[]? seedAndId))
+            {
+                _tournamentService.PlayersSeeds.Remove(playerId);
+                return Ok(seedAndId);
+            }
+            else
+            {
+                return NotFound("The seed or id were not found");
+            }
+        }
+
+        [HttpGet, Route("GetTournamentTypes")]
+        public IActionResult GetTournamentTypes()
+        {
+            var tournamentTypes = _suikaDbService.LeiaContext.TournamentTypes.ToList();
+            return Ok(tournamentTypes);
+        }
+
         [HttpGet, Route("GetTest")]
         public IActionResult GetTest()
         {
-           
+
             return Ok("Hello Unity");
         }
 
-        [HttpPost, Route("AddPlayer")]
-        public async Task<IActionResult> AddPlayer([FromBody] Player player)
+        // dump endpoint for testing stuff. DO NOT USE! 
+        [HttpGet, Route("GetPlayerBalance/{playerId}/{currencyId}")]
+        public async Task<IActionResult> GetPlayerBalance(Guid? playerId, int? currencyId)
         {
-            var newPlayer = await _suikaDbService.AddNewPlayer(player);
-            return Ok(newPlayer);
+            var playerCurrency = await _suikaDbService.LeiaContext.PlayerCurrencies.FirstOrDefaultAsync(pc => pc.PlayerId == playerId && pc.CurrenciesId == currencyId);
+
+            var currency = await _suikaDbService.LeiaContext.Currencies.FindAsync(currencyId);
+
+            var player = await _suikaDbService.LeiaContext.Players.FindAsync(playerId);
+
+            playerCurrency ??= new();
+
+            var tournamentTypeId = await _tournamentService.GetTournamentTypeByCurrency(currencyId);
+            var tournament = new TournamentSession
+            {
+                TournamentData = new TournamentData
+                {
+                    EntryFee = 10,
+                    EntryFeeCurrency = currency,
+                    EntryFeeCurrencyId = currency.CurrencyId,
+                    EarningCurrencyId = currency.CurrencyId,
+                    TournamentTypeId = (int)tournamentTypeId
+                }
+            };
+            tournament.Players?.Add(player);
+            try
+            {
+                var savedTournament = _suikaDbService?.LeiaContext?.Tournaments?.Add(tournament);
+                var saved = await _suikaDbService.LeiaContext.SaveChangesAsync();
+                // var balance = _suikaDbService.LeiaContext.PlayerCurrencies.FirstOrDefault(p => p.PlayerId == playerId && p.CurrenciesId == currencyId);
+                return Ok(/*balance*/);
+
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message + "\n" + ex.InnerException?.Message);
+            }
         }
 
     }

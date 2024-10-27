@@ -24,6 +24,8 @@ namespace DataObjects
 
         public int TournamentDataId { get; set; }
         public TournamentData TournamentData { get; set; }
+        
+        public int TournamentSeed { get; set; }
 
         #region old properties
         /*

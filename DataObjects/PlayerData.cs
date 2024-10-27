@@ -6,6 +6,7 @@ using System.Net;
 using System.Numerics;
 using System.Reflection.Emit;
 using System.Text;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
  
 namespace DataObjects
@@ -16,7 +17,7 @@ namespace DataObjects
         public Guid PlayerId { get; set; }
         public string? UserType { get; set; }
         public string? Name { get; set; }
-        public string Email { get; set; }
+        public string? Email { get; set; }
         public string? WalletAddress { get; set; }
         public DateTime? RegistrationDate { get; set; }
         public int? Age { get; set; }
@@ -28,11 +29,16 @@ namespace DataObjects
         public string? InstallSource { get; set; }
         public DateTime? InstallDate { get; set; }
         public string? AttributionData { get; set; }
+      //  [JsonIgnore]
         public List<SessionData> Sessions { get; set; }
+        [JsonIgnore]
         public List<TournamentSession> TournamentSessions { get; } = [];
+        [JsonIgnore]
         public List<PlayerTournamentSession> PlayerTournamentSessions { get; } = []; // a link to the MtM table
-          //! THIS IS IMPORTANT!! THE MTM WITH PAYLOAD LINKING TABLES PROPERTIES, MUST ONLY BE { get; } AND INITIALIZED WITH = []; OR ELSE THE MTM CONNECTION DOESN'T WORK RIGHT
+        //! THIS IS IMPORTANT!! THE MTM WITH PAYLOAD LINKING TABLES PROPERTIES, MUST ONLY BE { get; } AND INITIALIZED WITH = []; OR ELSE THE MTM CONNECTION DOESN'T WORK RIGHT
+        [JsonIgnore]
         public List<Currencies> Currencies { get; } = [];
+        [JsonIgnore]
         public List<PlayerCurrencies> PlayerCurrencies { get; } = [];
 
         #region Old properties

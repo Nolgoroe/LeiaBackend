@@ -19,7 +19,7 @@ namespace Services.MatchMakerStrategies
             _tournamentService = tournamentService;
         }
 
-        public IMatchingStrategy? RunStrategy()
+        public async Task<IMatchingStrategy?> RunStrategy()
         {
             var ordered = _tournamentService.MatchesQueue.OrderByDescending(m => m.Player?.Score).ToList();
 
@@ -35,7 +35,7 @@ namespace Services.MatchMakerStrategies
                     {
                         /* if (_tournamentService.OngoingTournaments.Count <= 0) // if there is no current tournament, create a new one
                          {
-                             CreateNewTournament(request, matchedRequest);
+                             SaveNewTournament(request, matchedRequest);
                          }
                          else if (_tournamentService.OngoingTournamentss.Count > 0) // if there is a current tournament, see if the matchedRequest and the request could fit any other open tournaments
                          {
@@ -43,13 +43,14 @@ namespace Services.MatchMakerStrategies
 
                              if (matchingTournament == null) // if it doesn't match other tournaments, create a new one
                              {
-                                 CreateNewTournament(request, matchedRequest);
+                                 SaveNewTournament(request, matchedRequest);
                              }
                              else // meaning there is a fitting tournament for the current request and the found matchedRequest
                              {
                                  AddToExistingTournament(request, matchedRequest, matchingTournament);
                              }
                          }*/
+                        
                         return new FindMatchInWaitingRequestsStrategy(_suikaDbService, _tournamentService, request, matchedRequest);
                     }
 

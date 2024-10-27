@@ -1,4 +1,6 @@
-﻿using DAL;
+﻿using System.Diagnostics;
+
+using DAL;
 
 using DataObjects;
 
@@ -11,6 +13,8 @@ namespace Services
         public Task<Player> AddNewPlayer(Player player);
         public Task<double?> GetPlayerBalance(Guid? playerId, int? currencyId);
         public Task<Player?> GetPlayerById(Guid playerId);
+        public Task<Player?> GetPlayerByName(string playerName);
+        public Task<List<TournamentSession?>?> GetPlayerTournaments(Guid playerId);
         public LeiaContext LeiaContext { get;  /*set;*/ }
     }
 
@@ -34,17 +38,46 @@ namespace Services
             return newPlayer.Entity;
         }
 
-        public async Task<double?> GetPlayerBalance(Guid? playerId, int? currencyId )
+        public async Task<double?> GetPlayerBalance(Guid? playerId, int? currencyId)
         {
-            var balance = await _leiaContext.PlayerCurrencies.FirstOrDefaultAsync (p => p.PlayerId == playerId && p.CurrencyId == currencyId);
+            try
+            {
+                var balance =  _leiaContext.PlayerCurrencies.FirstOrDefault(p => p.PlayerId == playerId && p.CurrenciesId == currencyId);
+                return balance?.CurrencyBalance;
 
-            return balance?.CurrencyBalance;
+            }
+            catch (Exception ex)
+            {
+
+               Debug.WriteLine(ex.InnerException?.Message);
+            }
+            return null;
         }
         public async Task<Player?> GetPlayerById(Guid playerId)
         {
             var player = await _leiaContext.Players.FindAsync(playerId);
 
             return player;
+        }
+
+        public async Task<Player?> GetPlayerByName(string playerName)
+        {
+            var player = await _leiaContext.Players.FirstOrDefaultAsync(p => p.Name == playerName);
+            return player;
+        }
+
+        public async Task<List<TournamentSession?>?> GetPlayerTournaments(Guid playerId)
+        {
+            var tournaments =  _leiaContext.Tournaments.Where( t => t.PlayerTournamentSessions.Any( pt => pt.PlayerId == playerId))
+                .Include( t => t.TournamentData )
+                    .ThenInclude(td => td.EntryFeeCurrency)
+                .Include( t => t.TournamentData)
+                    .ThenInclude(td => td.EarningCurrency)
+                .Include(t => t.TournamentData)
+                    .ThenInclude(td => td.TournamentType)
+                .Include(t => t.Players)
+                .ToList();
+            return tournaments;
         }
     }
 

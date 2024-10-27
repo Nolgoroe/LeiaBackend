@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Text;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using static System.Collections.Specialized.BitVector32;
 using static System.Runtime.InteropServices.JavaScript.JSType;
@@ -14,6 +15,7 @@ namespace DataObjects
         [Key]
         public int SessionId { get; set; }
         //public List<Player>? Players { get; set; }
+        [JsonIgnore]
         public List<TournamentSession> Tournaments { get; set; }  
         public Guid PlayerId { get; set; }
         public Player Player { get; set; }

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Text;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
 namespace DataObjects
@@ -11,9 +12,11 @@ namespace DataObjects
     {
         [Key]
         public int CurrencyId{ get; set; }
-        public string CurrencyName{ get; set; }  
+        public string CurrencyName{ get; set; }
 
+        [JsonIgnore]
         public List<Player> Players { get; } = [];
+        [JsonIgnore]
         public List<PlayerCurrencies> PlayerCurrencies { get; } = [];
 
     }

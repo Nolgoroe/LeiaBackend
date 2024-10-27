@@ -81,16 +81,15 @@ namespace DAL.Migrations
                 columns: table => new
                 {
                     PlayerId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    CurrencyId = table.Column<int>(type: "int", nullable: false),
-                   // CurrencyId = table.Column<int>(type: "int", nullable: false),
+                    CurrenciesId = table.Column<int>(type: "int", nullable: false),
                     CurrencyBalance = table.Column<double>(type: "float", nullable: false)
                 },
                 constraints: table =>
-                {  
-                    table.PrimaryKey("PK_PlayerCurrencies", x => new { x.CurrencyId, x.PlayerId });
+                {
+                    table.PrimaryKey("PK_PlayerCurrencies", x => new { x.CurrenciesId, x.PlayerId });
                     table.ForeignKey(
-                        name: "FK_PlayerCurrencies_Currencies_CurrencyId",
-                        column: x => x.CurrencyId,
+                        name: "FK_PlayerCurrencies_Currencies_CurrenciesId",
+                        column: x => x.CurrenciesId,
                         principalTable: "Currencies",
                         principalColumn: "CurrencyId",
                         onDelete: ReferentialAction.Cascade);
@@ -149,7 +148,7 @@ namespace DAL.Migrations
                         column: x => x.EarningCurrencyId,
                         principalTable: "Currencies",
                         principalColumn: "CurrencyId",
-                        onDelete: ReferentialAction.NoAction); //! VERY IMPORTANT!! THIS MUST BE ReferentialAction.NoAction BECAUSE THERE IS ANOTHER FOREIGN KEY TO THE CURRENCIES TABLE HERE 👇🏻  THAT IS SET TO ReferentialAction.Cascade, AND IF BOTH FOREIGNKEY ARE SET TO ReferentialAction.Cascade WE GET AN ERROR. SO ONE OF THEM IS SET TO  ReferentialAction.NoAction
+                        onDelete: ReferentialAction.NoAction);//! VERY IMPORTANT!! THIS MUST BE ReferentialAction.NoAction BECAUSE THERE IS ANOTHER FOREIGN KEY TO THE CURRENCIES TABLE HERE 👇🏻  THAT IS SET TO ReferentialAction.Cascade, AND IF BOTH FOREIGNKEY ARE SET TO ReferentialAction.Cascade WE GET AN ERROR. SO ONE OF THEM IS SET TO  ReferentialAction.NoAction
                     table.ForeignKey(
                         name: "FK_TournamentsData_Currencies_EntryFeeCurrencyId",
                         column: x => x.EntryFeeCurrencyId,

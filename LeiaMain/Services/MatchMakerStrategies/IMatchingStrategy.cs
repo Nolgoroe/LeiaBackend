@@ -10,6 +10,7 @@ namespace Services.MatchMakerStrategies
 {
     public interface IMatchingStrategy
     {
-        public IMatchingStrategy? RunStrategy();
+         public Task<IMatchingStrategy?> RunStrategy();
     }
+
 }

@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DAL.Migrations
 {
     [DbContext(typeof(LeiaContext))]
-    [Migration("20240906170438_InitialCreate")]
+    [Migration("20240925123540_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -101,8 +101,8 @@ namespace DAL.Migrations
 
             modelBuilder.Entity("DataObjects.PlayerCurrencies", b =>
                 {
-                    //b.Property<int>("CurrenciesCurrencyId")
-                    //    .HasColumnType("int");
+                    b.Property<int>("CurrenciesId")
+                        .HasColumnType("int");
 
                     b.Property<Guid>("PlayerId")
                         .HasColumnType("uniqueidentifier");
@@ -110,11 +110,7 @@ namespace DAL.Migrations
                     b.Property<double>("CurrencyBalance")
                         .HasColumnType("float");
 
-                    b.Property<int>("CurrencyId")
-                        .HasColumnType("int");
-
-                    //b.HasKey("CurrenciesCurrencyId", "PlayerId");
-                    b.HasKey("CurrencyId", "PlayerId");
+                    b.HasKey("CurrenciesId", "PlayerId");
 
                     b.HasIndex("PlayerId");
 
@@ -318,18 +314,21 @@ namespace DAL.Migrations
 
             modelBuilder.Entity("DataObjects.PlayerCurrencies", b =>
                 {
-                    b.HasOne("DataObjects.Currencies", null)  
+                    b.HasOne("DataObjects.Currencies", "Currencies")
                         .WithMany("PlayerCurrencies")
-                        //.HasForeignKey("CurrenciesCurrencyId")
-                        .HasForeignKey("CurrencyId")
+                        .HasForeignKey("CurrenciesId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("DataObjects.Player", null)
+                    b.HasOne("DataObjects.Player", "Player")
                         .WithMany("PlayerCurrencies")
                         .HasForeignKey("PlayerId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Currencies");
+
+                    b.Navigation("Player");
                 });
 
             modelBuilder.Entity("DataObjects.PlayerTournamentSession", b =>

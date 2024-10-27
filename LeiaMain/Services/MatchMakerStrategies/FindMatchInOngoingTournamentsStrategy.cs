@@ -22,7 +22,7 @@ namespace Services.MatchMakerStrategies
             _tournamentService = tournamentService;
             _requests = requests;
         }
-        public IMatchingStrategy? RunStrategy()
+        public async Task<IMatchingStrategy?> RunStrategy()
         {
             if (_tournamentService.OngoingTournaments.Count > 0) // check if the current request can fit into one of the opened tournaments  
             {
@@ -31,7 +31,7 @@ namespace Services.MatchMakerStrategies
                  );
 
                 //FOUND A MATCH IN THE OngoingTournaments LIST
-                if (matchingTournament != null) _tournamentService.AddToExistingTournament(_requests?[0], null, matchingTournament); // if we find a matching tournament, add the request to it
+                if (matchingTournament != null) await _tournamentService.AddToExistingTournament(_requests?[0], null, matchingTournament); // if we find a matching tournament, add the request to it
 
                 // IF NO MATCH IN OngoingTournaments
                 else //if not add the request to the WaitingRequests list
