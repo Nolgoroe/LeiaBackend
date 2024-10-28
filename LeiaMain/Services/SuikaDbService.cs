@@ -42,14 +42,14 @@ namespace Services
         {
             try
             {
-                var balance =  _leiaContext.PlayerCurrencies.FirstOrDefault(p => p.PlayerId == playerId && p.CurrenciesId == currencyId);
+                var balance = _leiaContext.PlayerCurrencies.FirstOrDefault(p => p.PlayerId == playerId && p.CurrenciesId == currencyId);
                 return balance?.CurrencyBalance;
 
             }
             catch (Exception ex)
             {
 
-               Debug.WriteLine(ex.InnerException?.Message);
+                Debug.WriteLine(ex.InnerException?.Message);
             }
             return null;
         }
@@ -62,16 +62,25 @@ namespace Services
 
         public async Task<Player?> GetPlayerByName(string playerName)
         {
-            var player = await _leiaContext.Players.FirstOrDefaultAsync(p => p.Name == playerName);
-            return player;
+            try
+            {
+                var player = /*await*/ _leiaContext.Players.FirstOrDefault(p => p.Name == playerName);
+                return player;
+
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine(ex.Message + "\n" + ex.InnerException?.Message);
+                throw;
+            }
         }
 
         public async Task<List<TournamentSession?>?> GetPlayerTournaments(Guid playerId)
         {
-            var tournaments =  _leiaContext.Tournaments.Where( t => t.PlayerTournamentSessions.Any( pt => pt.PlayerId == playerId))
-                .Include( t => t.TournamentData )
+            var tournaments = _leiaContext.Tournaments.Where(t => t.PlayerTournamentSessions.Any(pt => pt.PlayerId == playerId))
+                .Include(t => t.TournamentData)
                     .ThenInclude(td => td.EntryFeeCurrency)
-                .Include( t => t.TournamentData)
+                .Include(t => t.TournamentData)
                     .ThenInclude(td => td.EarningCurrency)
                 .Include(t => t.TournamentData)
                     .ThenInclude(td => td.TournamentType)

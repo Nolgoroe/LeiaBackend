@@ -57,7 +57,7 @@ namespace CustomMatching.Controllers
         public async Task<IActionResult> AddPlayer([FromBody] Player player)
         {
             // check if tournaments with this name already exists
-            var dbPlayer = _suikaDbService.GetPlayerByName(player?.Name);
+            var dbPlayer = await _suikaDbService.GetPlayerByName(player?.Name);
             if (dbPlayer == null)
             {
                 var newPlayer = await _suikaDbService.AddNewPlayer(player);
