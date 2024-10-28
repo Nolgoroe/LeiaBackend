@@ -41,7 +41,7 @@ namespace Services
     {
         private int _timerCycles = 0;
 
-        private int _numMilliseconds = 12000; // get these numbers from a DB or config file
+        private int _numMilliseconds = 6000; // get these numbers from a DB or config file
         private int _maxNumPlayers = 5; // get these numbers from a DB or config file
         private int _scoreVariance = 200; // get these numbers from a DB or config file 
         private IMatchingStrategy? _currentMatchingStrategy;
@@ -119,7 +119,7 @@ namespace Services
 
             Debug.WriteLine(JsonSerializer.Serialize<List<MatchRequest>>(MatchesQueue, _jsonOptions));
 
-            if (MatchesQueue.Any())
+            if (MatchesQueue.Count > 0)
             {
                 //_strategiesHandler.InitiateStrategies();
                 _currentMatchingStrategy = new CheckFirstRequestStrategy(_suikaDbService, this);
