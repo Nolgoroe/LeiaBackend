@@ -49,7 +49,9 @@ namespace CustomMatching.Controllers
         public async Task<IActionResult> GetPlayerByName(string name)
         {
             var player = await _suikaDbService.GetPlayerByName(name);
-            return Ok(player);
+            if (player != null) return Ok(player);
+            else return NotFound($"Player: {name}, was not found");
+            
         }
 
         // POST /Players/AddPlayer
