@@ -1,4 +1,5 @@
-﻿using System.Data;
+﻿using System;
+using System.Data;
 using System.Diagnostics;
 
 using DataObjects;
@@ -58,6 +59,7 @@ namespace CustomMatching.Controllers
         [HttpPost, Route("AddPlayer")]
         public async Task<IActionResult> AddPlayer([FromBody] Player player)
         {
+            if (!VerifyPlayer(player)) return BadRequest("Player details are incomplete");
             // check if tournaments with this name already exists
             var dbPlayer = await _suikaDbService.GetPlayerByName(player?.Name);
             if (dbPlayer == null)
@@ -98,6 +100,18 @@ namespace CustomMatching.Controllers
         [HttpDelete("{id}")]
         public void Delete(int id)
         {
+        }
+
+        private bool VerifyPlayer(Player player)
+        {
+
+            if (player!=null)
+            {
+               if (string.IsNullOrWhiteSpace(player.Name) || string.IsNullOrEmpty(player.Name)) return false;
+               //enter other verifications here - else if()........
+               else return true;   
+            }
+            else return false;
         }
     }
 }
