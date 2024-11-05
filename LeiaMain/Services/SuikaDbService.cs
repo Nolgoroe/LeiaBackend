@@ -32,10 +32,31 @@ namespace Services
 
         public async Task<Player> AddNewPlayer(Player player)
         {
-            var newPlayer = await _leiaContext.Players.AddAsync(player);
-            await _leiaContext.SaveChangesAsync();
+            if (player != null)
+            {
+                var currencies = await _leiaContext.Currencies.ToListAsync();
 
-            return newPlayer.Entity;
+                player.PlayerCurrencies.Add(new PlayerCurrencies { 
+                    PlayerId = player.PlayerId,
+                    CurrenciesId = (int)currencies?.Find(c => c.CurrencyName == "Gems")?.CurrencyId,
+                    CurrencyBalance = 1000 
+                });
+
+                try
+                {
+                    var newPlayer = _leiaContext.Players.Add(player);
+                    await _leiaContext.SaveChangesAsync();
+
+                    return newPlayer.Entity;
+
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine(ex.Message + "\n" + ex.InnerException?.Message);
+                    throw;
+                }
+            }
+            else throw new ArgumentNullException(nameof(player));
         }
 
         public async Task<double?> GetPlayerBalance(Guid? playerId, int? currencyId)

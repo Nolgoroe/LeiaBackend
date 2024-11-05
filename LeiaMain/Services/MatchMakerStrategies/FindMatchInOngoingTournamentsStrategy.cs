@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -43,6 +44,7 @@ namespace Services.MatchMakerStrategies
             }
             else // if there are no ongoing tournaments, add the request to the WaitingRequests list
             {
+                Debug.WriteLine("=====> Inside no ongoing tournaments, add the request to the WaitingRequests list");
                 _tournamentService.WaitingRequests?.Add(_requests?[0]);
                 _tournamentService.MatchesQueue.Remove(_requests?[0]);
             }

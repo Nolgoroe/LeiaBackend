@@ -1,4 +1,4 @@
-//using CustomMatching.Models;
+﻿//using CustomMatching.Models;
 using Services;
 using DataObjects;
 using Microsoft.AspNetCore.Mvc;
@@ -9,6 +9,7 @@ using System.Text.Json.Serialization;
 using DAL;
 using Microsoft.EntityFrameworkCore;
 using System.Drawing;
+using static Services.TournamentService;
 
 namespace CustomMatching.Controllers
 {
@@ -34,22 +35,36 @@ namespace CustomMatching.Controllers
             _tournamentService.PlayerAddedToTournament += PlayerAddedToTournamentHandler;
         }
 
+        // the destructor is needed to unsubscribe from the event. without it, the Controller will be kept alive after it is done and closed. because the PlayerAddedToTournamentHandler is still connected to the event, and that keeps the Controller instance alive, and not garbage collected
+        ~MatchingController() 
+        { 
+            //_tournamentService.MatchTimer.Stop();
+            _tournamentService.PlayerAddedToTournament -= PlayerAddedToTournamentHandler;
+        }
+        
+
         private void PlayerAddedToTournamentHandler(object? sender, EventArgs e)
-        {
-            if (sender is ValueTuple<int?, int?, Guid[]>)
+        { /// example how to use ValueTuple types 👇🏻
+            ///if (sender is ValueTuple<int?, int?, Guid?[]?>)
+            if (sender is SeedData)
             {
-                var (seed, tournamentId, ids) = (ValueTuple<int?, int?, Guid[]>)sender;
+                ///var (seed, tournamentId, ids) = (ValueTuple<int?, int?, Guid[]>)sender;
+                var seedData = (SeedData)sender;
 
                 // Array.ForEach<Guid>(ids,id =>  _tournamentService?.PlayersSeeds?.Add(id, seed));
-                foreach (var id in ids)
+
+                ///foreach (var id in ids)
+                foreach (var id in seedData?.Ids)
                 {
-                    if (_tournamentService?.PlayersSeeds?.ContainsKey(id) == false)
+
+                    if (id != null && _tournamentService?.PlayersSeeds?.ContainsKey(id) == false)
                     {
-                        _tournamentService?.PlayersSeeds?.Add(id, [tournamentId, seed]);
+                        ///_tournamentService?.PlayersSeeds?.Add(id, [tournamentId, seed]);
+                        _tournamentService?.PlayersSeeds?.Add(id, [seedData?.TournamentId, seedData?.Seed]);
 
                     }
                 }
-                Debug.WriteLine($"Players: {string.Join(", ", ids/*.Select(id => id.ToString())*/)}, in tournament No. {tournamentId}, with seed No. {seed}, were added");
+                Debug.WriteLine($"Players: {string.Join(", ", seedData?.Ids/*ids.Select(id => id.ToString())*/)}, in tournament No. {seedData.TournamentId/*tournamentId*/}, with seed No. {seedData?.Seed/*seed*/}, were added");
             }
         }
 
@@ -63,8 +78,8 @@ namespace CustomMatching.Controllers
             if (currenyType == null) return NotFound("There is no such currency");
 
             var playerBalance = await _suikaDbService.GetPlayerBalance(playerId, currency);
-            if (playerBalance == null) return BadRequest("The id doesn't have a balance of this currency");
-            if (playerBalance < matchFee) return BadRequest("The id doesn't have enough money to join this match");
+            if (playerBalance == null) return BadRequest("The player doesn't have a balance for this currency");
+            if (playerBalance < matchFee) return BadRequest("The player doesn't have enough of this currency to join this match");
             else
             {
                 MatchRequest request = new()
@@ -77,6 +92,9 @@ namespace CustomMatching.Controllers
                 _tournamentService.MatchesQueue.Add(request);
 
                 //_tournamentService.MatchLoopToggle = true;
+
+                // UNSUBSCRIBE FROM THE EVENT! without it, the Controller will be kept alive after it is done and closed. because the PlayerAddedToTournamentHandler is still connected to the event, and that keeps the Controller instance alive, and not garbage collected
+                _tournamentService.PlayerAddedToTournament -= PlayerAddedToTournamentHandler;
                 return Ok($"Match request #{request.RequestId}, added to queue");
             }
 
@@ -86,6 +104,7 @@ namespace CustomMatching.Controllers
         public IActionResult GetWaitingRequests()
         {
             var waiting = _tournamentService.WaitingRequests;
+            _tournamentService.PlayerAddedToTournament -= PlayerAddedToTournamentHandler;
             return Ok(waiting);
         }
 
@@ -93,13 +112,15 @@ namespace CustomMatching.Controllers
         public IActionResult GetOpenGames()
         {
             var openGames = _tournamentService.OngoingTournaments;
+            _tournamentService.PlayerAddedToTournament -= PlayerAddedToTournamentHandler;
             return Ok(openGames);
         }
 
         [HttpGet, Route("GetTournamentSeed/{playerId}")]
         public IActionResult GetTournamentSeed(Guid playerId)
         {
-            //! and check why a seedIds is added several times 
+                //_tournamentService.PlayerAddedToTournament -= PlayerAddedToTournamentHandler;
+            //!  check why a seedIds is added several times 
             if (_tournamentService.PlayersSeeds.TryGetValue(playerId, out int?[]? seedAndId))
             {
                 _tournamentService.PlayersSeeds.Remove(playerId);
@@ -115,9 +136,24 @@ namespace CustomMatching.Controllers
         public IActionResult GetTournamentTypes()
         {
             var tournamentTypes = _suikaDbService.LeiaContext.TournamentTypes.ToList();
+            //_tournamentService.PlayerAddedToTournament -= PlayerAddedToTournamentHandler;
             return Ok(tournamentTypes);
         }
 
+        [HttpGet, Route("StopTimer")]
+        public IActionResult StopTimer()
+        {
+            _tournamentService.StopTimer();
+            return Ok("Timer Stopped");
+        }
+
+        [HttpGet, Route("StartTimer")]
+        public IActionResult StartTimer()
+        {
+            _tournamentService.StartTimer();
+            return Ok("Timer Started");
+        }
+       
         [HttpGet, Route("GetTest")]
         public IActionResult GetTest()
         {

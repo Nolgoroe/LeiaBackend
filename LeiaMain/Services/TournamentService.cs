@@ -13,6 +13,7 @@ using Microsoft.EntityFrameworkCore;
 using DAL;
 using Microsoft.Extensions.Configuration;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
+using System;
 
 namespace Services
 {
@@ -26,11 +27,13 @@ namespace Services
         public Dictionary<Guid?, int?[]> PlayersSeeds { get; set; }
 
         public Task<bool> FindMatchingTournament(TournamentSession? tournament, params MatchRequest?[] requests);
-        public Task CreateNewTournament(MatchRequest? request, MatchRequest? matchedRequest);
+        public Task CreateNewTournament(MatchRequest? matchedRequest, MatchRequest? request);
         public Task<bool> CheckRequestsMatch(MatchRequest r, MatchRequest request);
-        public Task ProcessFirstRequest(MatchRequest firstRequest);
+        public Task<bool> ProcessFirstRequest(MatchRequest firstRequest);
         public Task AddToExistingTournament(MatchRequest? request, MatchRequest? matchedRequest, TournamentSession? matchingTournament);
         public Task<int?> GetTournamentTypeByCurrency(int? currencyId);
+        public void StopTimer();
+        public void StartTimer();
 
 
 
@@ -44,6 +47,7 @@ namespace Services
         private int _numMilliseconds = 6000; // get these numbers from a DB or config file
         private int _maxNumPlayers = 5; // get these numbers from a DB or config file
         private int _scoreVariance = 200; // get these numbers from a DB or config file 
+        private int _scoreVarianceSteps = 400; // get these numbers from a DB or config file 
         private IMatchingStrategy? _currentMatchingStrategy;
         private readonly ISuikaDbService _suikaDbService;
         //private readonly IConfiguration _configuration;
@@ -105,13 +109,24 @@ namespace Services
             await Dispatcher.CreateDefault().InvokeAsync(/*async () =>*/
             //{
                  GetMatch
-                //await GetMatch();
+            //await GetMatch();
             //}
             );
 
-            //if (_timerCycles > 4) MatchTimer.Stop();
+            //if (_timerCycles > 2) MatchTimer.Stop();
         }
 
+        public void StopTimer()
+        {
+            MatchTimer.Stop();
+            MatchTimer.Elapsed -= MatchTimer_Elapsed;
+        }
+
+        public void StartTimer()
+        {
+            MatchTimer.Start();
+            MatchTimer.Elapsed += MatchTimer_Elapsed;
+        }
 
         // Matching Strategies driver code
         public async Task<IEnumerable<TournamentSession>> GetMatch(/*Guid PlayerId*/)
@@ -199,6 +214,15 @@ namespace Services
                  }*/
                 #endregion
             }
+            // check for waiting requests that are in the list for too long without a match
+            else if (WaitingRequests.Count > 0)
+            {
+                _currentMatchingStrategy = new CheckPendingWaitingRequestsStrategy(_suikaDbService, this);
+                while (_currentMatchingStrategy != null)
+                {
+                    _currentMatchingStrategy = await _currentMatchingStrategy.RunStrategy();
+                }
+            }
 
             return OngoingTournaments;
         }
@@ -212,8 +236,8 @@ namespace Services
                     var requestBalance = await _suikaDbService.GetPlayerBalance(request?.Player?.PlayerId, request?.MatchFeeCurrency?.CurrencyId);
 
                     // we check t.Players[0] because the first player in the tournament determines the score that other players should match in that tournament
-
-                    var doesThePlayerMatch = Enumerable.Range(tournament.Players[0].Score - _scoreVariance, tournament.Players[0].Score + _scoreVariance).ToList().Contains(request.Player.Score)
+                    var range = Enumerable.Range(tournament.Players[0].Score - _scoreVariance, _scoreVarianceSteps).ToList();
+                    var doesThePlayerMatch = range.Contains(request.Player.Score)
                         && request?.MatchFeeCurrency?.CurrencyId == tournament.TournamentData.EntryFeeCurrencyId
                         && requestBalance >= tournament.TournamentData.EntryFee;  // check if the matchedRequest.Player't score fits the first player in the ongoing tournament
                     return doesThePlayerMatch;
@@ -224,7 +248,7 @@ namespace Services
             return results.All(r => r.Result == true);
         }
 
-        public async Task CreateNewTournament(MatchRequest? request, MatchRequest? matchedRequest)
+        public async Task CreateNewTournament(MatchRequest? matchedRequest, MatchRequest? request)
         {
             /*var currenyType = await _suikaDbService.LeiaContext.Currencies.FindAsync(matchedRequest?.MatchFeeCurrency?.CurrencyId);
             var tournament1 = new TournamentSession
@@ -238,15 +262,16 @@ namespace Services
             };
             tournament1.Players?.AddRange(new List<Player> { matchedRequest!.Player, request!.Player });
 */
+            if (matchedRequest != null)
+            {
+                var tournament = await SaveNewTournament(matchedRequest.MatchFee, matchedRequest?.MatchFeeCurrency?.CurrencyId, matchedRequest?.Player?.PlayerId, request?.Player?.PlayerId);
 
-            var tournament = await SaveNewTournament(matchedRequest.MatchFee, matchedRequest?.MatchFeeCurrency?.CurrencyId, matchedRequest?.Player?.PlayerId, request?.Player?.PlayerId);
+                Debug.WriteLine($"Player: {matchedRequest?.Player?.PlayerId}, score: {matchedRequest?.Player?.Score},and second player: {request?.Player?.PlayerId}, score: {request?.Player?.Score}, \n were added to tournament: {tournament?.TournamentDataId}.");
 
-            Debug.WriteLine($"Player: {matchedRequest!.Player?.PlayerId}, score: {matchedRequest!.Player?.Score},and second player: {request!.Player?.PlayerId}, score: {request!.Player?.Score}, \n were added to tournament: {tournament?.TournamentDataId}.");
-
-            MatchesQueue.Remove(request);
-            WaitingRequests?.Remove(matchedRequest);
-            OngoingTournaments.Add(tournament);
-
+                MatchesQueue.Remove(request);
+                WaitingRequests?.Remove(matchedRequest);
+                OngoingTournaments.Add(tournament);
+            }
         }
 
         public async Task<bool> CheckRequestsMatch(MatchRequest r, MatchRequest request)
@@ -255,7 +280,8 @@ namespace Services
 
             var requestBalance = await _suikaDbService.GetPlayerBalance(request?.Player?.PlayerId, request?.MatchFeeCurrency?.CurrencyId);
 
-            return Enumerable.Range(r.Player!.Score - _scoreVariance, r.Player!.Score + _scoreVariance).ToList().Contains(request!.Player!.Score)
+            var range = Enumerable.Range(r.Player!.Score - _scoreVariance, _scoreVarianceSteps).ToList();
+            var isMatch = range.Contains(request!.Player!.Score)
 
                                         //  && request?.MatchFee == r.MatchFee // check that both players entered a match on the same amount (e.g. both entered a match on 3$)
 
@@ -264,17 +290,19 @@ namespace Services
                                          && requestBalance >= r.MatchFee // check if the player of the current request has enough money to join the match
                                           && r?.MatchFeeCurrency?.CurrencyId == request?.MatchFeeCurrency?.CurrencyId; // check that both players entered with same type of currency
 
+            return isMatch;
+
 
         }
 
-        public async Task ProcessFirstRequest(MatchRequest firstRequest)
+        public async Task<bool> ProcessFirstRequest(MatchRequest firstRequest)
         {
             var playerBalance = await _suikaDbService.GetPlayerBalance(firstRequest.Player.PlayerId, firstRequest.MatchFeeCurrency.CurrencyId);
             if (playerBalance >= firstRequest?.MatchFee)//! make sure the player has enough money to create the request. even though a player should not be able to select a match type in the client that he doest have enough money for
             {
 
-                WaitingRequests?.Add(firstRequest);
-                MatchesQueue.Remove(firstRequest);
+                // WaitingRequests?.Add(firstRequest);
+                //MatchesQueue.Remove(firstRequest);
 
                 if (OngoingTournaments.Count <= 0) // if there are no open sessions, create a new one
                 {
@@ -284,11 +312,13 @@ namespace Services
 
                     //_session.Players?.Add(request!.Player);
                     OngoingTournaments.Add(tournament);
-                    WaitingRequests.RemoveAt(0); // remove request from the waiting list after moving it into a tournament
-
+                    // WaitingRequests.RemoveAt(0); // remove request from the waiting list after moving it into a tournament
+                    MatchesQueue.Remove(firstRequest);
+                    return true;
                 }
-
+                else return false;
             }
+            else return false;
         }
 
         public async Task AddToExistingTournament(MatchRequest? request, MatchRequest? matchedRequest, TournamentSession? matchingTournament)
@@ -321,7 +351,7 @@ namespace Services
 
                     Debug.WriteLine($"Player: {matchedRequest?.Player?.PlayerId}, score: {matchedRequest?.Player?.Score},and second player: {request?.Player?.PlayerId}, score: {request?.Player?.Score}, \n were added to tournament: {savedTournament?.Entity?.TournamentSessionId}.");
 
-                    if (saved > 0) SendPlayerAndSeed(savedTournament?.Entity?.TournamentSeed, savedTournament?.Entity?.TournamentSessionId, matchedRequest.Player.PlayerId, request.Player.PlayerId);
+                    if (saved > 0) SendPlayerAndSeed(savedTournament?.Entity?.TournamentSeed, savedTournament?.Entity?.TournamentSessionId, matchedRequest?.Player?.PlayerId, request?.Player?.PlayerId);
 
                 }
                 catch (Exception ex)
@@ -345,7 +375,7 @@ namespace Services
 
         public async Task<int?> GetTournamentTypeByCurrency(int? currencyId)
         {
-            var currency = await _suikaDbService.LeiaContext.Currencies.FindAsync(currencyId);
+            var currency = _suikaDbService.LeiaContext.Currencies.Find(currencyId);
             var tournamentTypes = _suikaDbService.LeiaContext.TournamentTypes.ToList();
             switch (currency?.CurrencyName)
             {
@@ -362,13 +392,39 @@ namespace Services
         public async Task<TournamentSession?> SaveNewTournament(double matchFee, int? currencyId, params Guid?[]? playerIds)
         {
 
+            Debug.WriteLine($"=====> Inside SaveNewTournament, with players: {string.Join(", ", playerIds)}");
+            var currency = _suikaDbService.LeiaContext.Currencies.Find(currencyId);
 
-            var currency = await _suikaDbService.LeiaContext.Currencies.FindAsync(currencyId);
-
-            var dbPlayers = playerIds?.Select(id =>
+            List<Player> dbPlayers = new();
+            foreach (var id in playerIds)
             {
-                return _suikaDbService.LeiaContext.Players.Find(id);
-            }).ToList();
+                try
+                {
+                    var player = _suikaDbService.LeiaContext.Players.Find(id);
+                    if (player != null) dbPlayers.Add(player);
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine(ex.Message + "\n" + ex.InnerException?.Message);
+                    throw;
+                }
+            }
+
+        /*    var dbPlayers1 = playerIds?.Select(id =>
+            {
+                try
+                {
+                    var player = _suikaDbService.LeiaContext.Players.Find(id);
+                    if (player != null) return player;
+                    else throw new NullReferenceException($"Player with id: {id}, was not found in the database");
+
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine(ex.Message + "\n" + ex.InnerException?.Message);
+                    throw;
+                }
+            }).ToList();*/
 
             var tournamentTypeId = await GetTournamentTypeByCurrency(currencyId);
 
@@ -393,11 +449,11 @@ namespace Services
             try
             {
 
-                var savedTournament =  _suikaDbService?.LeiaContext?.Tournaments?.Add(tournament);
-                var saved =  await _suikaDbService?.LeiaContext?.SaveChangesAsync();
+                var savedTournament = _suikaDbService?.LeiaContext?.Tournaments?.Add(tournament);
+                var saved = await _suikaDbService?.LeiaContext?.SaveChangesAsync();
 
-                var idsArray = dbPlayers?.Select(p => p.PlayerId).ToArray();
-                if (saved > 0) SendPlayerAndSeed(savedTournament?.Entity?.TournamentSeed, savedTournament?.Entity?.TournamentSessionId, idsArray); 
+                var idsArray = dbPlayers?.Select(p => p?.PlayerId).ToArray();
+                if (saved > 0) SendPlayerAndSeed(savedTournament?.Entity?.TournamentSeed, savedTournament?.Entity?.TournamentSessionId, idsArray);
                 return savedTournament?.Entity;
             }
             catch (Exception ex)
@@ -409,10 +465,25 @@ namespace Services
 
         }
 
-        private void SendPlayerAndSeed(int? seed, int? tournamentId, params Guid[] playerIds)
+        private void SendPlayerAndSeed(int? seed, int? tournamentId, params Guid?[]? playerIds)
         {
-            var data = (Seed: seed, TournamentId: tournamentId, Ids: playerIds);
+            var subscribers = PlayerAddedToTournament?.GetInvocationList().Length ?? 0;
+            Debug.WriteLine($"Attempting to raise event. Number of subscribers: {subscribers}");
+            /// example how to use ValueTuple types 👇🏻
+            ///var data = (Seed: seed, TournamentId: tournamentId, Ids: playerIds);
+            SeedData data = new() { Seed = seed, TournamentId = tournamentId, Ids = playerIds };
             PlayerAddedToTournament?.Invoke(data, new EventArgs());
+        }
+
+        /// <summary>
+        /// Container class to hold data to send to the player/seed list
+        /// </summary>
+        public class SeedData
+        {
+            public int? Seed { get; set; }
+            public int? TournamentId { get; set; }
+            public Guid?[]? Ids { get; set; }
+
         }
 
         public async Task CloseTimedOutMatches()
