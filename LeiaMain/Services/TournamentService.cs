@@ -239,7 +239,8 @@ namespace Services
                     var range = Enumerable.Range(tournament.Players[0].Score - _scoreVariance, _scoreVarianceSteps).ToList();
                     var doesThePlayerMatch = range.Contains(request.Player.Score)
                         && request?.MatchFeeCurrency?.CurrencyId == tournament.TournamentData.EntryFeeCurrencyId
-                        && requestBalance >= tournament.TournamentData.EntryFee;  // check if the matchedRequest.Player't score fits the first player in the ongoing tournament
+                        && requestBalance >= tournament.TournamentData.EntryFee  // check if the matchedRequest.Player't score fits the first player in the ongoing tournament
+                        && tournament?.Players?.Any(p => p?.PlayerId == request?.Player?.PlayerId) == false; // makes sure that the player is not already in the tournament
                     return doesThePlayerMatch;
                 }
                 else return false;
@@ -432,6 +433,7 @@ namespace Services
             var tournament = new TournamentSession
             {
                 TournamentSeed = new Random().Next(),
+                IsOpen = true,
                 TournamentData = new TournamentData
                 {
                     EntryFee = matchFee,

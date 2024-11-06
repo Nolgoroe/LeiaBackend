@@ -33,6 +33,7 @@ namespace CustomMatching.Controllers
 
             _tournamentService.MatchTimer.Start();
             _tournamentService.PlayerAddedToTournament += PlayerAddedToTournamentHandler;
+            // UNSUBSCRIBE FROM THE EVENT! In any endpoint we should unsubscribe from this event because it is subscribed in any call to the Controller. The only exception to that is the GetTournamentTypes(), which is called first and keeps 1 event listener alive so the PlayerAddedToTournamentHandler method will prompt every time the event is raised 
         }
 
         // the destructor is needed to unsubscribe from the event. without it, the Controller will be kept alive after it is done and closed. because the PlayerAddedToTournamentHandler is still connected to the event, and that keeps the Controller instance alive, and not garbage collected
@@ -91,7 +92,6 @@ namespace CustomMatching.Controllers
                 };
                 _tournamentService.MatchesQueue.Add(request);
 
-                //_tournamentService.MatchLoopToggle = true;
 
                 // UNSUBSCRIBE FROM THE EVENT! without it, the Controller will be kept alive after it is done and closed. because the PlayerAddedToTournamentHandler is still connected to the event, and that keeps the Controller instance alive, and not garbage collected
                 _tournamentService.PlayerAddedToTournament -= PlayerAddedToTournamentHandler;
@@ -119,7 +119,7 @@ namespace CustomMatching.Controllers
         [HttpGet, Route("GetTournamentSeed/{playerId}")]
         public IActionResult GetTournamentSeed(Guid playerId)
         {
-                //_tournamentService.PlayerAddedToTournament -= PlayerAddedToTournamentHandler;
+                _tournamentService.PlayerAddedToTournament -= PlayerAddedToTournamentHandler;
             //!  check why a seedIds is added several times 
             if (_tournamentService.PlayersSeeds.TryGetValue(playerId, out int?[]? seedAndId))
             {
@@ -136,19 +136,21 @@ namespace CustomMatching.Controllers
         public IActionResult GetTournamentTypes()
         {
             var tournamentTypes = _suikaDbService.LeiaContext.TournamentTypes.ToList();
+
+            /// DON'T UNSUBSCRIBE FROM THE EVENT HERE! this keeps the PlayerAddedToTournamentHandler  connected to the event, and that makes sure  the PlayerAddedToTournamentHandler method is fired 
             //_tournamentService.PlayerAddedToTournament -= PlayerAddedToTournamentHandler;
             return Ok(tournamentTypes);
         }
 
         [HttpGet, Route("StopTimer")]
-        public IActionResult StopTimer()
+        private IActionResult StopTimer()
         {
             _tournamentService.StopTimer();
             return Ok("Timer Stopped");
         }
 
         [HttpGet, Route("StartTimer")]
-        public IActionResult StartTimer()
+        private IActionResult StartTimer()
         {
             _tournamentService.StartTimer();
             return Ok("Timer Started");
@@ -163,7 +165,7 @@ namespace CustomMatching.Controllers
 
         // dump endpoint for testing stuff. DO NOT USE! 
         [HttpGet, Route("GetPlayerBalance/{playerId}/{currencyId}")]
-        public async Task<IActionResult> GetPlayerBalance(Guid? playerId, int? currencyId)
+        private async Task<IActionResult> GetPlayerBalance(Guid? playerId, int? currencyId)
         {
             var playerCurrency = await _suikaDbService.LeiaContext.PlayerCurrencies.FirstOrDefaultAsync(pc => pc.PlayerId == playerId && pc.CurrenciesId == currencyId);
 
