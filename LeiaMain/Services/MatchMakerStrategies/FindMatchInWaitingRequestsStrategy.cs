@@ -30,6 +30,7 @@ namespace Services.MatchMakerStrategies
             //FOUND A MATCH IN THE WaitingRequests LIST
             // if the players match, add them to a tournament
 
+            if (request1?.Player?.PlayerId == request2?.Player?.PlayerId) return null;
             if (_tournamentService.OngoingTournaments.Count <= 0) // if there is no current tournament, create a new one
             {
                 await _tournamentService.CreateNewTournament(request1, request2);
