@@ -19,7 +19,7 @@ namespace Services.MatchMakerStrategies
         {
             if (_tournamentService.WaitingRequests.Count > 0) // make sure the list has members in it before iterating on it
             {
-                var oldRequests = _tournamentService?.WaitingRequests?.Where(r => r?.RequestTime.AddSeconds(12) <= DateTime.Now).ToList();
+                var oldRequests = _tournamentService?.WaitingRequests?.Where(r => r?.RequestTime.AddMilliseconds(_tournamentService.NumMilliseconds*2) <= DateTime.Now).ToList();
 
                 for (int i = 0; i < oldRequests?.Count; i++)
                 {

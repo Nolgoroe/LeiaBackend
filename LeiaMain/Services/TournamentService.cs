@@ -26,6 +26,7 @@ namespace Services
         public System.Timers.Timer MatchTimer { get; set; }
         public event EventHandler PlayerAddedToTournament;
         public Dictionary<Guid?, int?[]> PlayersSeeds { get; set; }
+        public int NumMilliseconds { get; set; }
 
         public Task<bool> FindMatchingTournament(TournamentSession? tournament, params MatchRequest?[] requests);
         public Task CreateNewTournament(MatchRequest? matchedRequest, MatchRequest? request);
@@ -45,8 +46,8 @@ namespace Services
     {
         private int _timerCycles = 0;
 
-        private int _numMilliseconds = 6000; // get these numbers from a DB or config file
-        private int _maxNumPlayers = 5; // get these numbers from a DB or config file
+        public int NumMilliseconds { get; set; } = 500; // get these numbers from a DB or config file
+        private int _maxNumPlayers = 6; // get these numbers from a DB or config file
         private int _scoreVariance = 200; // get these numbers from a DB or config file 
         private int _scoreVarianceSteps = 400; // get these numbers from a DB or config file 
         private IMatchingStrategy? _currentMatchingStrategy;
@@ -87,7 +88,7 @@ namespace Services
         {
             MatchTimer = new System.Timers.Timer
             {
-                Interval = _numMilliseconds
+                Interval = NumMilliseconds
             };
             MatchTimer.Elapsed += MatchTimer_Elapsed;
             MatchTimer.AutoReset = true;
@@ -97,7 +98,7 @@ namespace Services
         {
             Debug.WriteLine("One match cycle ticked");
 
-            //MatchTimer.Interval = _numMilliseconds * 10;
+            //MatchTimer.Interval = NumMilliseconds * 10;
             _timerCycles++;
 
             ///<summary>
