@@ -22,7 +22,7 @@ namespace Services
     {
         public List<MatchRequest> MatchesQueue { get; set; }
         public List<MatchRequest> WaitingRequests { get; }
-        public List<TournamentSession> OngoingTournaments { get; }
+        public List<TournamentSession> OngoingTournaments { get; set; }
         public System.Timers.Timer MatchTimer { get; set; }
         public event EventHandler PlayerAddedToTournament;
         public Dictionary<Guid?, int?[]> PlayersSeeds { get; set; }
@@ -46,12 +46,13 @@ namespace Services
     {
         private int _timerCycles = 0;
 
-        public int NumMilliseconds { get; set; } = 500; // get these numbers from a DB or config file
-        private int _maxNumPlayers = 6; // get these numbers from a DB or config file
-        private int _scoreVariance = 200; // get these numbers from a DB or config file 
-        private int _scoreVarianceSteps = 400; // get these numbers from a DB or config file 
+        public int NumMilliseconds { get; set; } = 500; // get these numbers from tournament DB or config file
+        private int _maxNumPlayers = 6; // get these numbers from tournament DB or config file
+        private int _scoreVariance = 200; // get these numbers from tournament DB or config file 
+        private int _scoreVarianceSteps = 400; // get these numbers from tournament DB or config file 
         private IMatchingStrategy? _currentMatchingStrategy;
         private readonly ISuikaDbService _suikaDbService;
+        private SemaphoreSlim _semaphore;
         //private readonly IConfiguration _configuration;
         private JsonSerializerOptions _jsonOptions;
         public event EventHandler PlayerAddedToTournament;
@@ -60,7 +61,7 @@ namespace Services
         public System.Timers.Timer MatchTimer { get; set; }
         public List<MatchRequest> MatchesQueue { get; set; }
         public List<MatchRequest> WaitingRequests { get; private set; }
-        public List<TournamentSession> OngoingTournaments { get; private set; }
+        public List<TournamentSession> OngoingTournaments { get;  set; }
 
         public TournamentService(/*IConfiguration configuration */)
         {
@@ -70,6 +71,7 @@ namespace Services
             //_configuration = configuration;
             _suikaDbService = new SuikaDbService(new LeiaContext());
             //_suikaDbService = new SuikaDbService(new LeiaContext(configuration.GetConnectionString("SuikaDb"))) /*suikaDbService*/;
+            _semaphore = new SemaphoreSlim(1, 1);
             _jsonOptions = new()
             {
                 ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles,
@@ -130,103 +132,129 @@ namespace Services
             MatchTimer.Elapsed += MatchTimer_Elapsed;
         }
 
+
         // Matching Strategies driver code
         public async Task<IEnumerable<TournamentSession>> GetMatch(/*Guid PlayerId*/)
         {
-
             Debug.WriteLine(JsonSerializer.Serialize<List<MatchRequest>>(MatchesQueue, _jsonOptions));
-
-            if (MatchesQueue.Count > 0)
+            // Attempt to enter the semaphore immediately
+            if (await _semaphore.WaitAsync(0))
             {
-                //_strategiesHandler.InitiateStrategies();
-                _currentMatchingStrategy = new CheckFirstRequestStrategy(_suikaDbService, this);
-                while (_currentMatchingStrategy != null)
+                try
                 {
-                    _currentMatchingStrategy = await _currentMatchingStrategy.RunStrategy();
-                }
-                #region Full Matching logic 
-                /* // FIRST REQUEST PART
-                 if (WaitingRequests.Count <= 0)// check if there are any waiting requests. if not, add one the to list ( = the first request)
-                 {
-                     ProcessFirstRequest(MatchesQueue[0]);
-                 }
-                 // MULTIPLE REQUESTS PART
-                 else if (MatchesQueue.Count > 0)
-                 {
-
-                     var ordered = MatchesQueue.OrderByDescending(m => m.Player?.Score).ToList();
-
-                     foreach (var request in ordered)
-                     {
-                         if (WaitingRequests.Any()) // make sure the list is not empty before iterating on it
-                         {
-                             // FIND MATCH IN WaitingRequests PART
-                             var matchedRequest = WaitingRequests?.FirstOrDefault(r => CheckRequestsMatch(r, request).Result); // check if the current request in queue, matches any of the previous requests the in the WaitingRequests list, by Score and if the players have enough money
-
-                             //FOUND A MATCH IN THE WaitingRequests LIST
-                             if (matchedRequest != null) // if the players match, add them to a tournament
+                    // Create tournament new DbContext instance for this operation
+                    using (var context = new LeiaContext())
+                    {
+                        _suikaDbService.LeiaContext = context;
+                        Debug.WriteLine($"=====> Inside GetMatch. Semaphore was entered with context {context.ContextId}");
+                        if (MatchesQueue.Count > 0)
+                        {
+                            //_strategiesHandler.InitiateStrategies();
+                            _currentMatchingStrategy = new CheckFirstRequestStrategy(_suikaDbService, this);
+                            while (_currentMatchingStrategy != null)
+                            {
+                                _currentMatchingStrategy = await _currentMatchingStrategy.RunStrategy();
+                            }
+                            #region Full Matching logic 
+                            /* // FIRST REQUEST PART
+                             if (WaitingRequests.Count <= 0)// check if there are any waiting requests. if not, add one the to list ( = the first request)
                              {
+                                 ProcessFirstRequest(MatchesQueue[0]);
+                             }
+                             // MULTIPLE REQUESTS PART
+                             else if (MatchesQueue.Count > 0)
+                             {
+
+                                 var ordered = MatchesQueue.OrderByDescending(m => m.Player?.Score).ToList();
+
+                                 foreach (var request in ordered)
+                                 {
+                                     if (WaitingRequests.Any()) // make sure the list is not empty before iterating on it
+                                     {
+                                         // FIND MATCH IN WaitingRequests PART
+                                         var matchedRequest = WaitingRequests?.FirstOrDefault(r => CheckRequestsMatch(r, request).Result); // check if the current request in queue, matches any of the previous requests the in the WaitingRequests list, by Score and if the players have enough money
+
+                                         //FOUND A MATCH IN THE WaitingRequests LIST
+                             if (matchedRequest != null) // if the players match, add them to a tournament
+                                         {
                                  if (OngoingTournaments.Count <= 0) // if there is no current tournament, create a new one
-                                 {
-                                    await CreateNewTournament(request, matchedRequest);
-                                 }
+                                             {
+                                                await CreateNewTournament(request, matchedRequest);
+                                             }
                                  else if (OngoingTournaments.Count > 0) // if there is a current tournament, see if the matchedRequest and the request could fit any other open tournaments
-                                 {
-                                     var matchingTournament = OngoingTournaments.FirstOrDefault(t => FindMatchingTournament(t, request, matchedRequest).Result);
+                                             {
+                                                 var matchingTournament = OngoingTournaments.FirstOrDefault(t => FindMatchingTournament(t, request, matchedRequest).Result);
 
                                      if (matchingTournament == null) // if it doesn't match other tournaments, create a new one
-                                     {
-                                         await CreateNewTournament(request, matchedRequest);
-                                     }
-                                     else // meaning there is a fitting tournament for the current request and the found matchedRequest
-                                     {
-                                         await AddToExistingTournament(request, matchedRequest, matchingTournament);
-                                     }
-                                 }
-                             }
+                                                 {
+                                                     await CreateNewTournament(request, matchedRequest);
+                                                 }
+                                                 else // meaning there is tournament fitting tournament for the current request and the found matchedRequest
+                                                 {
+                                                     await AddToExistingTournament(request, matchedRequest, matchingTournament);
+                                                 }
+                                             }
+                                         }
 
-                             // IF NO MATCH IN THE WaitingRequests LIST, FIND MATCH IN OngoingTournaments PART
+                                         // IF NO MATCH IN THE WaitingRequests LIST, FIND MATCH IN OngoingTournaments PART
                              else // if the players don't match, check for a matching ongoing tournament, and if there isn't one, add the requesting player to WaitingRequests
-                             {
-                                 if (OngoingTournaments.Count > 0) // check if the current request can fit into one of the opened tournaments  
-                                 {
-                                     var matchingTournament = OngoingTournaments.FirstOrDefault(t => FindMatchingTournament(t, request).Result
-                                      // check if the request.Player't score fits the first player in the ongoing tournament, because the first player in the tournament determines the score that other players should match in that tournament
-                                      );
+                                         {
+                                             if (OngoingTournaments.Count > 0) // check if the current request can fit into one of the opened tournaments  
+                                             {
+                                                 var matchingTournament = OngoingTournaments.FirstOrDefault(t => FindMatchingTournament(t, request).Result
+                                                  // check if the request.Player't score fits the first player in the ongoing tournament, because the first player in the tournament determines the score that other players should match in that tournament
+                                                  );
 
-                                     //FOUND A MATCH IN THE OngoingTournaments LIST
+                                                 //FOUND A MATCH IN THE OngoingTournaments LIST
                                      if (matchingTournament != null) await AddToExistingTournament(request, null, matchingTournament); // if we find a matching tournament, add the request to it
 
-                                     // IF NO MATCH IN OngoingTournaments
-                                     else //if not add the request to the WaitingRequests list
-                                     {
-                                         WaitingRequests?.Add(request);
-                                         MatchesQueue.Remove(request);
-                                     }
+                                                 // IF NO MATCH IN OngoingTournaments
+                                                 else //if not add the request to the WaitingRequests list
+                                                 {
+                                                     WaitingRequests?.Add(request);
+                                                     MatchesQueue.Remove(request);
+                                                 }
 
+                                             }
+                                             else // if there are no ongoing tournaments, add the request to the WaitingRequests list
+                                             {
+                                                 WaitingRequests?.Add(request);
+                                                 MatchesQueue.Remove(request);
+                                             }
+                                         }
+                                     }
                                  }
-                                 else // if there are no ongoing tournaments, add the request to the WaitingRequests list
-                                 {
-                                     WaitingRequests?.Add(request);
-                                     MatchesQueue.Remove(request);
-                                 }
-                             }
-                         }
-                     }
-                 }*/
-                #endregion
-            }
-            // check for waiting requests that are in the list for too long without a match
-            else if (WaitingRequests.Count > 0)
-            {
-                _currentMatchingStrategy = new CheckPendingWaitingRequestsStrategy(_suikaDbService, this);
-                while (_currentMatchingStrategy != null)
+                             }*/
+                            #endregion
+                        }
+                        // check for waiting requests that are in the list for too long without tournament match
+                        else if (WaitingRequests.Count > 0)
+                        {
+                            _currentMatchingStrategy = new CheckPendingWaitingRequestsStrategy(_suikaDbService, this);
+                            while (_currentMatchingStrategy != null)
+                            {
+                                _currentMatchingStrategy = await _currentMatchingStrategy.RunStrategy();
+                            }
+                        }
+                        return OngoingTournaments;
+                    }
+                }
+                catch (Exception ex)
                 {
-                    _currentMatchingStrategy = await _currentMatchingStrategy.RunStrategy();
+                    Debug.WriteLine(ex.Message + "\n" + ex.InnerException?.Message);
+                    throw;
+                }
+                finally
+                {
+                    // Ensure the semaphore is released even if an exception occurs
+                    _semaphore.Release();
                 }
             }
-
-            return OngoingTournaments;
+            else
+            {
+                Debug.WriteLine("=====> Inside GetMatch. The semaphore was not entered because an operation is already in progress");
+                return OngoingTournaments;
+            }
         }
 
         public async Task<bool> FindMatchingTournament(TournamentSession? tournament, params MatchRequest?[] requests)
@@ -299,204 +327,233 @@ namespace Services
         }
 
 
-    public async Task<bool> ProcessFirstRequest(MatchRequest firstRequest)
-    {
-        var playerBalance = await _suikaDbService.GetPlayerBalance(firstRequest.Player.PlayerId, firstRequest.MatchFeeCurrency.CurrencyId);
-        if (playerBalance >= firstRequest?.MatchFee)//! make sure the player has enough money to create the request. even though a player should not be able to select a match type in the client that he doest have enough money for
+        public async Task<bool> ProcessFirstRequest(MatchRequest firstRequest)
         {
+            var playerBalance = await _suikaDbService.GetPlayerBalance(firstRequest.Player.PlayerId, firstRequest.MatchFeeCurrency.CurrencyId);
+        if (playerBalance >= firstRequest?.MatchFee)//! make sure the player has enough money to create the request. even though a player should not be able to select a match type in the client that he doest have enough money for
+            {
 
-            // WaitingRequests?.Add(firstRequest);
-            //MatchesQueue.Remove(firstRequest);
+                // WaitingRequests?.Add(firstRequest);
+                //MatchesQueue.Remove(firstRequest);
 
             if (OngoingTournaments.Count <= 0) // if there are no open sessions, create a new one
-            {
-                var tournament = await SaveNewTournament(firstRequest.MatchFee, firstRequest.MatchFeeCurrency.CurrencyId, firstRequest.Player.PlayerId);
+                {
+                    var tournament = await SaveNewTournament(firstRequest.MatchFee, firstRequest.MatchFeeCurrency.CurrencyId, firstRequest.Player.PlayerId);
 
-                Debug.WriteLine($"Player: {firstRequest?.Player?.PlayerId}, score: {firstRequest?.Player?.Score}, was added to tournament: {tournament?.TournamentSessionId}.");
+                    Debug.WriteLine($"Player: {firstRequest?.Player?.PlayerId}, score: {firstRequest?.Player?.Score}, was added to tournament: {tournament?.TournamentSessionId}.");
 
-                //_session.Players?.Add(request!.Player);
-                OngoingTournaments.Add(tournament);
+                    //_session.Players?.Add(request!.Player);
+                    OngoingTournaments.Add(tournament);
                 // WaitingRequests.RemoveAt(0); // remove request from the waiting list after moving it into a tournament
-                MatchesQueue.Remove(firstRequest);
-                return true;
+                    MatchesQueue.Remove(firstRequest);
+                    return true;
+                }
+                else return false;
             }
             else return false;
         }
-        else return false;
-    }
 
-    public async Task AddToExistingTournament(MatchRequest? request, MatchRequest? matchedRequest, TournamentSession? matchingTournament)
-    {
-        if (matchingTournament?.Players?.Count < _maxNumPlayers) // if tournament has room in it, add the current request player
+        public async Task AddToExistingTournament(MatchRequest? request, MatchRequest? matchedRequest, TournamentSession? matchingTournament)
         {
-            var dbTournament = _suikaDbService.LeiaContext.Tournaments.Find(matchingTournament?.TournamentSessionId);
-            if (matchedRequest != null)
+            if (matchingTournament?.Players?.Count < _maxNumPlayers) // if tournament has room in it, add the current request player
             {
-                var dbPlayer = _suikaDbService.LeiaContext.Players.Find(matchedRequest?.Player?.PlayerId);
+                var dbTournament = _suikaDbService.LeiaContext.Tournaments.Find(matchingTournament?.TournamentSessionId);
+                if (matchedRequest != null)
+                {
+                    var dbPlayer = _suikaDbService.LeiaContext.Players.Find(matchedRequest?.Player?.PlayerId);
 
-                if (dbPlayer != null) dbTournament?.Players?.Add(dbPlayer);
-                WaitingRequests?.Remove(matchedRequest);
+                    if (dbPlayer != null) dbTournament?.Players?.Add(dbPlayer);
+                    //WaitingRequests?.Remove(matchedRequest);
+                }
+
+                if (request != null)
+                {
+                    var dbPlayer = _suikaDbService.LeiaContext.Players.Find(request?.Player?.PlayerId);
+
+                    if (dbPlayer != null) dbTournament?.Players?.Add(dbPlayer);
+                    //MatchesQueue.Remove(request);
+                }
+                // try to update the tournament in the database
+                try
+                {
+                    _suikaDbService.LeiaContext.Entry(dbTournament).State = EntityState.Modified;
+
+                    var savedTournament = _suikaDbService?.LeiaContext?.Tournaments?.Update(dbTournament);
+                    var saved = await _suikaDbService?.LeiaContext?.SaveChangesAsync();
+
+                    Debug.WriteLine($"Player: {matchedRequest?.Player?.PlayerId}, score: {matchedRequest?.Player?.Score}, and second player: {request?.Player?.PlayerId}, score: {request?.Player?.Score}, \n were added to tournament: {savedTournament?.Entity?.TournamentSessionId}.");
+
+                    if (saved > 0)//if the tournament was saved to the DB -
+                    {
+                        // update the tournament in the OngoingTournaments list
+                        if (matchedRequest != null)
+                        {
+                            matchingTournament?.Players.Add(matchedRequest?.Player);
+                            matchingTournament?.PlayerTournamentSessions?.Add(new PlayerTournamentSession
+                            {
+                                PlayerId = matchedRequest.Player.PlayerId,
+                                TournamentSessionId = matchingTournament.TournamentSessionId,
+                                PlayerScore = matchedRequest.Player.Score,
+                            }
+                            );
+                            WaitingRequests?.Remove(matchedRequest);
+                        }
+
+                        if (request != null)
+                        {
+                            matchingTournament?.Players.Add(request?.Player);
+                            matchingTournament?.PlayerTournamentSessions?.Add(new PlayerTournamentSession
+                            {
+                                PlayerId = request.Player.PlayerId,
+                                TournamentSessionId = matchingTournament.TournamentSessionId,
+                                PlayerScore = request.Player.Score,
+                            }
+                          ); 
+                            MatchesQueue.Remove(request);
+                        }
+                        // send the tournament seed to controller list
+                        SendPlayerAndSeed(savedTournament?.Entity?.TournamentSeed, savedTournament?.Entity?.TournamentSessionId, matchedRequest?.Player?.PlayerId, request?.Player?.PlayerId);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine(ex.Message + "\n" + ex.InnerException?.Message);
+                }
+
             }
-
-            if (request != null)
+            if (matchingTournament?.Players?.Count >= _maxNumPlayers) // if tournament is full, then close it and send it's data
             {
-                var dbPlayer = _suikaDbService.LeiaContext.Players.Find(request?.Player?.PlayerId);
+                if (matchingTournament != null)
+                {
+                    Debug.WriteLine(JsonSerializer.Serialize<TournamentSession>(matchingTournament, _jsonOptions));
+                    //todo send matchingTournament data
 
-                if (dbPlayer != null) dbTournament?.Players?.Add(dbPlayer);
-                MatchesQueue.Remove(request);
-            }
-
-            try
-            {
-                _suikaDbService.LeiaContext.Entry(dbTournament).State = EntityState.Modified;
-
-                var savedTournament = _suikaDbService?.LeiaContext?.Tournaments?.Update(dbTournament);
-                var saved = await _suikaDbService?.LeiaContext?.SaveChangesAsync();
-
-                Debug.WriteLine($"Player: {matchedRequest?.Player?.PlayerId}, score: {matchedRequest?.Player?.Score},and second player: {request?.Player?.PlayerId}, score: {request?.Player?.Score}, \n were added to tournament: {savedTournament?.Entity?.TournamentSessionId}.");
-
-                if (saved > 0) SendPlayerAndSeed(savedTournament?.Entity?.TournamentSeed, savedTournament?.Entity?.TournamentSessionId, matchedRequest?.Player?.PlayerId, request?.Player?.PlayerId);
-
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine(ex.Message + "\n" + ex.InnerException?.Message);
-            }
-
-        }
-        if (matchingTournament?.Players?.Count >= _maxNumPlayers) // if tournament is full, then close it and send it's data
-        {
-            if (matchingTournament != null)
-            {
-                Debug.WriteLine(JsonSerializer.Serialize<TournamentSession>(matchingTournament, _jsonOptions));
-                //todo send matchingTournament data
-
-                OngoingTournaments.Remove(matchingTournament);
-                //// WaitingRequests?.Remove(matchedRequest);
-            }
-        }
-    }
-
-    public async Task<int?> GetTournamentTypeByCurrency(int? currencyId)
-    {
-        var currency = _suikaDbService.LeiaContext.Currencies.Find(currencyId);
-        var tournamentTypes = _suikaDbService.LeiaContext.TournamentTypes.ToList();
-        switch (currency?.CurrencyName)
-        {
-            case "Gems":
-                return tournamentTypes.FirstOrDefault(tt => tt.TournamentTypeName == "Free")?.TournamentTypeId;
-
-            default:
-                return tournamentTypes.FirstOrDefault(tt => tt.TournamentTypeName == "Paid")?.TournamentTypeId;
-
-        }
-
-    }
-
-    public async Task<TournamentSession?> SaveNewTournament(double matchFee, int? currencyId, params Guid?[]? playerIds)
-    {
-
-        Debug.WriteLine($"=====> Inside SaveNewTournament, with players: {string.Join(", ", playerIds)}");
-        var currency = _suikaDbService.LeiaContext.Currencies.Find(currencyId);
-
-        List<Player> dbPlayers = new();
-        foreach (var id in playerIds)
-        {
-            try
-            {
-                var player = _suikaDbService.LeiaContext.Players.Find(id);
-                if (player != null) dbPlayers.Add(player);
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine(ex.Message + "\n" + ex.InnerException?.Message);
-                throw;
+                    OngoingTournaments.Remove(matchingTournament);
+                    //// WaitingRequests?.Remove(matchedRequest);
+                }
             }
         }
 
-        /*    var dbPlayers1 = playerIds?.Select(id =>
+        public async Task<int?> GetTournamentTypeByCurrency(int? currencyId)
+        {
+            var currency = _suikaDbService.LeiaContext.Currencies.Find(currencyId);
+            var tournamentTypes = _suikaDbService.LeiaContext.TournamentTypes.ToList();
+            switch (currency?.CurrencyName)
+            {
+                case "Gems":
+                    return tournamentTypes.FirstOrDefault(tt => tt.TournamentTypeName == "Free")?.TournamentTypeId;
+
+                default:
+                    return tournamentTypes.FirstOrDefault(tt => tt.TournamentTypeName == "Paid")?.TournamentTypeId;
+
+            }
+
+        }
+
+        public async Task<TournamentSession?> SaveNewTournament(double matchFee, int? currencyId, params Guid?[]? playerIds)
+        {
+
+            Debug.WriteLine($"=====> Inside SaveNewTournament, with players: {string.Join(", ", playerIds)}");
+            var currency = _suikaDbService.LeiaContext.Currencies.Find(currencyId);
+
+            List<Player> dbPlayers = new();
+            foreach (var id in playerIds)
             {
                 try
                 {
                     var player = _suikaDbService.LeiaContext.Players.Find(id);
-                    if (player != null) return player;
-                    else throw new NullReferenceException($"Player with id: {id}, was not found in the database");
-
+                    if (player != null) dbPlayers.Add(player);
                 }
                 catch (Exception ex)
                 {
                     Debug.WriteLine(ex.Message + "\n" + ex.InnerException?.Message);
                     throw;
                 }
-            }).ToList();*/
-
-        var tournamentTypeId = await GetTournamentTypeByCurrency(currencyId);
-
-
-        var tournament = new TournamentSession
-        {
-            TournamentSeed = new Random().Next(),
-            IsOpen = true,
-            TournamentData = new TournamentData
-            {
-                EntryFee = matchFee,
-                EntryFeeCurrencyId = currency.CurrencyId,
-                EarningCurrencyId = currency.CurrencyId,
-                TournamentTypeId = (int)tournamentTypeId,
-                TournamentStart = DateTime.Now,
-                TournamentEnd = DateTime.Now.AddDays(1),
-
             }
-        };
-        tournament.Players?.AddRange(dbPlayers);
-        _suikaDbService.LeiaContext.Entry(currency).State = EntityState.Detached;
 
-        try
-        {
+            /*    var dbPlayers1 = playerIds?.Select(id =>
+                {
+                    try
+                    {
+                        var player = _suikaDbService.LeiaContext.Players.Find(id);
+                        if (player != null) return player;
+                        else throw new NullReferenceException($"Player with id: {id}, was not found in the database");
 
-            var savedTournament = _suikaDbService?.LeiaContext?.Tournaments?.Add(tournament);
-            var saved = await _suikaDbService?.LeiaContext?.SaveChangesAsync();
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine(ex.Message + "\n" + ex.InnerException?.Message);
+                        throw;
+                    }
+                }).ToList();*/
 
-            var idsArray = dbPlayers?.Select(p => p?.PlayerId).ToArray();
-            if (saved > 0) SendPlayerAndSeed(savedTournament?.Entity?.TournamentSeed, savedTournament?.Entity?.TournamentSessionId, idsArray);
-            return savedTournament?.Entity;
+            var tournamentTypeId = await GetTournamentTypeByCurrency(currencyId);
+
+
+            var tournament = new TournamentSession
+            {
+                TournamentSeed = new Random().Next(),
+                IsOpen = true,
+                TournamentData = new TournamentData
+                {
+                    EntryFee = matchFee,
+                    EntryFeeCurrencyId = currency.CurrencyId,
+                    EarningCurrencyId = currency.CurrencyId,
+                    TournamentTypeId = (int)tournamentTypeId,
+                    TournamentStart = DateTime.Now,
+                    TournamentEnd = DateTime.Now.AddDays(1),
+
+                }
+            };
+            tournament.Players?.AddRange(dbPlayers);
+            _suikaDbService.LeiaContext.Entry(currency).State = EntityState.Detached;
+
+            try
+            {
+
+                var savedTournament = _suikaDbService?.LeiaContext?.Tournaments?.Add(tournament);
+                var saved = await _suikaDbService?.LeiaContext?.SaveChangesAsync();
+
+                var idsArray = dbPlayers?.Select(p => p?.PlayerId).ToArray();
+                if (saved > 0) SendPlayerAndSeed(savedTournament?.Entity?.TournamentSeed, savedTournament?.Entity?.TournamentSessionId, idsArray);
+                return savedTournament?.Entity;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine(ex.Message + "\n" + ex.InnerException?.Message);
+                throw;
+                //return null;
+            }
+
         }
-        catch (Exception ex)
+
+        private void SendPlayerAndSeed(int? seed, int? tournamentId, params Guid?[]? playerIds)
         {
-            Debug.WriteLine(ex.Message + "\n" + ex.InnerException?.Message);
-            throw;
-            //return null;
+            var subscribers = PlayerAddedToTournament?.GetInvocationList().Length ?? 0;
+            Debug.WriteLine($"Attempting to raise event. Number of subscribers: {subscribers}");
+            /// example how to use ValueTuple types 👇🏻
+            ///var data = (Seed: seed, TournamentId: tournamentId, Ids: playerIds);
+            SeedData data = new() { Seed = seed, TournamentId = tournamentId, Ids = playerIds };
+            PlayerAddedToTournament?.Invoke(data, new EventArgs());
+        }
+
+        /// <summary>
+        /// Container class to hold data to send to the player/seed list
+        /// </summary>
+        public class SeedData
+        {
+            public int? Seed { get; set; }
+            public int? TournamentId { get; set; }
+            public Guid?[]? Ids { get; set; }
+
+        }
+
+        public async Task CloseTimedOutMatches()
+        {
+            //todo check for sessions who are older than 12 hours and close them
+            //todo send event telling the tournament was closed 
+            throw new NotImplementedException();
         }
 
     }
-
-    private void SendPlayerAndSeed(int? seed, int? tournamentId, params Guid?[]? playerIds)
-    {
-        var subscribers = PlayerAddedToTournament?.GetInvocationList().Length ?? 0;
-        Debug.WriteLine($"Attempting to raise event. Number of subscribers: {subscribers}");
-        /// example how to use ValueTuple types 👇🏻
-        ///var data = (Seed: seed, TournamentId: tournamentId, Ids: playerIds);
-        SeedData data = new() { Seed = seed, TournamentId = tournamentId, Ids = playerIds };
-        PlayerAddedToTournament?.Invoke(data, new EventArgs());
-    }
-
-    /// <summary>
-    /// Container class to hold data to send to the player/seed list
-    /// </summary>
-    public class SeedData
-    {
-        public int? Seed { get; set; }
-        public int? TournamentId { get; set; }
-        public Guid?[]? Ids { get; set; }
-
-    }
-
-    public async Task CloseTimedOutMatches()
-    {
-        //todo check for sessions who are older than 12 hours and close them
-        //todo send event telling the tournament was closed 
-        throw new NotImplementedException();
-    }
-
-}
 }

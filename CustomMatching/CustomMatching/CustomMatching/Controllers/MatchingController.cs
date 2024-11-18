@@ -120,7 +120,6 @@ namespace CustomMatching.Controllers
         public IActionResult GetTournamentSeed(Guid playerId)
         {
                 _tournamentService.PlayerAddedToTournament -= PlayerAddedToTournamentHandler;
-            //!  check why a seedIds is added several times 
             if (_tournamentService.PlayersSeeds.TryGetValue(playerId, out int?[]? seedAndId))
             {
                 _tournamentService.PlayersSeeds.Remove(playerId);
@@ -143,14 +142,14 @@ namespace CustomMatching.Controllers
         }
 
         [HttpGet, Route("StopTimer")]
-        private IActionResult StopTimer()
+        public IActionResult StopTimer()
         {
             _tournamentService.StopTimer();
             return Ok("Timer Stopped");
         }
 
         [HttpGet, Route("StartTimer")]
-        private IActionResult StartTimer()
+        public IActionResult StartTimer()
         {
             _tournamentService.StartTimer();
             return Ok("Timer Started");

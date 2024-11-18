@@ -15,7 +15,7 @@ namespace Services
         public Task<Player?> GetPlayerById(Guid playerId);
         public Task<Player?> GetPlayerByName(string playerName);
         public Task<List<TournamentSession?>?> GetPlayerTournaments(Guid playerId);
-        public LeiaContext LeiaContext { get;  /*set;*/ }
+        public LeiaContext LeiaContext { get;  set; }
     }
 
     public class SuikaDbService : ISuikaDbService
@@ -28,7 +28,7 @@ namespace Services
             LeiaContext = leiaContext;
         }
 
-        public LeiaContext LeiaContext { get;  /*set;*/ }
+        public LeiaContext LeiaContext { get;  set;}
 
         public async Task<Player> AddNewPlayer(Player player)
         {
