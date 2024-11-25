@@ -6,7 +6,7 @@
     "self-contained" : true,
     "application"    : "LeiaGamesApi",
     "environment"    : "LeiaGamesApi-env",
-    "enable-xray"    : false,
+    "enable-xray"    : true,
     "enhanced-health-type" : "enhanced",
     "additional-options"   : "",
     "proxy-server"         : "nginx"

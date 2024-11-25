@@ -199,6 +199,15 @@ namespace CustomMatching.Controllers
             {
                 return BadRequest(ex.Message + "\n" + ex.InnerException?.Message);
             }
+
+        [HttpGet, Route("ResetLists")]
+        public IActionResult ResetLists()
+        {
+            _tournamentService.MatchesQueue.Clear();
+            _tournamentService.WaitingRequests.Clear();
+            _tournamentService.OngoingTournaments.Clear();
+            _tournamentService.PlayersSeeds.Clear();
+            return Ok($"MatchesQueue count: {_tournamentService.MatchesQueue.Count}\nWaitingRequests count: {_tournamentService.WaitingRequests.Count}\nOngoingTournaments count: {_tournamentService.OngoingTournaments.Count}\nPlayersSeeds count: {_tournamentService.PlayersSeeds.Count}");
         }
 
     }

@@ -393,7 +393,7 @@ namespace Services
                             {
                                 PlayerId = matchedRequest.Player.PlayerId,
                                 TournamentSessionId = matchingTournament.TournamentSessionId,
-                                PlayerScore = matchedRequest.Player.Score,
+                                PlayerScore = null,
                             }
                             );
                             WaitingRequests?.Remove(matchedRequest);
@@ -406,7 +406,7 @@ namespace Services
                             {
                                 PlayerId = request.Player.PlayerId,
                                 TournamentSessionId = matchingTournament.TournamentSessionId,
-                                PlayerScore = request.Player.Score,
+                                PlayerScore = null,
                             }
                           ); 
                             MatchesQueue.Remove(request);
@@ -501,7 +501,7 @@ namespace Services
                     EarningCurrencyId = currency.CurrencyId,
                     TournamentTypeId = (int)tournamentTypeId,
                     TournamentStart = DateTime.Now,
-                    TournamentEnd = DateTime.Now.AddDays(1),
+                    TournamentEnd = DateTime.Now.AddMinutes(30),
 
                 }
             };
