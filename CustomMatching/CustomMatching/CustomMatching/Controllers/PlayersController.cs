@@ -74,6 +74,9 @@ namespace CustomMatching.Controllers
         [HttpPut, Route("UpdatePlayerTournamentResult/{playerId}/{tournamentId}/{score}")]
         public async Task<IActionResult> UpdatePlayerTournamentResult(Guid playerId, int tournamentId, int score)
         {
+            var tournament = _suikaDbService?.LeiaContext?.Tournaments.FirstOrDefault(t => t.TournamentSessionId == tournamentId && t.IsOpen == true);
+            if (tournament == null) return BadRequest("Could not submit result, tournament is closed");
+
             var playerTournament = _suikaDbService?.LeiaContext?.PlayerTournamentSession.FirstOrDefault(pt => pt.PlayerId == playerId && pt.TournamentSessionId == tournamentId);
 
             if (playerTournament != null)
@@ -98,7 +101,7 @@ namespace CustomMatching.Controllers
 
         // DELETE api/<PlayersController>/5
         [HttpDelete("{id}")]
-        public void Delete(int id)
+        private void Delete(int id)
         {
         }
 

@@ -14,6 +14,6 @@ namespace DataObjects
         //[Key]
         public Guid PlayerId { get; set; } // the name and type of the Id properties should be the same as in the connected classes (e.g. the Id prop from the Player class should be Guid PlayerId - the same as it is called in the Player class )
         public int TournamentSessionId { get; set; }
-        public int PlayerScore { get; set; }  
+        public int? PlayerScore { get; set; }  
     }
 }
