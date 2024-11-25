@@ -17,8 +17,8 @@ namespace DataObjects
         public Guid PlayerId { get; set; }
         public Player Player { get; set; } 
         public DateTime TransactionDate{ get; set; }
-        public int CurrencyId { get; set; }
-        public Currencies Currency { get; set; }
+        public int CurrenciesId { get; set; }
+        public Currencies Currencies { get; set; }
         public int CurrencyAmount { get; set; }
         public int TransactionTypeId { get; set; }
         public TransactionType TransactionType { get; set; }

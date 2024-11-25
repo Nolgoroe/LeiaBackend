@@ -18,13 +18,13 @@ namespace CustomMatching.Controllers
     public class PlayersController : ControllerBase
     {
         private readonly ILogger<MatchingController> _logger;
-        //private readonly ITournamentService _tournamentService;
+        private readonly ITournamentService _tournamentService;
         private readonly ISuikaDbService _suikaDbService;
 
-        public PlayersController(ILogger<MatchingController> logger, /*ITournamentService tournamentService,*/ ISuikaDbService suikaDbService)
+        public PlayersController(ILogger<MatchingController> logger, ITournamentService tournamentService, ISuikaDbService suikaDbService)
         {
             _logger = logger;
-            //_tournamentService = tournamentService;
+            _tournamentService = tournamentService;
             _suikaDbService = suikaDbService;
         }
 
@@ -88,6 +88,8 @@ namespace CustomMatching.Controllers
                     var updatedPlayerTournament = _suikaDbService.LeiaContext.PlayerTournamentSession.Update(playerTournament);
 
                     var saved = await _suikaDbService.LeiaContext.SaveChangesAsync();
+                    //todo  initiate check method to see if the tournament should be closed
+                   await _tournamentService.CheckTournamentStatus(updatedPlayerTournament.Entity.TournamentSessionId);
                     return Ok(updatedPlayerTournament.Entity);
                 }
                 catch (Exception ex)

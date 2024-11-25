@@ -4,6 +4,7 @@ using DAL;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DAL.Migrations
 {
     [DbContext(typeof(LeiaContext))]
-    partial class LeiaContextModelSnapshot : ModelSnapshot
+    [Migration("20241121185630_mig4_AddPostTournamentData")]
+    partial class mig4_AddPostTournamentData
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -270,7 +273,7 @@ namespace DAL.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("TournamentTypeId"));
 
-                    b.Property<int>("CurrenciesId")
+                    b.Property<int?>("CurrenciesId")
                         .HasColumnType("int");
 
                     b.Property<double?>("EntryFee")
@@ -469,9 +472,7 @@ namespace DAL.Migrations
                 {
                     b.HasOne("DataObjects.Currencies", "Currencies")
                         .WithMany()
-                        .HasForeignKey("CurrenciesId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .HasForeignKey("CurrenciesId");
 
                     b.Navigation("Currencies");
                 });

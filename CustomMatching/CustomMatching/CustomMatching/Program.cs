@@ -22,6 +22,7 @@ builder.Services.AddDbContext<LeiaContext>(options =>
 );
 
 builder.Services.AddScoped<ISuikaDbService, SuikaDbService>();
+builder.Services.AddScoped<IPostTournamentService, PostTournamentService>();
 builder.Services.AddSingleton<ITournamentService, TournamentService>();
 
 var app = builder.Build();

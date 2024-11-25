@@ -10,6 +10,7 @@ using DAL;
 using Microsoft.EntityFrameworkCore;
 using System.Drawing;
 using static Services.TournamentService;
+using NuGet.Protocol;
 
 namespace CustomMatching.Controllers
 {
@@ -37,16 +38,16 @@ namespace CustomMatching.Controllers
         }
 
         // the destructor is needed to unsubscribe from the event. without it, the Controller will be kept alive after it is done and closed. because the PlayerAddedToTournamentHandler is still connected to the event, and that keeps the Controller instance alive, and not garbage collected
-        ~MatchingController() 
-        { 
+        ~MatchingController()
+        {
             //_tournamentService.MatchTimer.Stop();
             _tournamentService.PlayerAddedToTournament -= PlayerAddedToTournamentHandler;
         }
-        
+
 
         private void PlayerAddedToTournamentHandler(object? sender, EventArgs e)
         { /// example how to use ValueTuple types 👇🏻
-            ///if (sender is ValueTuple<int?, int?, Guid?[]?>)
+          ///if (sender is ValueTuple<int?, int?, Guid?[]?>)
             if (sender is SeedData)
             {
                 ///var (seed, tournamentId, ids) = (ValueTuple<int?, int?, Guid[]>)sender;
@@ -119,7 +120,7 @@ namespace CustomMatching.Controllers
         [HttpGet, Route("GetTournamentSeed/{playerId}")]
         public IActionResult GetTournamentSeed(Guid playerId)
         {
-                _tournamentService.PlayerAddedToTournament -= PlayerAddedToTournamentHandler;
+            _tournamentService.PlayerAddedToTournament -= PlayerAddedToTournamentHandler;
             if (_tournamentService.PlayersSeeds.TryGetValue(playerId, out int?[]? seedAndId))
             {
                 _tournamentService.PlayersSeeds.Remove(playerId);
@@ -154,7 +155,7 @@ namespace CustomMatching.Controllers
             _tournamentService.StartTimer();
             return Ok("Timer Started");
         }
-       
+
         [HttpGet, Route("GetTest")]
         public IActionResult GetTest()
         {
@@ -163,42 +164,46 @@ namespace CustomMatching.Controllers
         }
 
         // dump endpoint for testing stuff. DO NOT USE! 
-        [HttpGet, Route("GetPlayerBalance/{playerId}/{currencyId}")]
-        private async Task<IActionResult> GetPlayerBalance(Guid? playerId, int? currencyId)
+        [HttpGet, Route("TestStuff/{tournamentId}")]
+        public async Task<IActionResult> TestStuff(int tournamentId)
         {
-            var playerCurrency = await _suikaDbService.LeiaContext.PlayerCurrencies.FirstOrDefaultAsync(pc => pc.PlayerId == playerId && pc.CurrenciesId == currencyId);
+            _tournamentService.CheckTournamentStatus(tournamentId);
+            return Ok();
 
-            var currency = await _suikaDbService.LeiaContext.Currencies.FindAsync(currencyId);
+            /*var playerCurrency = await _suikaDbService.LeiaContext.PlayerCurrencies.FirstOrDefaultAsync(pc => pc.PlayerId == playerId && pc.CurrenciesId == currencyId);
 
-            var player = await _suikaDbService.LeiaContext.Players.FindAsync(playerId);
+                        var currency = await _suikaDbService.LeiaContext.Currencies.FindAsync(currencyId);
 
-            playerCurrency ??= new();
+                        var player = await _suikaDbService.LeiaContext.Players.FindAsync(playerId);
 
-            var tournamentTypeId = await _tournamentService.GetTournamentTypeByCurrency(currencyId);
-            var tournament = new TournamentSession
-            {
-                TournamentData = new TournamentData
-                {
-                    EntryFee = 10,
-                    EntryFeeCurrency = currency,
-                    EntryFeeCurrencyId = currency.CurrencyId,
-                    EarningCurrencyId = currency.CurrencyId,
-                    TournamentTypeId = (int)tournamentTypeId
-                }
-            };
-            tournament.Players?.Add(player);
-            try
-            {
-                var savedTournament = _suikaDbService?.LeiaContext?.Tournaments?.Add(tournament);
-                var saved = await _suikaDbService.LeiaContext.SaveChangesAsync();
-                // var balance = _suikaDbService.LeiaContext.PlayerCurrencies.FirstOrDefault(p => p.PlayerId == playerId && p.CurrenciesId == currencyId);
-                return Ok(/*balance*/);
+                        playerCurrency ??= new();
 
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(ex.Message + "\n" + ex.InnerException?.Message);
-            }
+                        var tournamentTypeId = await _tournamentService.GetTournamentTypeByCurrency(currencyId);
+                        var tournament = new TournamentSession
+                        {
+                            TournamentData = new TournamentData
+                            {
+                                EntryFee = 10,
+                                EntryFeeCurrency = currency,
+                                EntryFeeCurrencyId = currency.CurrencyId,
+                                EarningCurrencyId = currency.CurrencyId,
+                                TournamentTypeId = (int)tournamentTypeId
+                            }
+                        };
+                        tournament.Players?.Add(player);
+                        try
+                        {
+                            var savedTournament = _suikaDbService?.LeiaContext?.Tournaments?.Add(tournament);
+                            var saved = await _suikaDbService.LeiaContext.SaveChangesAsync();
+                            // var balance = _suikaDbService.LeiaContext.PlayerCurrencies.FirstOrDefault(p => p.PlayerId == playerId && p.CurrenciesId == currencyId);
+                            return Ok(*//*balance*//*);
+
+                        }
+                        catch (Exception ex)
+                        {
+                            return BadRequest(ex.Message + "\n" + ex.InnerException?.Message);
+                        }*/
+        }
 
         [HttpGet, Route("ResetLists")]
         public IActionResult ResetLists()

@@ -15,7 +15,7 @@ namespace Services
         public Task<Player?> GetPlayerById(Guid playerId);
         public Task<Player?> GetPlayerByName(string playerName);
         public Task<List<TournamentSession?>?> GetPlayerTournaments(Guid playerId);
-        public LeiaContext LeiaContext { get;  set; }
+        public LeiaContext LeiaContext { get; set; }
     }
 
     public class SuikaDbService : ISuikaDbService
@@ -28,7 +28,7 @@ namespace Services
             LeiaContext = leiaContext;
         }
 
-        public LeiaContext LeiaContext { get;  set;}
+        public LeiaContext LeiaContext { get; set; }
 
         public async Task<Player> AddNewPlayer(Player player)
         {
@@ -36,11 +36,19 @@ namespace Services
             {
                 var currencies = await _leiaContext.Currencies.ToListAsync();
 
-                player.PlayerCurrencies.Add(new PlayerCurrencies { 
-                    PlayerId = player.PlayerId,
-                    CurrenciesId = (int)currencies?.Find(c => c.CurrencyName == "Gems")?.CurrencyId,
-                    CurrencyBalance = 1000 
-                });
+                player.PlayerCurrencies.Add/*Range*/( /*new List<PlayerCurrencies> {*/
+                    new PlayerCurrencies
+                    {
+                        PlayerId = player.PlayerId,
+                        CurrenciesId = (int)currencies?.Find(c => c.CurrencyName == "Gems")?.CurrencyId,
+                        CurrencyBalance = 1000
+                    }/*,
+                         new PlayerCurrencies {
+                         PlayerId = player.PlayerId,
+                         CurrenciesId = (int)currencies?.Find(c => c.CurrencyName == "USDC")?.CurrencyId,
+                         CurrencyBalance = 1000
+                          },
+                }*/);
 
                 try
                 {

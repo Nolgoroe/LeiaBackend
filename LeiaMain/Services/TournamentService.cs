@@ -34,6 +34,7 @@ namespace Services
         public Task<bool> ProcessFirstRequest(MatchRequest firstRequest);
         public Task AddToExistingTournament(MatchRequest? request, MatchRequest? matchedRequest, TournamentSession? matchingTournament);
         public Task<int?> GetTournamentTypeByCurrency(int? currencyId);
+        public Task CheckTournamentStatus(int tournamentId);
         public void StopTimer();
         public void StartTimer();
 
@@ -47,11 +48,12 @@ namespace Services
         private int _timerCycles = 0;
 
         public int NumMilliseconds { get; set; } = 500; // get these numbers from tournament DB or config file
-        private int _maxNumPlayers = 6; // get these numbers from tournament DB or config file
+        private int _maxNumPlayers = 2; // get these numbers from tournament DB or config file
         private int _scoreVariance = 200; // get these numbers from tournament DB or config file 
         private int _scoreVarianceSteps = 400; // get these numbers from tournament DB or config file 
         private IMatchingStrategy? _currentMatchingStrategy;
         private readonly ISuikaDbService _suikaDbService;
+        private readonly IPostTournamentService _postTournamentService;
         private SemaphoreSlim _semaphore;
         //private readonly IConfiguration _configuration;
         private JsonSerializerOptions _jsonOptions;
@@ -61,7 +63,7 @@ namespace Services
         public System.Timers.Timer MatchTimer { get; set; }
         public List<MatchRequest> MatchesQueue { get; set; }
         public List<MatchRequest> WaitingRequests { get; private set; }
-        public List<TournamentSession> OngoingTournaments { get;  set; }
+        public List<TournamentSession> OngoingTournaments { get; set; }
 
         public TournamentService(/*IConfiguration configuration */)
         {
@@ -70,6 +72,7 @@ namespace Services
             WaitingRequests = new List<MatchRequest>();
             //_configuration = configuration;
             _suikaDbService = new SuikaDbService(new LeiaContext());
+            _postTournamentService = new PostTournamentService(_suikaDbService);
             //_suikaDbService = new SuikaDbService(new LeiaContext(configuration.GetConnectionString("SuikaDb"))) /*suikaDbService*/;
             _semaphore = new SemaphoreSlim(1, 1);
             _jsonOptions = new()
@@ -330,13 +333,13 @@ namespace Services
         public async Task<bool> ProcessFirstRequest(MatchRequest firstRequest)
         {
             var playerBalance = await _suikaDbService.GetPlayerBalance(firstRequest.Player.PlayerId, firstRequest.MatchFeeCurrency.CurrencyId);
-        if (playerBalance >= firstRequest?.MatchFee)//! make sure the player has enough money to create the request. even though a player should not be able to select a match type in the client that he doest have enough money for
+            if (playerBalance >= firstRequest?.MatchFee)//! make sure the player has enough money to create the request. even though a player should not be able to select a match type in the client that he doest have enough money for
             {
 
                 // WaitingRequests?.Add(firstRequest);
                 //MatchesQueue.Remove(firstRequest);
 
-            if (OngoingTournaments.Count <= 0) // if there are no open sessions, create a new one
+                if (OngoingTournaments.Count <= 0) // if there are no open sessions, create a new one
                 {
                     var tournament = await SaveNewTournament(firstRequest.MatchFee, firstRequest.MatchFeeCurrency.CurrencyId, firstRequest.Player.PlayerId);
 
@@ -344,7 +347,7 @@ namespace Services
 
                     //_session.Players?.Add(request!.Player);
                     OngoingTournaments.Add(tournament);
-                // WaitingRequests.RemoveAt(0); // remove request from the waiting list after moving it into a tournament
+                    // WaitingRequests.RemoveAt(0); // remove request from the waiting list after moving it into a tournament
                     MatchesQueue.Remove(firstRequest);
                     return true;
                 }
@@ -408,7 +411,7 @@ namespace Services
                                 TournamentSessionId = matchingTournament.TournamentSessionId,
                                 PlayerScore = null,
                             }
-                          ); 
+                          );
                             MatchesQueue.Remove(request);
                         }
                         // send the tournament seed to controller list
@@ -555,5 +558,27 @@ namespace Services
             throw new NotImplementedException();
         }
 
+        public async Task CheckTournamentStatus(int tournamentId)
+        {
+            using (var context = new LeiaContext())
+            {
+                
+                try
+                {
+                    var tournament = context.Tournaments.Find(tournamentId);
+                    if (tournament != null)
+                    {
+                        var scores =context.PlayerTournamentSession.Where(pt => pt.TournamentSessionId == tournamentId).Select(pt => pt.PlayerScore).ToList();
+                        if (scores.All(s => s != null)) await _postTournamentService.CloseTournament(tournament); // close tournament
+
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Trace.WriteLine(ex.Message + "\n" + ex.InnerException?.Message);
+                    throw;
+                }
+            }
+        }
     }
 }

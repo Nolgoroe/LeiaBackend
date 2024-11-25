@@ -17,6 +17,7 @@ namespace DAL
         public DbSet<TournamentType> TournamentTypes { get; set; }
         public DbSet<Transactions> Transactions { get; set; }
         public DbSet<TransactionType> TransactionTypes { get; set; }
+        public DbSet<Reward> Rewards { get; set; }
         public DbSet<Currencies> Currencies { get; set; }
         public DbSet<PlayerCurrencies> PlayerCurrencies { get; set; }
         public DbSet<PlayerTournamentSession> PlayerTournamentSession { get; set; }
@@ -50,6 +51,12 @@ namespace DAL
                 .WithMany(t => t.Players)
                 .UsingEntity<PlayerTournamentSession>(e =>
                     e.Property(pt => pt.PlayerScore));
+
+            modelBuilder.Entity<Player>() 
+              .HasMany(p => p.TournamentSessions)
+              .WithMany(t => t.Players)
+              .UsingEntity<PlayerTournamentSession>(e =>
+                  e.Property(pt => pt.DidClaim));
 
             #region Configure MtM for players and currencies
             modelBuilder.Entity<Player>()
