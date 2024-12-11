@@ -136,7 +136,7 @@ namespace Services
             {
                 var balances = _leiaContext.PlayerCurrencies.Where(p => p.PlayerId == playerId)
                     .Include(pc => pc.Currencies)
-                    .Include(pc => pc.Player)
+                   // .Include(pc => pc.Player)
                     .ToList();
                 return balances;
 
