@@ -11,7 +11,15 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CustomMatching", "..\Custom
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DAL", "..\DAL\DAL.csproj", "{1F148582-4A40-4524-9670-2B320A357006}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Services", "Services\Services.csproj", "{AA7A31BF-8458-4293-B9CD-33BABF26C91C}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Services", "Services\Services.csproj", "{AA7A31BF-8458-4293-B9CD-33BABF26C91C}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Glicko2", "..\Glicko2 C#\Glicko2-master\Glicko2\Glicko2.csproj", "{36CAA438-4292-4727-8AAB-2DA52823CAD2}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TestConsoleApp", "..\Glicko2 C#\Glicko2-master\TestConsoleApp\TestConsoleApp.csproj", "{F6789E0F-1722-4056-AD63-A64868F75023}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GlickoTests", "..\Glicko2 C#\Glicko2-master\GlickoTests\GlickoTests.csproj", "{1CDE0CE4-3CE9-4A52-8329-BB75215D4B9F}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NDCG Metric", "..\NDCG Metrics\NDCG Metric\NDCG Metric.csproj", "{855BAC8A-7E80-487C-8622-A634D904F315}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -39,6 +47,22 @@ Global
 		{AA7A31BF-8458-4293-B9CD-33BABF26C91C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{AA7A31BF-8458-4293-B9CD-33BABF26C91C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{AA7A31BF-8458-4293-B9CD-33BABF26C91C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{36CAA438-4292-4727-8AAB-2DA52823CAD2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{36CAA438-4292-4727-8AAB-2DA52823CAD2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{36CAA438-4292-4727-8AAB-2DA52823CAD2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{36CAA438-4292-4727-8AAB-2DA52823CAD2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F6789E0F-1722-4056-AD63-A64868F75023}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F6789E0F-1722-4056-AD63-A64868F75023}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F6789E0F-1722-4056-AD63-A64868F75023}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F6789E0F-1722-4056-AD63-A64868F75023}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1CDE0CE4-3CE9-4A52-8329-BB75215D4B9F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1CDE0CE4-3CE9-4A52-8329-BB75215D4B9F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1CDE0CE4-3CE9-4A52-8329-BB75215D4B9F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1CDE0CE4-3CE9-4A52-8329-BB75215D4B9F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{855BAC8A-7E80-487C-8622-A634D904F315}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{855BAC8A-7E80-487C-8622-A634D904F315}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{855BAC8A-7E80-487C-8622-A634D904F315}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{855BAC8A-7E80-487C-8622-A634D904F315}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

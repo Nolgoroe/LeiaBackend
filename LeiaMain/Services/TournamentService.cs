@@ -274,7 +274,7 @@ namespace Services
                         && request?.MatchFeeCurrency?.CurrencyId == tournament.TournamentData.EntryFeeCurrencyId
                         && requestBalance >= tournament.TournamentData.EntryFee  // check if the matchedRequest.Player't score fits the first player in the ongoing tournament
                         && tournament?.Players?.Any(p => p?.PlayerId == request?.Player?.PlayerId) == false; // makes sure that the player is not already in the tournament
-                    Debug.WriteLine($"=====> Inside FindMatchingTournament, doesThePlayerMatch: {doesThePlayerMatch}");
+                    Trace.WriteLine($"=====> Inside FindMatchingTournament, doesThePlayerMatch: {doesThePlayerMatch}");
                     return doesThePlayerMatch;
                 }
                 else return false;
@@ -285,23 +285,12 @@ namespace Services
 
         public async Task CreateNewTournament(MatchRequest? matchedRequest, MatchRequest? request)
         {
-            /*var currenyType = await _suikaDbService.LeiaContext.Currencies.FindAsync(matchedRequest?.MatchFeeCurrency?.CurrencyId);
-            var tournament1 = new TournamentSession
-            {
-                TournamentData = new TournamentData
-                {
-                    EntryFee = matchedRequest.MatchFee, // we create a tournament according to the matched request, because the WaitingRequests take precedence over the new ones  
-                    EntryFeeCurrency = currenyType
-                    //todo 👉🏻👉🏻👉🏻 add a time frame (5 min) to a tournament, and then close it 
-                }
-            };
-            tournament1.Players?.AddRange(new List<Player> { matchedRequest!.Player, request!.Player });
-*/
+       
             if (matchedRequest != null)
             {
                 var tournament = await SaveNewTournament(matchedRequest.MatchFee, matchedRequest?.MatchFeeCurrency?.CurrencyId, matchedRequest?.Player?.PlayerId, request?.Player?.PlayerId);
 
-                Debug.WriteLine($"Player: {matchedRequest?.Player?.PlayerId}, score: {matchedRequest?.Player?.Score},and second player: {request?.Player?.PlayerId}, score: {request?.Player?.Score}, \n were added to tournament: {tournament?.TournamentDataId}.");
+                Trace.WriteLine($"Player: {matchedRequest?.Player?.PlayerId}, score: {matchedRequest?.Player?.Score},and second player: {request?.Player?.PlayerId}, score: {request?.Player?.Score}, \n were added to tournament: {tournament?.TournamentDataId}.");
 
                 MatchesQueue.Remove(request);
                 WaitingRequests?.Remove(matchedRequest);
@@ -322,7 +311,7 @@ namespace Services
 
                     && rBalance >= r?.MatchFee //! make sure the player has enough money to enter the match. even though a player should not be able to select a match type on the client that h doest have enough    money for
                     && requestBalance >= r.MatchFee // check if the player of the current request has enough money to join the match
-                    && r?.MatchFeeCurrency?.CurrencyId == request?.MatchFeeCurrency?.CurrencyId // check that both players entered with same type of currency
+                    //&& r?.MatchFeeCurrency?.CurrencyId == request?.MatchFeeCurrency?.CurrencyId // check that both players entered with same type of currency
                     && r?.Player?.PlayerId != request?.Player?.PlayerId; // makes sure that the requests are not from the same player
 
             Debug.WriteLine($"=====> Inside CheckRequestsMatch, isMatch: {isMatch}");
@@ -428,7 +417,7 @@ namespace Services
             {
                 if (matchingTournament != null)
                 {
-                    Debug.WriteLine(JsonSerializer.Serialize<TournamentSession>(matchingTournament, _jsonOptions));
+                    Trace.WriteLine(JsonSerializer.Serialize<TournamentSession>(matchingTournament, _jsonOptions));
                     //todo send matchingTournament data
 
                     OngoingTournaments.Remove(matchingTournament);
@@ -437,7 +426,7 @@ namespace Services
             }
         }
 
-        public async Task<int?> GetTournamentTypeByCurrency(int? currencyId)
+        public async Task<int?> GetTournamentTypeByCurrency(int? currencyId) // change this to tournamentTypeId. And all of the references to it. Also add TournamentTypeId to MatchRequest class
         {
             var currency = _suikaDbService.LeiaContext.Currencies.Find(currencyId);
             var tournamentTypes = _suikaDbService.LeiaContext.TournamentTypes.ToList();
@@ -474,22 +463,7 @@ namespace Services
                 }
             }
 
-            /*    var dbPlayers1 = playerIds?.Select(id =>
-                {
-                    try
-                    {
-                        var player = _suikaDbService.LeiaContext.Players.Find(id);
-                        if (player != null) return player;
-                        else throw new NullReferenceException($"Player with id: {id}, was not found in the database");
-
-                    }
-                    catch (Exception ex)
-                    {
-                        Debug.WriteLine(ex.Message + "\n" + ex.InnerException?.Message);
-                        throw;
-                    }
-                }).ToList();*/
-
+       
             var tournamentTypeId = await GetTournamentTypeByCurrency(currencyId);
 
 
@@ -504,7 +478,7 @@ namespace Services
                     EarningCurrencyId = currency.CurrencyId,
                     TournamentTypeId = (int)tournamentTypeId,
                     TournamentStart = DateTime.Now,
-                    TournamentEnd = DateTime.Now.AddMinutes(30),
+                    TournamentEnd = default,
 
                 }
             };
@@ -533,7 +507,7 @@ namespace Services
         private void SendPlayerAndSeed(int? seed, int? tournamentId, params Guid?[]? playerIds)
         {
             var subscribers = PlayerAddedToTournament?.GetInvocationList().Length ?? 0;
-            Debug.WriteLine($"Attempting to raise event. Number of subscribers: {subscribers}");
+            Trace.WriteLine($"Attempting to raise event. Number of subscribers: {subscribers}");
             /// example how to use ValueTuple types 👇🏻
             ///var data = (Seed: seed, TournamentId: tournamentId, Ids: playerIds);
             SeedData data = new() { Seed = seed, TournamentId = tournamentId, Ids = playerIds };
@@ -565,7 +539,11 @@ namespace Services
                 
                 try
                 {
-                    var tournament = context.Tournaments.Find(tournamentId);
+                    var tournament = context.Tournaments
+                        .Include( t => t.TournamentData)
+                        .Include(t => t.PlayerTournamentSessions)
+                        .Include(t => t.Players)
+                        .FirstOrDefault(t => t.TournamentSessionId == tournamentId);
                     if (tournament != null)
                     {
                         var scores =context.PlayerTournamentSession.Where(pt => pt.TournamentSessionId == tournamentId).Select(pt => pt.PlayerScore).ToList();

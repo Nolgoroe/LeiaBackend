@@ -22,7 +22,7 @@ namespace DataObjects
         public Currencies Currencies { get; set; }
         public int? NumberOfPlayers { get; set; }
 
-        [JsonIgnore]
+        //[JsonIgnore]
         public List<Reward> Reward { get; set; }
 
         private double? entryFee;

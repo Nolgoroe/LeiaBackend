@@ -29,6 +29,7 @@ namespace DataObjects
         public string? InstallSource { get; set; }
         public DateTime? InstallDate { get; set; }
         public string? AttributionData { get; set; }
+        public int AvatarId  { get; set; }
       //  [JsonIgnore]
         public List<SessionData> Sessions { get; set; }
         [JsonIgnore]

@@ -4,6 +4,7 @@ using DAL;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DAL.Migrations
 {
     [DbContext(typeof(LeiaContext))]
-    partial class LeiaContextModelSnapshot : ModelSnapshot
+    [Migration("20241127143705_mig6_NewTournamentTypes")]
+    partial class mig6_NewTournamentTypes
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -53,9 +56,6 @@ namespace DAL.Migrations
 
                     b.Property<string>("AttributionData")
                         .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("AvatarId")
-                        .HasColumnType("int");
 
                     b.Property<string>("DeviceType")
                         .HasColumnType("nvarchar(max)");
