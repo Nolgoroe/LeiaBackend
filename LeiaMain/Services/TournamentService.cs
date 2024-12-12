@@ -269,8 +269,8 @@ namespace Services
                     var requestBalance = await _suikaDbService.GetPlayerBalance(request?.Player?.PlayerId, request?.MatchFeeCurrency?.CurrencyId);
 
                     // we check t.Players[0] because the first player in the tournament determines the score that other players should match in that tournament
-                    var range = Enumerable.Range(tournament.Players[0].Score - _scoreVariance, _scoreVarianceSteps).ToList();
-                    var doesThePlayerMatch = range.Contains(request.Player.Score)
+                    var range = Enumerable.Range(tournament.Players[0].Rating - _scoreVariance, _scoreVarianceSteps).ToList();
+                    var doesThePlayerMatch = range.Contains(request.Player.Rating)
                         && request?.MatchFeeCurrency?.CurrencyId == tournament.TournamentData.EntryFeeCurrencyId
                         && requestBalance >= tournament.TournamentData.EntryFee  // check if the matchedRequest.Player't score fits the first player in the ongoing tournament
                         && tournament?.Players?.Any(p => p?.PlayerId == request?.Player?.PlayerId) == false; // makes sure that the player is not already in the tournament
@@ -290,7 +290,7 @@ namespace Services
             {
                 var tournament = await SaveNewTournament(matchedRequest.MatchFee, matchedRequest?.MatchFeeCurrency?.CurrencyId, matchedRequest?.Player?.PlayerId, request?.Player?.PlayerId);
 
-                Trace.WriteLine($"Player: {matchedRequest?.Player?.PlayerId}, score: {matchedRequest?.Player?.Score},and second player: {request?.Player?.PlayerId}, score: {request?.Player?.Score}, \n were added to tournament: {tournament?.TournamentDataId}.");
+                Trace.WriteLine($"Player: {matchedRequest?.Player?.PlayerId}, rating: {matchedRequest?.Player?.Rating},and second player: {request?.Player?.PlayerId}, rating: {request?.Player?.Rating}, \n were added to tournament: {tournament?.TournamentDataId}.");
 
                 MatchesQueue.Remove(request);
                 WaitingRequests?.Remove(matchedRequest);
@@ -304,8 +304,8 @@ namespace Services
 
             var requestBalance = await _suikaDbService.GetPlayerBalance(request?.Player?.PlayerId, request?.MatchFeeCurrency?.CurrencyId);
 
-            var range = Enumerable.Range(r.Player!.Score - _scoreVariance, _scoreVarianceSteps).ToList();
-            var isMatch = range.Contains(request!.Player!.Score)
+            var range = Enumerable.Range(r.Player!.Rating - _scoreVariance, _scoreVarianceSteps).ToList();
+            var isMatch = range.Contains(request!.Player!.Rating)
 
                     //  && request?.MatchFee == r.MatchFee // check that both players entered a match on the same amount (e.g. both entered a match on 3$)
 
@@ -332,7 +332,7 @@ namespace Services
                 {
                     var tournament = await SaveNewTournament(firstRequest.MatchFee, firstRequest.MatchFeeCurrency.CurrencyId, firstRequest.Player.PlayerId);
 
-                    Debug.WriteLine($"Player: {firstRequest?.Player?.PlayerId}, score: {firstRequest?.Player?.Score}, was added to tournament: {tournament?.TournamentSessionId}.");
+                    Debug.WriteLine($"Player: {firstRequest?.Player?.PlayerId}, rating: {firstRequest?.Player?.Rating}, was added to tournament: {tournament?.TournamentSessionId}.");
 
                     //_session.Players?.Add(request!.Player);
                     OngoingTournaments.Add(tournament);
@@ -373,7 +373,7 @@ namespace Services
                     var savedTournament = _suikaDbService?.LeiaContext?.Tournaments?.Update(dbTournament);
                     var saved = await _suikaDbService?.LeiaContext?.SaveChangesAsync();
 
-                    Debug.WriteLine($"Player: {matchedRequest?.Player?.PlayerId}, score: {matchedRequest?.Player?.Score}, and second player: {request?.Player?.PlayerId}, score: {request?.Player?.Score}, \n were added to tournament: {savedTournament?.Entity?.TournamentSessionId}.");
+                    Debug.WriteLine($"Player: {matchedRequest?.Player?.PlayerId}, rating: {matchedRequest?.Player?.Rating}, and second player: {request?.Player?.PlayerId}, rating: {request?.Player?.Rating}, \n were added to tournament: {savedTournament?.Entity?.TournamentSessionId}.");
 
                     if (saved > 0)//if the tournament was saved to the DB -
                     {
