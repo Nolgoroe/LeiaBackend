@@ -433,7 +433,7 @@ namespace Services
             switch (currency?.CurrencyName)
             {
                 case "Gems":
-                    return tournamentTypes.FirstOrDefault(tt => tt.TournamentTypeName == "Free")?.TournamentTypeId;
+                    return tournamentTypes.FirstOrDefault(tt => tt.TournamentTypeName == "SCFor2Players")?.TournamentTypeId;
 
                 default:
                     return tournamentTypes.FirstOrDefault(tt => tt.TournamentTypeName == "Paid")?.TournamentTypeId;

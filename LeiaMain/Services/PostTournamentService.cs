@@ -43,11 +43,15 @@ namespace Services
         private Dictionary<Guid, int> CalculatePlayersRatingFromTournament(TournamentSession tournament)
         {
             var result = new Dictionary<Guid, int>();
-            // convert all players to glickoplayers
-            var glickoOpponents = new List<GlickoOpponent>(tournament.Players.Count);
-            for (var i = 0; i < tournament.Players.Count; i++)
+            var playerIdsSortedByScore = tournament.PlayerTournamentSessions.ToDictionary(p => p.PlayerId, p => p.PlayerScore);
+
+            var playersSortedByScore = tournament.Players.OrderByDescending(p => playerIdsSortedByScore[p.PlayerId]).ToList();
+
+            var highestScore = 0;
+            var glickoOpponents = new GlickoOpponent[playersSortedByScore.Count];
+            for (var i = 0; i < playersSortedByScore.Count; i++)
             {
-                var corePlayer = tournament.Players[i];
+                var corePlayer = playersSortedByScore[i];
                 var glickoPlayer = ConvertPlayerToGlicko(corePlayer);
                 var nullableScore = tournament.PlayerTournamentSessions[i].PlayerScore;
                 var score = nullableScore.HasValue ? nullableScore.Value : 0;
@@ -55,9 +59,15 @@ namespace Services
             }
             for (var i = 0; i < tournament.Players.Count; i++)
             {
-                var corePlayer = tournament.Players[i];
+                var corePlayer = playersSortedByScore[i];
                 var currentGlickoPlayer = glickoOpponents[i];
-                var glicko = GlickoCalculator.CalculateRanking(currentGlickoPlayer, glickoOpponents);
+                for (var j = 0; j < playerIdsSortedByScore.Count; j++)
+                {
+                    glickoOpponents[j].Result = j < i ? 1 : 0;
+                }
+                var otherOpponents = glickoOpponents.ToList();
+                otherOpponents.RemoveAt(i);
+                var glicko = GlickoCalculator.CalculateRanking(currentGlickoPlayer, otherOpponents.ToList());
                 result.Add(corePlayer.PlayerId, (int)Math.Round(glicko.Rating));
             }
             return result;
