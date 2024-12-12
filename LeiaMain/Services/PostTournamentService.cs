@@ -25,6 +25,14 @@ namespace Services
 
     public class PostTournamentService : IPostTournamentService
     {
+        private struct TournamentGlickoRatingCalculationEntry
+        {
+            public int score;
+            public Player player;
+            public GlickoOpponent opponent;
+        }
+
+
         private readonly ISuikaDbService _suikaDbService;
         //public ISuikaDbService SuikaDbService { get; set; }
 
@@ -42,33 +50,42 @@ namespace Services
 
         private Dictionary<Guid, int> CalculatePlayersRatingFromTournament(TournamentSession tournament)
         {
-            var result = new Dictionary<Guid, int>();
-            var playerIdsSortedByScore = tournament.PlayerTournamentSessions.ToDictionary(p => p.PlayerId, p => p.PlayerScore);
+            // First we build the context
+            var playerEntries = new TournamentGlickoRatingCalculationEntry[tournament.Players.Count];
+            var playerScoreByGuid = tournament.PlayerTournamentSessions.ToDictionary(p => p.PlayerId, p => p.PlayerScore);
+            
 
-            var playersSortedByScore = tournament.Players.OrderByDescending(p => playerIdsSortedByScore[p.PlayerId]).ToList();
-
-            var highestScore = 0;
-            var glickoOpponents = new GlickoOpponent[playersSortedByScore.Count];
-            for (var i = 0; i < playersSortedByScore.Count; i++)
-            {
-                var corePlayer = playersSortedByScore[i];
-                var glickoPlayer = ConvertPlayerToGlicko(corePlayer);
-                var nullableScore = tournament.PlayerTournamentSessions[i].PlayerScore;
-                var score = nullableScore.HasValue ? nullableScore.Value : 0;
-                glickoOpponents[i] = new GlickoOpponent(glickoPlayer, score);
-            }
             for (var i = 0; i < tournament.Players.Count; i++)
             {
-                var corePlayer = playersSortedByScore[i];
-                var currentGlickoPlayer = glickoOpponents[i];
-                for (var j = 0; j < playerIdsSortedByScore.Count; j++)
+                var player = tournament.Players[i];
+                var glickoPlayer = ConvertPlayerToGlicko(player);
+                var nullableScore = playerScoreByGuid[player.PlayerId];
+                var score = nullableScore.HasValue ? nullableScore.Value : 0;
+                var playerEntry = new TournamentGlickoRatingCalculationEntry
                 {
-                    glickoOpponents[j].Result = j < i ? 1 : 0;
+                    score = score,
+                    player = player,
+                    opponent = new GlickoOpponent(glickoPlayer, 0)
+                };
+            }
+            // Sort the player entries by score from largest to smallest
+            Array.Sort(playerEntries,
+                delegate (TournamentGlickoRatingCalculationEntry x, TournamentGlickoRatingCalculationEntry y) { return -x.score.CompareTo(y.score)});
+
+
+            var result = new Dictionary<Guid, int>();
+            // For each player, calculate the rating compared to other players
+            for (var i = 0; i < playerEntries.Length; i++)
+            {
+                var currentGlickoPlayer = playerEntries[i].opponent;
+                // Set up the player 'glicko result' which is either 0 or 1, where 0 is worse score than player, 1 is better score 
+                for (var j = 0; j < playerEntries.Length; j++)
+                {
+                    playerEntries[j].opponent.Result = j < i ? 1 : 0;
                 }
-                var otherOpponents = glickoOpponents.ToList();
-                otherOpponents.RemoveAt(i);
-                var glicko = GlickoCalculator.CalculateRanking(currentGlickoPlayer, otherOpponents.ToList());
-                result.Add(corePlayer.PlayerId, (int)Math.Round(glicko.Rating));
+                var playerOpponents = playerEntries.Where((e , idx) => idx != i).Select(e => e.opponent).ToList();
+                var glicko = GlickoCalculator.CalculateRanking(currentGlickoPlayer, playerOpponents);
+                result.Add(playerEntries[i].player.PlayerId, (int)Math.Round(glicko.Rating));
             }
             return result;
         }
