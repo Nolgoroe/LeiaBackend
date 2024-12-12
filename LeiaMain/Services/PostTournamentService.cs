@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 using DAL;
 
 using DataObjects;
-
+using Glicko2;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 
@@ -35,19 +35,50 @@ namespace Services
         }
 
 
+        private GlickoPlayer ConvertPlayerToGlicko(Player player)
+        {
+            return new GlickoPlayer(player.Rating, 100);
+        }
+
+        private Dictionary<Guid, int> CalculatePlayersRatingFromTournament(TournamentSession tournament)
+        {
+            var result = new Dictionary<Guid, int>();
+            // convert all players to glickoplayers
+            var glickoOpponents = new List<GlickoOpponent>(tournament.Players.Count);
+            for (var i = 0; i < tournament.Players.Count; i++)
+            {
+                var corePlayer = tournament.Players[i];
+                var glickoPlayer = ConvertPlayerToGlicko(corePlayer);
+                var nullableScore = tournament.PlayerTournamentSessions[i].PlayerScore;
+                var score = nullableScore.HasValue ? nullableScore.Value : 0;
+                glickoOpponents[i] = new GlickoOpponent(glickoPlayer, score);
+            }
+            for (var i = 0; i < tournament.Players.Count; i++)
+            {
+                var corePlayer = tournament.Players[i];
+                var currentGlickoPlayer = glickoOpponents[i];
+                var glicko = GlickoCalculator.CalculateRanking(currentGlickoPlayer, glickoOpponents);
+                result.Add(corePlayer.PlayerId, (int)Math.Round(glicko.Rating));
+            }
+            return result;
+        }
+
         public async Task CloseTournament(TournamentSession? tournament)
         {
+           
             ArgumentNullException.ThrowIfNull(tournament);
             if (tournament is null) Trace.WriteLine($"In PostTournamentService.CloseTournament, tournament: {tournament?.TournamentSessionId}, was null");
 
             tournament.IsOpen = false;
             var dbTournamentData = await _suikaDbService.LeiaContext.TournamentsData.FindAsync(tournament.TournamentDataId);
-            if (dbTournamentData != null)
+            if (dbTournamentData == null)
             {
-                dbTournamentData.TournamentEnd = DateTime.Now;
-                tournament.TournamentData = dbTournamentData;
+                Trace.WriteLine($"CloseTournament: Error got `null` tournament data from {tournament.TournamentSessionId}");
+                return;
             }
-
+            dbTournamentData.TournamentEnd = DateTime.Now;
+            tournament.TournamentData = dbTournamentData;
+            var newPlayerRatings = CalculatePlayersRatingFromTournament(tournament);
             try
             {
                 _suikaDbService.LeiaContext.Entry(dbTournamentData).State = EntityState.Modified;
@@ -55,6 +86,12 @@ namespace Services
 
                 _suikaDbService.LeiaContext.Entry(tournament).State = EntityState.Modified;
                 var updatedPlayerTournament = _suikaDbService.LeiaContext.Tournaments.Update(tournament);
+
+                foreach (var playerRaitingPair in newPlayerRatings)
+                {
+                    _suikaDbService.LeiaContext.Players.Find(playerRaitingPair.Key).Rating = playerRaitingPair.Value;
+                }
+
 
                 var saved = await _suikaDbService.LeiaContext.SaveChangesAsync();
                 if (saved > 0)

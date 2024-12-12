@@ -13,6 +13,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\DAL\DAL.csproj" />
     <ProjectReference Include="..\..\DataObjects\DataObjects.csproj" />
+    <ProjectReference Include="..\..\Glicko2 C#\Glicko2-master\Glicko2\Glicko2.csproj" />
   </ItemGroup>
 
 </Project>
