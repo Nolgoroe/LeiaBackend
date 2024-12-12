@@ -4,9 +4,9 @@
     {
         var dataset = new List<List<int>>
             {
-                new List<int> { 3, 1, 2, 0, 2 },
-                new List<int> { 1,4, 0, 1, 2 },  //! understand how this calculation works
-                new List<int> { 0,1, 2, 1, 0 }
+                new List<int> { 4, 3, 2, 1, 0 },
+                //new List<int> { 0,1, 2, 3, 4 },  //! understand how this calculation works
+                //new List<int> { 0,1, 1, 1, 0 }
             };
 
         Console.WriteLine("NDCG@5: " + Ndcg(dataset, 5));

@@ -8,18 +8,18 @@ namespace TestConsoleApp
     {
         static void Main(string[] args)
         {
-            var player1 = new GlickoPlayer(1500, 200);
-            var player2 = new GlickoPlayer(1400, 30);
-            var player3 = new GlickoPlayer(1550, 100);
-            var player4 = new GlickoPlayer(1700, 300);
+            var player1 = new GlickoPlayer(1500, 100);
+            var player2 = new GlickoPlayer(1400, 100);
+           // var player3 = new GlickoPlayer(1550, 100);
+           // var player4 = new GlickoPlayer(1700, 100);
 
             var player1Opponents = new List<GlickoOpponent>
             { 
                 //! insert winner-looser calculation function
 
-                new GlickoOpponent(player2, 1),
-                new GlickoOpponent(player3, 1),
-                new GlickoOpponent(player4, 0)
+                new GlickoOpponent(player2, 0),
+                //new GlickoOpponent(player3, 1),
+                //new GlickoOpponent(player4, 1)
             };
 
             Console.WriteLine(String.Format("Player ranking: {0}", player1.Rating));

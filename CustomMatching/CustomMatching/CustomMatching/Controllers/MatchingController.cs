@@ -75,15 +75,15 @@ namespace CustomMatching.Controllers
             }
         }
 
-        [HttpGet, Route("RequestMatch/{playerId}/{matchFee}/{currency}")]
-        public async Task<IActionResult> RequestMatch(Guid playerId, double matchFee, int currency)
-        // [HttpGet, Route("RequestMatch/{playerId}/{tournamentTypeId}")]
-        //public async Task<IActionResult> RequestMatch(Guid playerId, int tournamentTypeId)
+        //[HttpGet, Route("RequestMatch/{playerId}/{matchFee}/{currency}")]
+        //public async Task<IActionResult> RequestMatch(Guid playerId, double matchFee, int currency)
+        [HttpGet, Route("RequestMatch/{playerId}/{tournamentTypeId}")]
+        public async Task<IActionResult> RequestMatch(Guid playerId, int tournamentTypeId)
 
         {
             var player = await _suikaDbService.GetPlayerById(playerId);
             if (player == null) return NotFound("There is no such id");
-            var tournamentType = await _suikaDbService.LeiaContext.Currencies/*TournamentTypes*/.FindAsync(/*tournamentTypeId*/ currency);
+            var tournamentType = await _suikaDbService.LeiaContext./*Currencies*/TournamentTypes.FindAsync(tournamentTypeId /*currency*/);
             if (tournamentType == null) return NotFound("There is no such Tournament Type");
 
             var playerBalance = await _suikaDbService.GetPlayerBalance(playerId, currency);
