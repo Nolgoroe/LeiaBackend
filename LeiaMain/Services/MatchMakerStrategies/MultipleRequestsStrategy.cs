@@ -21,7 +21,7 @@ namespace Services.MatchMakerStrategies
 
         public async Task<IMatchingStrategy?> RunStrategy()
         {
-            var ordered = _tournamentService.MatchesQueue.OrderByDescending(m => m.Player?.Score).ToList();
+            var ordered = _tournamentService.MatchesQueue.OrderByDescending(m => m.Player?.Rating).ToList();
 
             foreach (var request in ordered)
             {
