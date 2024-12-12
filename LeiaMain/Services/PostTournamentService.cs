@@ -43,12 +43,12 @@ namespace Services
         }
 
 
-        private GlickoPlayer ConvertPlayerToGlicko(Player player)
+        private static GlickoPlayer ConvertPlayerToGlicko(Player player)
         {
             return new GlickoPlayer(player.Rating, 100);
         }
 
-        private Dictionary<Guid, int> CalculatePlayersRatingFromTournament(TournamentSession tournament)
+        public static Dictionary<Guid, int> CalculatePlayersRatingFromTournament(TournamentSession tournament)
         {
             // First we build the context
             var playerEntries = new TournamentGlickoRatingCalculationEntry[tournament.Players.Count];
@@ -67,10 +67,11 @@ namespace Services
                     player = player,
                     opponent = new GlickoOpponent(glickoPlayer, 0)
                 };
+                playerEntries[i] = playerEntry;
             }
             // Sort the player entries by score from largest to smallest
             Array.Sort(playerEntries,
-                delegate (TournamentGlickoRatingCalculationEntry x, TournamentGlickoRatingCalculationEntry y) { return -x.score.CompareTo(y.score)});
+                delegate (TournamentGlickoRatingCalculationEntry x, TournamentGlickoRatingCalculationEntry y) { return -x.score.CompareTo(y.score); });
 
 
             var result = new Dictionary<Guid, int>();
@@ -81,7 +82,7 @@ namespace Services
                 // Set up the player 'glicko result' which is either 0 or 1, where 0 is worse score than player, 1 is better score 
                 for (var j = 0; j < playerEntries.Length; j++)
                 {
-                    playerEntries[j].opponent.Result = j < i ? 1 : 0;
+                    playerEntries[j].opponent.Result = j < i ? 0 : 1;
                 }
                 var playerOpponents = playerEntries.Where((e , idx) => idx != i).Select(e => e.opponent).ToList();
                 var glicko = GlickoCalculator.CalculateRanking(currentGlickoPlayer, playerOpponents);
