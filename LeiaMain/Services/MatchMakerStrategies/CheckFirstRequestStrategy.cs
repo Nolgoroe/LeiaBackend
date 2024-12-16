@@ -25,7 +25,8 @@ namespace Services.MatchMakerStrategies
             // FIRST REQUEST PART
             if (_tournamentService.WaitingRequests.Count <= 0)// check if there are any waiting requests. if not, add one the to list ( = the first request)
             {
-                Debug.WriteLine("=====> Inside FirstRequestStrategy ➡️ WaitingRequests.Count <= 0");
+                Trace.WriteLine("=====> Inside FirstRequestStrategy ➡️ WaitingRequests.Count <= 0");
+                
                 var isFirstTournament = await _tournamentService.ProcessFirstRequest(_tournamentService.MatchesQueue[0]);
                 if (isFirstTournament) return null;
                 else return new FindMatchInOngoingTournamentsStrategy(_suikaDbService, _tournamentService, _tournamentService.MatchesQueue[0]);
@@ -34,10 +35,10 @@ namespace Services.MatchMakerStrategies
             // MULTIPLE REQUESTS PART
             else if (_tournamentService.MatchesQueue.Count > 0)
             {
-                Debug.WriteLine("=====> Inside FirstRequestStrategy ➡️ MatchesQueue.Count > 0");
+                Trace.WriteLine("=====> Inside FirstRequestStrategy ➡️ MatchesQueue.Count > 0");
                 return new MultipleRequestsStrategy(_suikaDbService, _tournamentService);
             }
-            Debug.WriteLine("=====> Inside FirstRequestStrategy ➡️  return null");
+            Trace.WriteLine("=====> Inside FirstRequestStrategy ➡️  return null");
             return null;
 
         }

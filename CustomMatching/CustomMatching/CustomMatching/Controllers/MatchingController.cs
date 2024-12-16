@@ -77,26 +77,31 @@ namespace CustomMatching.Controllers
 
         //[HttpGet, Route("RequestMatch/{playerId}/{matchFee}/{currency}")]
         //public async Task<IActionResult> RequestMatch(Guid playerId, double matchFee, int currency)
-        [HttpGet, Route("RequestMatch/{playerId}/{tournamentTypeId}")]
-        public async Task<IActionResult> RequestMatch(Guid playerId, int tournamentTypeId)
+        [HttpPost, Route("RequestMatch/{playerId}/{matchFee}/{currency}")]
+        public async Task<IActionResult> RequestMatch(Guid playerId, double matchFee, int currency, [FromBody] TournamentType tournamentType)
 
         {
             var player = await _suikaDbService.GetPlayerById(playerId);
             if (player == null) return NotFound("There is no such id");
-            var tournamentType = await _suikaDbService.LeiaContext./*Currencies*/TournamentTypes.FindAsync(tournamentTypeId /*currency*/);
-            if (tournamentType == null) return NotFound("There is no such Tournament Type");
 
-            var playerBalance = await _suikaDbService.GetPlayerBalance(playerId, currency);
+            var dbTournamentType = await _suikaDbService.LeiaContext.TournamentTypes.FindAsync(tournamentType.TournamentTypeId);
+            if (dbTournamentType == null) return NotFound("There is no such Tournament Type");
+
+            var currencies = await _suikaDbService.LeiaContext.Currencies.FindAsync(currency);
+            if (currencies == null) return NotFound("There is no such currency");
+
+            var playerBalance = await _suikaDbService.GetPlayerBalance(playerId, /*dbTournamentType?.CurrenciesId*/currency);
             if (playerBalance == null) return BadRequest("The player doesn't have a balance for this currency");
-            if (playerBalance < /*tournamentType?.EntryFee*/ matchFee) return BadRequest("The player doesn't have enough of this currency to join this match");
+            if (playerBalance < dbTournamentType?.EntryFee /* matchFee*/) return BadRequest("The player doesn't have enough of this currency to join this match");
             else
             {
                 MatchRequest request = new()
                 {
                     RequestId = new Random().Next(1, 100),
                     Player = player,
-                    MatchFee = matchFee/*Convert.ToDouble( tournamentType?.EntryFee)*/,
-                    MatchFeeCurrency = tournamentType/*?.Currencies*/
+                    MatchFee = matchFee/*Convert.ToDouble( dbTournamentType?.EntryFee)*/,
+                    MatchFeeCurrency = currencies,
+                    TournamentType = dbTournamentType
                 };
                 _tournamentService.MatchesQueue.Add(request);
 
@@ -119,7 +124,7 @@ namespace CustomMatching.Controllers
         [HttpGet, Route("GetOpenGames")]
         public IActionResult GetOpenGames()
         {
-            var openGames = _tournamentService.OngoingTournaments;
+            var openGames = _tournamentService.OngoingTournaments.Take(100);
             _tournamentService.PlayerAddedToTournament -= PlayerAddedToTournamentHandler;
             return Ok(openGames);
         }
@@ -175,6 +180,8 @@ namespace CustomMatching.Controllers
             return Ok("Timer Started");
         }
 
+
+        // make private before deployment
         [HttpGet, Route("GetTest")]
         public IActionResult GetTest()
         {
@@ -211,7 +218,7 @@ namespace CustomMatching.Controllers
 
                         playerCurrency ??= new();
 
-                        var tournamentTypeId = await _tournamentService.GetTournamentTypeByCurrency(currencyId);
+                        var tournamentType = await _tournamentService.GetTournamentTypeByCurrency(currencyId);
                         var tournament = new TournamentSession
                         {
                             TournamentData = new TournamentData
@@ -220,7 +227,7 @@ namespace CustomMatching.Controllers
                                 EntryFeeCurrency = currency,
                                 EntryFeeCurrencyId = currency.CurrencyId,
                                 EarningCurrencyId = currency.CurrencyId,
-                                TournamentTypeId = (int)tournamentTypeId
+                                TournamentTypeId = (int)tournamentType
                             }
                         };
                         tournament.Players?.Add(player);

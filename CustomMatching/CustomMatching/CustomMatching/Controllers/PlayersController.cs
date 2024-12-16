@@ -124,6 +124,7 @@ namespace CustomMatching.Controllers
                 .FirstOrDefault();
 
             if (player == null || tournament == null) return NotFound("Player or tournament were not found");
+            if (tournament.PlayerTournamentSessions.FirstOrDefault(pt => pt.PlayerId == playerId && pt.TournamentSessionId == tournamentId)?.DidClaim != null) return BadRequest("Player already claimed this prize");
 
            var (amountClaimed, wasTournamentClaimed) =  await _postTournamentService.GrantTournamentPrizes(tournament, player);
 

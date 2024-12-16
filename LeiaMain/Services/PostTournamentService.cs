@@ -61,6 +61,7 @@ namespace Services
                 var glickoPlayer = ConvertPlayerToGlicko(player);
                 var nullableScore = playerScoreByGuid[player.PlayerId];
                 var score = nullableScore.HasValue ? nullableScore.Value : 0;
+              
                 var playerEntry = new TournamentGlickoRatingCalculationEntry
                 {
                     score = score,
@@ -101,7 +102,7 @@ namespace Services
             var dbTournamentData = await _suikaDbService.LeiaContext.TournamentsData.FindAsync(tournament.TournamentDataId);
             if (dbTournamentData == null)
             {
-                Trace.WriteLine($"CloseTournament: Error got `null` tournament data from {tournament.TournamentSessionId}");
+                Trace.WriteLine($"PostTournamentService.CloseTournament: Error got null tournament data from {tournament.TournamentSessionId}");
                 return;
             }
             dbTournamentData.TournamentEnd = DateTime.Now;
@@ -185,6 +186,8 @@ namespace Services
             var playerPosition = playersByScore?.IndexOf(player) + 1; // +1 because the index is 0 based and positions are 1 based
             if (playerPosition != -1) //if player position was found
             { //update with the corresponding reward
+
+                // TODO make this compatible with multiple rewards per player position (send list of rewards to UpdateBalanceWithReward) 
                 var reward = rewards?.FirstOrDefault(r => r.ForPosition == playerPosition);
                 if (reward != null) // if reward was found
                 {

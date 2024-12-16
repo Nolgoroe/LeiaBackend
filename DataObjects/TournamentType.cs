@@ -19,7 +19,7 @@ namespace DataObjects
 
         public double? Rake { get; set; }
         public int CurrenciesId { get; set; }
-        public Currencies Currencies { get; set; }
+        public Currencies? Currencies { get; set; }
         public int? NumberOfPlayers { get; set; }
 
         //[JsonIgnore]

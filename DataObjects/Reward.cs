@@ -14,7 +14,7 @@ namespace DataObjects
         public int RewardId { get; set; }
         public string RewardName { get; set; }
         public int CurrenciesId { get; set; }
-        public Currencies Currencies { get; set; }
+        public Currencies? Currencies { get; set; }
         
         public double? RewardAmount { get; set; }
         public int? ForPosition { get; set; }
