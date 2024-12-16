@@ -35,12 +35,9 @@ namespace Services
         public Task AddToExistingTournament(MatchRequest? request, MatchRequest? matchedRequest, TournamentSession? matchingTournament);
         public Task<int?> GetTournamentTypeByCurrency(int? currencyId);
         public Task CheckTournamentStatus(int tournamentId);
+        public Task<PlayerCurrencies?> ChargePlayer(Guid playerId, int? tournamentId);
         public void StopTimer();
         public void StartTimer();
-
-
-
-
     }
 
     public class TournamentService : ITournamentService
@@ -120,7 +117,7 @@ namespace Services
             //}
             );
 
-           // if (_timerCycles > 240) MatchTimer.Stop();
+            // if (_timerCycles > 240) MatchTimer.Stop();
         }
 
         public void StopTimer()
@@ -285,7 +282,7 @@ namespace Services
 
         public async Task CreateNewTournament(MatchRequest? matchedRequest, MatchRequest? request)
         {
-       
+
             if (matchedRequest != null)
             {
                 var tournament = await SaveNewTournament(matchedRequest.MatchFee, matchedRequest?.MatchFeeCurrency?.CurrencyId, matchedRequest?.TournamentType?.TournamentTypeId, matchedRequest?.Player?.PlayerId, request?.Player?.PlayerId);
@@ -307,11 +304,11 @@ namespace Services
             var range = Enumerable.Range(r.Player!.Rating - _scoreVariance, _scoreVarianceSteps).ToList();
             var isMatch = range.Contains(request!.Player!.Rating)
 
-                    //  && request?.MatchFee == r.MatchFee // check that both players entered a match on the same amount (e.g. both entered a match on 3$)
+                    //  && request?.MatchFee == r.MatchFee // check that both players entered a match on the same fee (e.g. both entered a match on 3$)
 
                     && rBalance >= r?.MatchFee //! make sure the player has enough money to enter the match. even though a player should not be able to select a match type on the client that he doest have enough    money for
                     && requestBalance >= r.MatchFee // check if the player of the current request has enough money to join the match
-                    //&& r?.MatchFeeCurrency?.CurrencyId == request?.MatchFeeCurrency?.CurrencyId // check that both players entered with same type of currency
+                                                    //&& r?.MatchFeeCurrency?.CurrencyId == request?.MatchFeeCurrency?.CurrencyId // check that both players entered with same type of currency
                     && r?.Player?.PlayerId != request?.Player?.PlayerId; // makes sure that the requests are not from the same player
 
             Trace.WriteLine($"=====> Inside CheckRequestsMatch, isMatch: {isMatch}");
@@ -330,7 +327,7 @@ namespace Services
 
                 if (OngoingTournaments.Count <= 0) // if there are no open sessions, create a new one
                 {
-                    var tournament = await SaveNewTournament(firstRequest.MatchFee, firstRequest.MatchFeeCurrency.CurrencyId,  firstRequest?.TournamentType?.TournamentTypeId,firstRequest.Player.PlayerId);
+                    var tournament = await SaveNewTournament(firstRequest.MatchFee, firstRequest.MatchFeeCurrency.CurrencyId, firstRequest?.TournamentType?.TournamentTypeId, firstRequest.Player.PlayerId);
 
                     Debug.WriteLine($"Player: {firstRequest?.Player?.PlayerId}, rating: {firstRequest?.Player?.Rating}, was added to tournament: {tournament?.TournamentSessionId}.");
 
@@ -427,7 +424,7 @@ namespace Services
         }
 
         // Deprecate this 👇🏻
-        public async Task<int?> GetTournamentTypeByCurrency(int? currencyId) 
+        public async Task<int?> GetTournamentTypeByCurrency(int? currencyId)
         {
             var currency = _suikaDbService.LeiaContext.Currencies.Find(currencyId);
             var tournamentTypes = _suikaDbService.LeiaContext.TournamentTypes.ToList();
@@ -464,7 +461,7 @@ namespace Services
                 }
             }
 
-       
+
             //var tournamentTypeId = await  GetTournamentTypeByCurrency(currencyId);
 
 
@@ -498,7 +495,7 @@ namespace Services
             }
             catch (Exception ex)
             {
-                Debug.WriteLine(ex.Message + "\n" + ex.InnerException?.Message);
+                Trace.WriteLine(ex.Message + "\n" + ex.InnerException?.Message);
                 throw;
                 //return null;
             }
@@ -537,20 +534,52 @@ namespace Services
         {
             using (var context = new LeiaContext())
             {
-                
+
                 try
                 {
                     var tournament = context.Tournaments
-                        .Include( t => t.TournamentData)
+                        .Include(t => t.TournamentData)
                         .Include(t => t.PlayerTournamentSessions)
                         .Include(t => t.Players)
                         .FirstOrDefault(t => t.TournamentSessionId == tournamentId);
                     if (tournament != null)
                     {
-                        var scores =context.PlayerTournamentSession.Where(pt => pt.TournamentSessionId == tournamentId).Select(pt => pt.PlayerScore).ToList();
+                        var scores = context.PlayerTournamentSession.Where(pt => pt.TournamentSessionId == tournamentId).Select(pt => pt.PlayerScore).ToList();
                         if (scores.All(s => s != null)) await _postTournamentService.CloseTournament(tournament); // close tournament
 
                     }
+                }
+                catch (Exception ex)
+                {
+                    Trace.WriteLine(ex.Message + "\n" + ex.InnerException?.Message);
+                    throw;
+                }
+            }
+        }
+
+        public async Task<PlayerCurrencies?> ChargePlayer(Guid playerId, int? tournamentId)
+        {
+            using (var context = new LeiaContext())
+            {
+                _suikaDbService.LeiaContext = context;
+                try
+                {
+                    var dbPlayer = await _suikaDbService.GetPlayerById(playerId);
+                    if (dbPlayer == null) return null;
+
+                    var dbTournament = _suikaDbService.LeiaContext.Tournaments
+                        .Include(t => t.TournamentData)
+                            .ThenInclude(td => td.TournamentType)
+                            .FirstOrDefault(t => t.TournamentSessionId == tournamentId);
+
+                    if (dbTournament == null) return null;
+
+                    var currencyId = dbTournament?.TournamentData?.TournamentType?.CurrenciesId;
+                    var fee = -dbTournament?.TournamentData?.TournamentType?.EntryFee;
+
+                    var updatedBalance = await _suikaDbService.UpdatePlayerBalance(playerId, currencyId, fee);
+                    return updatedBalance;
+
                 }
                 catch (Exception ex)
                 {

@@ -142,13 +142,17 @@ namespace CustomMatching.Controllers
         }
 
         [HttpGet, Route("GetTournamentSeed/{playerId}")]
-        public IActionResult GetTournamentSeed(Guid playerId)
+        public async Task<IActionResult> GetTournamentSeed(Guid playerId)
         {
             _tournamentService.PlayerAddedToTournament -= PlayerAddedToTournamentHandler;
-            if (_tournamentService.PlayersSeeds.TryGetValue(playerId, out int?[]? seedAndId))
+            if (_tournamentService.PlayersSeeds.TryGetValue(playerId, out int?[]? IdAndSeed))
             {
                 _tournamentService.PlayersSeeds.Remove(playerId);
-                return Ok(seedAndId);
+                var newBalance = await _tournamentService.ChargePlayer(playerId, IdAndSeed[0]); // we use IdAndSeed[0] to get tournament Id because it first int the array
+                if (newBalance != null) Trace.WriteLine($"=====> Player {playerId}, was charged. New balance is: {newBalance?.CurrencyBalance}, currency type is: {newBalance?.CurrenciesId}");
+                else Trace.WriteLine($"=====> Player {playerId}, was not charged");
+                
+                return Ok(IdAndSeed);
             }
             else
             {
