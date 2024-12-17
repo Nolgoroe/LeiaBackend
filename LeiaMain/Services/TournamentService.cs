@@ -539,13 +539,14 @@ namespace Services
                 {
                     var tournament = context.Tournaments
                         .Include(t => t.TournamentData)
+                            .ThenInclude(td => td.TournamentType)
                         .Include(t => t.PlayerTournamentSessions)
                         .Include(t => t.Players)
                         .FirstOrDefault(t => t.TournamentSessionId == tournamentId);
                     if (tournament != null)
                     {
                         var scores = context.PlayerTournamentSession.Where(pt => pt.TournamentSessionId == tournamentId).Select(pt => pt.PlayerScore).ToList();
-                        if (scores.All(s => s != null)) await _postTournamentService.CloseTournament(tournament); // close tournament
+                        if (scores.All(s => s != null) && scores.Count >= tournament.TournamentData.TournamentType.NumberOfPlayers ) await _postTournamentService.CloseTournament(tournament); // close tournament
 
                     }
                 }
@@ -567,7 +568,7 @@ namespace Services
                     var dbPlayer = await _suikaDbService.GetPlayerById(playerId);
                     if (dbPlayer == null) return null;
 
-                    var dbTournament = _suikaDbService.LeiaContext.Tournaments
+                    var dbTournament = context.Tournaments
                         .Include(t => t.TournamentData)
                             .ThenInclude(td => td.TournamentType)
                             .FirstOrDefault(t => t.TournamentSessionId == tournamentId);

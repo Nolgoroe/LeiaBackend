@@ -24,7 +24,7 @@ namespace Services
 
     public class SuikaDbService : ISuikaDbService
     {
-        private readonly LeiaContext _leiaContext;
+        private /*readonly*/ LeiaContext _leiaContext;
 
         public SuikaDbService(LeiaContext leiaContext)
         {
@@ -32,7 +32,11 @@ namespace Services
             LeiaContext = leiaContext;
         }
 
-        public LeiaContext LeiaContext { get; set; }
+        public LeiaContext LeiaContext
+        {
+            get { return _leiaContext; }
+            set { _leiaContext = value; }
+        }
 
         public async Task<Player> AddNewPlayer(Player player)
         {
@@ -136,7 +140,7 @@ namespace Services
             {
                 var balances = _leiaContext.PlayerCurrencies.Where(p => p.PlayerId == playerId)
                     .Include(pc => pc.Currencies)
-                   // .Include(pc => pc.Player)
+                    // .Include(pc => pc.Player)
                     .ToList();
                 return balances;
 
@@ -157,13 +161,13 @@ namespace Services
                 Trace.WriteLine("In SuikaDbService.UpdatePlayerBalance: Player balances not found");
                 return null;
             }
-            
+
             if (balances?.Count > 0)
             {
                 var balance = balances.FirstOrDefault(pc => pc.CurrenciesId == currencyId);
                 if (balance != null) //if he already has a balance  , update it
                 {
-                    balance.CurrencyBalance += Convert.ToDouble(amount);
+                    balance.CurrencyBalance += (double)amount /*Convert.ToDouble(amount)*/;
 
                     try
                     {
@@ -184,8 +188,8 @@ namespace Services
                 {
                     var newBalance = new PlayerCurrencies
                     {
-                        CurrenciesId = Convert.ToInt32( currencyId),
-                        CurrencyBalance = Convert.ToDouble(amount),
+                        CurrenciesId = (int)currencyId /*Convert.ToInt32( currencyId)*/,
+                        CurrencyBalance = (double)amount /*Convert.ToDouble(amount)*/,
                         PlayerId = (Guid)playerId
                     };
                     try
@@ -237,6 +241,7 @@ namespace Services
                     .ThenInclude(td => td.EarningCurrency)
                 .Include(t => t.TournamentData)
                     .ThenInclude(td => td.TournamentType)
+                        .ThenInclude(tt => tt.Reward)
                 .Include(t => t.Players)
                 .ToList();
             return tournaments;
