@@ -15,6 +15,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using System;
 using System.Text.RegularExpressions;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Services
 {
@@ -51,6 +52,7 @@ namespace Services
         private IMatchingStrategy? _currentMatchingStrategy;
         private readonly ISuikaDbService _suikaDbService;
         private readonly IPostTournamentService _postTournamentService;
+        private readonly IServiceScopeFactory _scopeFactory;
         private SemaphoreSlim _semaphore;
         //private readonly IConfiguration _configuration;
         private JsonSerializerOptions _jsonOptions;
@@ -62,12 +64,13 @@ namespace Services
         public List<MatchRequest> WaitingRequests { get; private set; }
         public List<TournamentSession> OngoingTournaments { get; set; }
 
-        public TournamentService(/*IConfiguration configuration */)
+        public TournamentService(/*IConfiguration configuration */ IServiceScopeFactory scopeFactory)
         {
             MatchesQueue = new List<MatchRequest>();
             OngoingTournaments = new List<TournamentSession>();
             WaitingRequests = new List<MatchRequest>();
             //_configuration = configuration;
+            _scopeFactory = scopeFactory;
             _suikaDbService = new SuikaDbService(new LeiaContext());
             _postTournamentService = new PostTournamentService(_suikaDbService);
             //_suikaDbService = new SuikaDbService(new LeiaContext(configuration.GetConnectionString("SuikaDb"))) /*suikaDbService*/;
@@ -559,16 +562,24 @@ namespace Services
         }
 
         public async Task<PlayerCurrencies?> ChargePlayer(Guid playerId, int? tournamentId)
-        {
-            using (var context = new LeiaContext())
+        { // this 👇🏻 gets the current scope of the services that are Scoped.
+            // through it, we can get the actual service instance that is assigned in the scope. for example the suikaDbService instance that
+            // is associated with current HTTP call in the controller . this prevents collisions between scopes. for example if suikaDbService is
+            // called from PlayersController, and from MatchingController - each creates a different instance of suikaDbService. each of them is
+            // also  injected into the TournamentService in each Controller. which may result in 2 different suikaDbServices being injected into 
+            // TournamentService, depending on the Controller that makes the call to TournamentService. this results in 2 different Contexts for
+            // the 2 Controllers. which of course creates problems when a method in TournamentService that was called from PlayersController and
+            // then another method was called from MatchingController, cause the 2 different instances of the Context to collide.
+            // 
+            using (var scope = _scopeFactory.CreateScope())
             {
-                _suikaDbService.LeiaContext = context;
+                var suikaDbService = scope.ServiceProvider.GetRequiredService<ISuikaDbService>();
                 try
                 {
-                    var dbPlayer = await _suikaDbService.GetPlayerById(playerId);
+                    var dbPlayer = await /*_*/suikaDbService.GetPlayerById(playerId);
                     if (dbPlayer == null) return null;
 
-                    var dbTournament = context.Tournaments
+                    var dbTournament =/* context_*/suikaDbService.LeiaContext.Tournaments
                         .Include(t => t.TournamentData)
                             .ThenInclude(td => td.TournamentType)
                             .FirstOrDefault(t => t.TournamentSessionId == tournamentId);
@@ -578,7 +589,7 @@ namespace Services
                     var currencyId = dbTournament?.TournamentData?.TournamentType?.CurrenciesId;
                     var fee = -dbTournament?.TournamentData?.TournamentType?.EntryFee;
 
-                    var updatedBalance = await _suikaDbService.UpdatePlayerBalance(playerId, currencyId, fee);
+                    var updatedBalance = await /*_*/suikaDbService.UpdatePlayerBalance(playerId, currencyId, fee);
                     return updatedBalance;
 
                 }

@@ -24,7 +24,7 @@ namespace Services
 
     public class SuikaDbService : ISuikaDbService
     {
-        private /*readonly*/ LeiaContext _leiaContext;
+        private readonly LeiaContext _leiaContext;
 
         public SuikaDbService(LeiaContext leiaContext)
         {
@@ -32,12 +32,8 @@ namespace Services
             LeiaContext = leiaContext;
         }
 
-        public LeiaContext LeiaContext
-        {
-            get { return _leiaContext; }
-            set { _leiaContext = value; }
-        }
-
+        public LeiaContext LeiaContext { get; set; }
+      
         public async Task<Player> AddNewPlayer(Player player)
         {
             if (player != null)
