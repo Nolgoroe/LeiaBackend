@@ -163,7 +163,7 @@ namespace CustomMatching.Controllers
         [HttpGet, Route("GetTournamentTypes")]
         public IActionResult GetTournamentTypes()
         {
-            var tournamentTypes = _suikaDbService.LeiaContext.TournamentTypes.Include(tp => tp.Reward).ToList();
+            var tournamentTypes = _suikaDbService.LeiaContext.TournamentTypes.Include(tp => tp.Reward).OrderBy(tp => tp.CurrenciesId).ToList();
 
             /// DON'T UNSUBSCRIBE FROM THE EVENT HERE! this keeps the PlayerAddedToTournamentHandler  connected to the event, and that makes sure  the PlayerAddedToTournamentHandler method is fired 
             //_tournamentService.PlayerAddedToTournament -= PlayerAddedToTournamentHandler;

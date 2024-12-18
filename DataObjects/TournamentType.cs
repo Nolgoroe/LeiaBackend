@@ -25,7 +25,9 @@ namespace DataObjects
         //[JsonIgnore]
         public List<Reward> Reward { get; set; }
 
-        private double? entryFee;
+        public double? EntryFee { get; set; }
+
+       /* private double? entryFee;
         public double? EntryFee
         {
             get 
@@ -40,6 +42,6 @@ namespace DataObjects
                 return entryFee; 
             }
             set { entryFee = value; }
-        }
+        }*/
     }
 }
