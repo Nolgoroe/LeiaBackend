@@ -45,7 +45,7 @@ namespace Services
                     {
                         PlayerId = player.PlayerId,
                         CurrenciesId = (int)currencies?.Find(c => c.CurrencyName == "Gems")?.CurrencyId,
-                        CurrencyBalance = 1000
+                        CurrencyBalance = 100
                     },
                     new()
                     {
