@@ -5,7 +5,7 @@
     "framework"     : "net8.0",
     "self-contained" : true,
     "application"    : "LeiaGamesApi",
-    "environment"    : "LeiaGamesApi-env",
+    "environment"    : "LeiaGamesApi-env-Test",
     "enable-xray"    : true,
     "enhanced-health-type" : "enhanced",
     "additional-options"   : "",
