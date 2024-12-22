@@ -113,6 +113,15 @@ namespace CustomMatching.Controllers
 
         }
 
+        [HttpGet, Route("GetMatchesQueue")]
+        public IActionResult GetMatchesQueue()
+        {
+            var matchesQueue = _tournamentService.MatchesQueue.Take(100);
+            _tournamentService.PlayerAddedToTournament -= PlayerAddedToTournamentHandler;
+            return Ok(matchesQueue);
+        }
+
+
         [HttpGet, Route("GetWaitingRequests")]
         public IActionResult GetWaitingRequests()
         {
@@ -257,6 +266,34 @@ namespace CustomMatching.Controllers
             _tournamentService.OngoingTournaments.Clear();
             _tournamentService.PlayersSeeds.Clear();
             return Ok($"MatchesQueue count: {_tournamentService.MatchesQueue.Count}\nWaitingRequests count: {_tournamentService.WaitingRequests.Count}\nOngoingTournaments count: {_tournamentService.OngoingTournaments.Count}\nPlayersSeeds count: {_tournamentService.PlayersSeeds.Count}");
+        }
+
+        [HttpGet, Route("ResetMatchesQueue")]
+        public IActionResult ResetMatchesQueue()
+        {
+            _tournamentService.MatchesQueue.Clear();
+            return Ok($"MatchesQueue count: {_tournamentService.MatchesQueue.Count}");
+        }
+
+        [HttpGet, Route("ResetWaitingRequests")]
+        public IActionResult ResetWaitingRequests()
+        {
+            _tournamentService.WaitingRequests.Clear();
+            return Ok($"WaitingRequests count: {_tournamentService.WaitingRequests.Count}");
+        }
+
+        [HttpGet, Route("ResetOngoingTournaments")]
+        public IActionResult ResetOngoingTournaments()
+        {
+            _tournamentService.OngoingTournaments.Clear();
+            return Ok($"OngoingTournaments count: {_tournamentService.OngoingTournaments.Count}");
+        }
+
+        [HttpGet, Route("ResetPlayersSeeds")]
+        public IActionResult ResetPlayersSeeds()
+        {
+            _tournamentService.PlayersSeeds.Clear();
+            return Ok($"PlayersSeeds count: {_tournamentService.PlayersSeeds.Count}");
         }
 
     }

@@ -294,7 +294,20 @@ namespace Services
 
                 MatchesQueue.Remove(request);
                 WaitingRequests?.Remove(matchedRequest);
-                OngoingTournaments.Add(tournament);
+
+                // make sure the tournament isn't already full
+                if (tournament != null)
+                {
+                    var dbTournament = _suikaDbService.LeiaContext.Tournaments
+                            .Include(t => t.TournamentData)
+                                .ThenInclude(td => td.TournamentType)
+                            .FirstOrDefault(t => t.TournamentSessionId == tournament.TournamentSessionId);
+                   
+                    if (tournament?.Players?.Count < tournament?.TournamentData?.TournamentType?.NumberOfPlayers)
+                    {
+                        OngoingTournaments.Add(tournament);
+                    }
+                }
             }
         }
 
@@ -549,7 +562,7 @@ namespace Services
                     if (tournament != null)
                     {
                         var scores = context.PlayerTournamentSession.Where(pt => pt.TournamentSessionId == tournamentId).Select(pt => pt.PlayerScore).ToList();
-                        if (scores.All(s => s != null) && scores.Count >= tournament.TournamentData.TournamentType.NumberOfPlayers ) await _postTournamentService.CloseTournament(tournament); // close tournament
+                        if (scores.All(s => s != null) && scores.Count >= tournament.TournamentData.TournamentType.NumberOfPlayers) await _postTournamentService.CloseTournament(tournament); // close tournament
 
                     }
                 }
