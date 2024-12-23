@@ -80,7 +80,7 @@ namespace CustomMatching.Controllers
             {
                 var message = $"UpdatePlayerTournamentResult: Player {playerId} was not active in tournament {tournamentId}";
                 await _suikaDbService.Log(message, playerId);
-                Console.WriteLine(message);
+                Trace.WriteLine(message);
                 return BadRequest("Could not submit result, player not in active tournament");
             }
             var tournament = _suikaDbService?.LeiaContext?.Tournaments.FirstOrDefault(t => t.TournamentSessionId == tournamentId && t.IsOpen == true);
