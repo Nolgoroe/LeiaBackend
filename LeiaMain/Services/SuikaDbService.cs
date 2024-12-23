@@ -269,27 +269,14 @@ namespace Services
 
         public async Task<bool> RemovePlayerFromActiveMatchMaking(Guid playerId)
         {
-            var stub = new PlayerActiveTournament
-            {
-                PlayerId = playerId,
-                TournamentId = PLAYER_ACTIVE_TOURNAMENT_MATCHMAKING_TOURNAMENT_ID,
-            };
-            _leiaContext.PlayerActiveTournaments.Attach(stub);
-            _leiaContext.PlayerActiveTournaments.Remove(stub);
-            var rowsAffected = await _leiaContext.SaveChangesAsync();
-            return rowsAffected > 0;
+            return await RemovePlayerFromActiveTournament(playerId, PLAYER_ACTIVE_TOURNAMENT_MATCHMAKING_TOURNAMENT_ID);
         }
 
         public async Task<bool> RemovePlayerFromActiveTournament(Guid playerId, int tournamentId)
         {
-            var stub = new PlayerActiveTournament
-            {
-                PlayerId = playerId,
-                TournamentId = tournamentId,
-            };
-            _leiaContext.PlayerActiveTournaments.Attach(stub);
-            _leiaContext.PlayerActiveTournaments.Remove(stub);
-            var rowsAffected = await _leiaContext.SaveChangesAsync();
+            var rowsAffected = await _leiaContext.PlayerActiveTournaments
+                .Where(p => p.PlayerId == playerId && p.TournamentId == tournamentId)
+                .ExecuteDeleteAsync();
             return rowsAffected > 0;
         }
 
