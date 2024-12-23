@@ -397,6 +397,7 @@ namespace Services
                 {
                     var message = "AddToExistingTournament: Got null request AND null MatchRequest";
                     await _suikaDbService.Log(message);
+                    Trace.WriteLine(message);
                     return; // Don't change anything
                 }
                 if (dbPlayer == null)
