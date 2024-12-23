@@ -543,20 +543,32 @@ namespace Services
                 var idsArray = dbPlayers?.Select(p => p?.PlayerId).ToArray();
                 if (saved > 0) {
                     SendPlayerAndSeed(savedTournament?.Entity?.TournamentSeed, savedTournament?.Entity?.TournamentSessionId, idsArray);
+                    var addedPlayerIds = new List<Guid>();
                     foreach (var playerId in playerIds)
                     {
-                        if (playerId == null) {
+                        if (playerId == null) 
+                        {
                             continue; 
                         }
-                        await _suikaDbService.Log($"SaveNewTournament: Player {playerId} attempts to create tournament {savedTournament.TournamentSessionId}");
-                        var canCreateTournament = await _suikaDbService.SetPlayerActiveTournament(playerId, savedTournament.TournamentSessionId);
+                        await _suikaDbService.Log($"SaveNewTournament: Player {playerId} attempts to create tournament {savedTournament.Entity.TournamentSessionId}");
+                        var canCreateTournament = await _suikaDbService.SetPlayerActiveTournament(playerId.Value, savedTournament.Entity.TournamentSessionId);
                         if (!canCreateTournament)
                         {
                             var message = $"SaveNewTournament: Player {playerId} attempted to create a new tournament, but was not in matchmaking state!";
                             await _suikaDbService.Log(message, playerId.Value);
+                            foreach (var alreadyAddedPlayerId in addedPlayerIds)
+                            {
+                                var message2 = $"SaveNewTournament: Player {playerId} attempted to create a new tournament, but is removed because another player {playerId.Value} could not join";
+                                await _suikaDbService.Log(message2, alreadyAddedPlayerId);
+                                await _suikaDbService.RemovePlayerFromAnyActiveTournament(alreadyAddedPlayerId);
+                            }
                             savedTournament.Entity.IsOpen = false;
                             await _suikaDbService?.LeiaContext?.SaveChangesAsync();
                             return null;
+                        }
+                        else
+                        {
+                            addedPlayerIds.Add(playerId.Value);
                         }
                     }
                 }

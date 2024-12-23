@@ -23,10 +23,11 @@ namespace Services
 
         public Task Log(string message, Guid playerId);
 
-        Task<bool> MarkPlayerAsMatchMaking(Guid playerId);
+        public Task<bool> MarkPlayerAsMatchMaking(Guid playerId);
 
         public Task<bool> RemovePlayerFromActiveMatchMaking(Guid playerId);
-        Task<bool> RemovePlayerFromActiveTournament(Guid playerId, int tournamentId);
+        public Task<bool> RemovePlayerFromActiveTournament(Guid playerId, int tournamentId);
+        public Task<bool> RemovePlayerFromAnyActiveTournament(Guid playerId);
         public Task<bool> SetPlayerActiveTournament(Guid playerId, int tournamentId);
         public LeiaContext LeiaContext { get; set; }
     }
@@ -265,6 +266,14 @@ namespace Services
                 Trace.WriteLine(message);
                 return false;
             }
+        }
+
+        public async Task<bool> RemovePlayerFromAnyActiveTournament(Guid playerId)
+        {
+            var rowsAffected = await _leiaContext.PlayerActiveTournaments
+                .Where(p => p.PlayerId == playerId)
+                .ExecuteDeleteAsync();
+            return rowsAffected > 0;
         }
 
         public async Task<bool> RemovePlayerFromActiveMatchMaking(Guid playerId)
