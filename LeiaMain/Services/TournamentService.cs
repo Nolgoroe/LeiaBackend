@@ -293,7 +293,9 @@ namespace Services
                 var canCreateTournament = await _suikaDbService.SetPlayerActiveTournament(request.Player.PlayerId, tournament.TournamentSessionId);
                 if (!canCreateTournament)
                 {
-                    await _suikaDbService.Log($"Player {request.Player.PlayerId} attempted to create a new tournament, but was not in matchmaking state!", request.Player.PlayerId);
+                    var message = $"Player {request.Player.PlayerId} attempted to create a new tournament, but was not in matchmaking state!";
+                    await _suikaDbService.Log(message, request.Player.PlayerId);
+                    Trace.WriteLine(message);
                     tournament.IsOpen = false;
                     await _suikaDbService?.LeiaContext?.SaveChangesAsync();
                     return;
