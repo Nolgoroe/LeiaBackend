@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -21,6 +22,8 @@ namespace DataObjects
         /// This exists for research/debugging purposes (for example seeing all logs related to a specific user)
         /// </summary>
         public Guid PlayerId { get; set; }
-        public required string Log { get; set; }
+
+        [MaxLength(1024)]
+        public string Log { get; set; }
     }
 }

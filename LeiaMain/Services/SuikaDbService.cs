@@ -229,13 +229,13 @@ namespace Services
 
         public async Task Log(string message, Guid playerId)
         {
-            _leiaContext.BackendLogs.Add(new BackendLog()
-            {
-                Timestamp = DateTime.UtcNow,
-                Log = message,
-                PlayerId = playerId,
-            });
-            await _leiaContext.SaveChangesAsync();
+            // We do not use SaveChanges here, because that may cause deadlocks
+            await _leiaContext.Database.ExecuteSqlRawAsync(
+                "INSERT INTO BackendLogs (PlayerId, Timestamp, Log) VALUES ({0}, {1}, {2})",
+                playerId,
+                DateTime.UtcNow,
+                message
+            );
         }
 
         public async Task<bool> MarkPlayerAsMatchMaking(Guid playerId)
