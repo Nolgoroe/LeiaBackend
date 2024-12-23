@@ -22,6 +22,31 @@ namespace DAL.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("DataObjects.BackendLog", b =>
+                {
+                    b.Property<int>("LogId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("LogId"));
+
+                    b.Property<string>("Log")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("PlayerId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("Timestamp")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("LogId");
+
+                    b.HasIndex("Timestamp");
+
+                    b.ToTable("BackendLogs");
+                });
+
             modelBuilder.Entity("DataObjects.Currencies", b =>
                 {
                     b.Property<int>("CurrencyId")
@@ -92,7 +117,33 @@ namespace DAL.Migrations
 
                     b.HasKey("PlayerId");
 
-                    b.ToTable("Players", (string)null);
+                    b.ToTable("Players");
+                });
+
+            modelBuilder.Entity("DataObjects.PlayerActiveTournament", b =>
+                {
+                    b.Property<Guid>("PlayerId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("JoinTournamentTime")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("MatchmakeStartTime")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("TournamentId")
+                        .HasColumnType("int");
+
+                    b.HasKey("PlayerId");
+
+                    b.HasIndex("PlayerId")
+                        .IsUnique();
+
+                    b.HasIndex("PlayerId", "TournamentId")
+                        .IsUnique();
+
+                    b.ToTable("PlayerActiveTournaments");
                 });
 
             modelBuilder.Entity("DataObjects.PlayerCurrencies", b =>

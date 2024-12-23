@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -13,14 +14,15 @@ namespace DataObjects
     /// </summary>
     public class PlayerActiveTournament
     {
-        public Guid PlayerId;
+        [Key]
+        public Guid PlayerId { get; set; }
         /// <summary>
         /// Should be -1 if a player is in queue
         /// Should be the tournament id 
         /// </summary>
-        public int TournamentId;
+        public int TournamentId { get; set; }
 
-        public DateTime MatchmakeStartTime;
-        public DateTime JoinTournamentTime;
+        public DateTime MatchmakeStartTime { get; set; }
+        public DateTime JoinTournamentTime { get; set; }
     }
 }
