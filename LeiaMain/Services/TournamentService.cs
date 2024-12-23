@@ -427,7 +427,7 @@ namespace Services
                     var savedTournament = _suikaDbService?.LeiaContext?.Tournaments?.Update(dbTournament);
                     var saved = await _suikaDbService?.LeiaContext?.SaveChangesAsync();
 
-                    Trace.WriteLine($"AddToExistingTournament: Player: {dbPlayer.PlayerId}, rating: {matchedRequest?.Player?.Rating}, and second player: {dbPlayer.PlayerId}, rating: {dbPlayer.Rating}, \n were added to tournament: {savedTournament?.Entity?.TournamentSessionId}.");
+                    Trace.WriteLine($"AddToExistingTournament: Player: {matchedRequest?.Player?.Rating}, rating: {matchedRequest?.Player?.Rating}, and second player: {request?.Player?.PlayerId}, rating: {request?.Player?.Rating}, \n were added to tournament: {savedTournament?.Entity?.TournamentSessionId}.");
 
                     if (saved > 0)//if the tournament was saved to the DB -
                     {
