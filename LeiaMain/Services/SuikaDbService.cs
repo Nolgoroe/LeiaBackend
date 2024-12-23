@@ -33,6 +33,11 @@ namespace Services
 
     public class SuikaDbService : ISuikaDbService
     {
+        /// <summary>
+        /// This is the value of tournamentId inside PlayerActiveTournament incase they are still matchmaking
+        /// </summary>
+        private const int PLAYER_ACTIVE_TOURNAMENT_MATCHMAKING_TOURNAMENT_ID = -1;
+
         private readonly LeiaContext _leiaContext;
 
         public SuikaDbService(LeiaContext leiaContext)
@@ -225,7 +230,7 @@ namespace Services
         {
             _leiaContext.BackendLogs.Add(new BackendLog()
             {
-                Timestamp = DateTime.Now,
+                Timestamp = DateTime.UtcNow,
                 Log = message,
                 PlayerId = playerId,
             });
@@ -250,14 +255,14 @@ namespace Services
             {
                 var message = $"Could not mark player as matchmaking, player {playerId} is either already matchmaking or in a tournament";
                 Log(message, playerId);
-                Console.WriteLine(message);
+                Trace.WriteLine(message);
                 return false;
             }
             catch (Exception ex)
             {
                 var message = $"Unknown error while trying to mark player as 'matchmaking': {ex.Message}";
                 Log(message, playerId);
-                Console.WriteLine(message);
+                Trace.WriteLine(message);
                 return false;
             }
         }
@@ -267,7 +272,7 @@ namespace Services
             var stub = new PlayerActiveTournament
             {
                 PlayerId = playerId,
-                TournamentId = -1,
+                TournamentId = PLAYER_ACTIVE_TOURNAMENT_MATCHMAKING_TOURNAMENT_ID,
             };
             _leiaContext.PlayerActiveTournaments.Attach(stub);
             _leiaContext.PlayerActiveTournaments.Remove(stub);
@@ -291,7 +296,7 @@ namespace Services
         public async Task<bool> SetPlayerActiveTournament(Guid playerId, int tournamentId)
         {
             var rowsUpdated = await _leiaContext.PlayerActiveTournaments
-                .Where(p => p.PlayerId == playerId && p.TournamentId == -1)
+                .Where(p => p.PlayerId == playerId && p.TournamentId == PLAYER_ACTIVE_TOURNAMENT_MATCHMAKING_TOURNAMENT_ID)
                 .ExecuteUpdateAsync(p => p.SetProperty(p => p.TournamentId, tournamentId).SetProperty(p => p.JoinTournamentTime, DateTime.UtcNow));
             return rowsUpdated > 0;
         }

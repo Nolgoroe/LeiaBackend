@@ -401,7 +401,7 @@ namespace Services
                 {
                     var message = $"AddToExistingTournament: Got null player while attempting to join tournament {dbTournament.TournamentSessionId}";
                     await _suikaDbService.Log(message);
-                    Console.WriteLine(message);
+                    Trace.WriteLine(message);
                     return; // Don't change anything
                 }
                 dbTournament?.Players?.Add(dbPlayer);
@@ -412,7 +412,7 @@ namespace Services
                 {
                     var message = $"AddToExistingTournament: Player {dbPlayer.PlayerId} attempted to join tournament {dbTournament.TournamentSessionId}, but was not in matchmaking state!";
                     await _suikaDbService.Log(message, dbPlayer.PlayerId);
-                    Console.WriteLine(message);
+                    Trace.WriteLine(message);
                     return;
                 }
 
@@ -462,7 +462,7 @@ namespace Services
                 {
                     var message = $"AddToExistingTournament: Error during attempt of player {dbPlayer.PlayerId} to join tournament {dbTournament.TournamentSessionId}: {ex.Message}";
                     await _suikaDbService.Log(message, dbPlayer.PlayerId);
-                    Console.WriteLine(message);
+                    Trace.WriteLine(message);
                     await _suikaDbService.RemovePlayerFromActiveTournament(dbPlayer.PlayerId, dbTournament.TournamentSessionId);
                     Trace.WriteLine(ex.Message + "\n" + ex.InnerException?.Message);
                 }
