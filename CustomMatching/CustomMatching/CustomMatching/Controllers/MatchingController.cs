@@ -83,33 +83,52 @@ namespace CustomMatching.Controllers
         {
             var player = await _suikaDbService.GetPlayerById(playerId);
             if (player == null) return NotFound("There is no such id");
-
-            var dbTournamentType = await _suikaDbService.LeiaContext.TournamentTypes.FindAsync(tournamentType.TournamentTypeId);
-            if (dbTournamentType == null) return NotFound("There is no such Tournament Type");
-
-            var currencies = await _suikaDbService.LeiaContext.Currencies.FindAsync(currency);
-            if (currencies == null) return NotFound("There is no such currency");
-
-            var playerBalance = await _suikaDbService.GetPlayerBalance(playerId, /*dbTournamentType?.CurrenciesId*/currency);
-            if (playerBalance == null) return BadRequest("The player doesn't have a balance for this currency");
-            if (playerBalance < dbTournamentType?.EntryFee /* matchFee*/) return BadRequest("The player doesn't have enough of this currency to join this match");
-            else
+            var canMatchMake = await _suikaDbService.MarkPlayerAsMatchMaking(player.PlayerId);
+            var isSuccess = false;
+            if (!canMatchMake)
             {
-                MatchRequest request = new()
-                {
-                    RequestId = new Random().Next(1, 100),
-                    Player = player,
-                    MatchFee = matchFee/*Convert.ToDouble( dbTournamentType?.EntryFee)*/,
-                    MatchFeeCurrency = currencies,
-                    TournamentType = dbTournamentType
-                };
-                _tournamentService.MatchesQueue.Add(request);
-
-
-                // UNSUBSCRIBE FROM THE EVENT! without it, the Controller will be kept alive after it is done and closed. because the PlayerAddedToTournamentHandler is still connected to the event, and that keeps the Controller instance alive, and not garbage collected
-                _tournamentService.PlayerAddedToTournament -= PlayerAddedToTournamentHandler;
-                return Ok($"Match request #{request.RequestId}, added to queue");
+                return BadRequest("Player cannot match make");
             }
+            try
+            {
+                var dbTournamentType = await _suikaDbService.LeiaContext.TournamentTypes.FindAsync(tournamentType.TournamentTypeId);
+                if (dbTournamentType == null) return NotFound("There is no such Tournament Type");
+
+                var currencies = await _suikaDbService.LeiaContext.Currencies.FindAsync(currency);
+                if (currencies == null) return NotFound("There is no such currency");
+
+                var playerBalance = await _suikaDbService.GetPlayerBalance(playerId, /*dbTournamentType?.CurrenciesId*/currency);
+                if (playerBalance == null) return BadRequest("The player doesn't have a balance for this currency");
+                if (playerBalance < dbTournamentType?.EntryFee /* matchFee*/) return BadRequest("The player doesn't have enough of this currency to join this match");
+                else
+                {
+                    MatchRequest request = new()
+                    {
+                        RequestId = new Random().Next(1, 100),
+                        Player = player,
+                        MatchFee = matchFee/*Convert.ToDouble( dbTournamentType?.EntryFee)*/,
+                        MatchFeeCurrency = currencies,
+                        TournamentType = dbTournamentType
+                    };
+                    _tournamentService.MatchesQueue.Add(request);
+
+
+                    // UNSUBSCRIBE FROM THE EVENT! without it, the Controller will be kept alive after it is done and closed. because the PlayerAddedToTournamentHandler is still connected to the event, and that keeps the Controller instance alive, and not garbage collected
+                    _tournamentService.PlayerAddedToTournament -= PlayerAddedToTournamentHandler;
+                    isSuccess = true;
+                    return Ok($"Match request #{request.RequestId}, added to queue");
+                }
+            }
+            finally
+            {
+                if (!isSuccess)
+                {
+                    // If we didn't manage to complete the operation, make sure to clear up the PlayerActiveTournament record, otherwise the player won't be able to match make again
+                    await _suikaDbService.RemovePlayerFromActiveMatchMaking(playerId);
+                }
+            }
+            
+            
 
         }
 

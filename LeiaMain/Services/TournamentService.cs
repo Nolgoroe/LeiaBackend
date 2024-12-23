@@ -290,6 +290,15 @@ namespace Services
             {
                 var tournament = await SaveNewTournament(matchedRequest.MatchFee, matchedRequest?.MatchFeeCurrency?.CurrencyId, matchedRequest?.TournamentType?.TournamentTypeId, matchedRequest?.Player?.PlayerId, request?.Player?.PlayerId);
 
+                var canCreateTournament = await _suikaDbService.SetPlayerActiveTournament(request.Player.PlayerId, tournament.TournamentSessionId);
+                if (!canCreateTournament)
+                {
+                    await _suikaDbService.Log($"Player {request.Player.PlayerId} attempted to create a new tournament, but was not in matchmaking state!", request.Player.PlayerId);
+                    tournament.IsOpen = false;
+                    await _suikaDbService?.LeiaContext?.SaveChangesAsync();
+                    return;
+                }
+
                 Trace.WriteLine($"Player: {matchedRequest?.Player?.PlayerId}, rating: {matchedRequest?.Player?.Rating},and second player: {request?.Player?.PlayerId}, rating: {request?.Player?.Rating}, \n were added to tournament: {tournament?.TournamentDataId}.");
 
                 MatchesQueue.Remove(request);
@@ -302,12 +311,15 @@ namespace Services
                             .Include(t => t.TournamentData)
                                 .ThenInclude(td => td.TournamentType)
                             .FirstOrDefault(t => t.TournamentSessionId == tournament.TournamentSessionId);
-                   
+
                     if (tournament?.Players?.Count < tournament?.TournamentData?.TournamentType?.NumberOfPlayers)
                     {
                         OngoingTournaments.Add(tournament);
                     }
                 }
+            }
+            else {
+                await _suikaDbService.Log("Got null match request");
             }
         }
 
@@ -363,21 +375,47 @@ namespace Services
             if (matchingTournament?.Players?.Count < request?.TournamentType?.NumberOfPlayers /*_maxNumPlayers*/) // if tournament has room in it, add the current request player
             {
                 var dbTournament = _suikaDbService.LeiaContext.Tournaments.Find(matchingTournament?.TournamentSessionId);
-                if (matchedRequest != null)
-                {
-                    var dbPlayer = _suikaDbService.LeiaContext.Players.Find(matchedRequest?.Player?.PlayerId);
 
-                    if (dbPlayer != null) dbTournament?.Players?.Add(dbPlayer);
-                    //WaitingRequests?.Remove(matchedRequest);
-                }
-
+                Player dbPlayer;
                 if (request != null)
                 {
-                    var dbPlayer = _suikaDbService.LeiaContext.Players.Find(request?.Player?.PlayerId);
+                    dbPlayer = _suikaDbService.LeiaContext.Players.Find(request?.Player?.PlayerId);
 
-                    if (dbPlayer != null) dbTournament?.Players?.Add(dbPlayer);
+
                     //MatchesQueue.Remove(request);
                 }
+                else if (matchedRequest != null)
+                {
+                    dbPlayer = _suikaDbService.LeiaContext.Players.Find(matchedRequest?.Player?.PlayerId);
+
+                    
+                    //WaitingRequests?.Remove(matchedRequest);
+                }
+                else
+                {
+                    var message = "AddToExistingTournament: Got null request AND null MatchRequest";
+                    await _suikaDbService.Log(message);
+                    return; // Don't change anything
+                }
+                if (dbPlayer == null)
+                {
+                    var message = $"AddToExistingTournament: Got null player while attempting to join tournament {dbTournament.TournamentSessionId}";
+                    await _suikaDbService.Log(message);
+                    Console.WriteLine(message);
+                    return; // Don't change anything
+                }
+                dbTournament?.Players?.Add(dbPlayer);
+                
+
+                var canJoinTournament = await _suikaDbService.SetPlayerActiveTournament(dbPlayer.PlayerId, dbTournament.TournamentSessionId);
+                if (!canJoinTournament)
+                {
+                    var message = $"AddToExistingTournament: Player {dbPlayer.PlayerId} attempted to join tournament {dbTournament.TournamentSessionId}, but was not in matchmaking state!";
+                    await _suikaDbService.Log(message, dbPlayer.PlayerId);
+                    Console.WriteLine(message);
+                    return;
+                }
+
                 // try to update the tournament in the database
                 try
                 {
@@ -386,7 +424,7 @@ namespace Services
                     var savedTournament = _suikaDbService?.LeiaContext?.Tournaments?.Update(dbTournament);
                     var saved = await _suikaDbService?.LeiaContext?.SaveChangesAsync();
 
-                    Trace.WriteLine($"Player: {matchedRequest?.Player?.PlayerId}, rating: {matchedRequest?.Player?.Rating}, and second player: {request?.Player?.PlayerId}, rating: {request?.Player?.Rating}, \n were added to tournament: {savedTournament?.Entity?.TournamentSessionId}.");
+                    Trace.WriteLine($"AddToExistingTournament: Player: {dbPlayer.PlayerId}, rating: {matchedRequest?.Player?.Rating}, and second player: {dbPlayer.PlayerId}, rating: {dbPlayer.Rating}, \n were added to tournament: {savedTournament?.Entity?.TournamentSessionId}.");
 
                     if (saved > 0)//if the tournament was saved to the DB -
                     {
@@ -422,9 +460,12 @@ namespace Services
                 }
                 catch (Exception ex)
                 {
+                    var message = $"AddToExistingTournament: Error during attempt of player {dbPlayer.PlayerId} to join tournament {dbTournament.TournamentSessionId}: {ex.Message}";
+                    await _suikaDbService.Log(message, dbPlayer.PlayerId);
+                    Console.WriteLine(message);
+                    await _suikaDbService.RemovePlayerFromActiveTournament(dbPlayer.PlayerId, dbTournament.TournamentSessionId);
                     Trace.WriteLine(ex.Message + "\n" + ex.InnerException?.Message);
                 }
-
             }
             if (matchingTournament?.Players?.Count >= request?.TournamentType?.NumberOfPlayers) // if tournament is full, then close it and send it's data
             {

@@ -76,6 +76,13 @@ namespace CustomMatching.Controllers
         [HttpPut, Route("UpdatePlayerTournamentResult/{playerId}/{tournamentId}/{score}")]
         public async Task<IActionResult> UpdatePlayerTournamentResult(Guid playerId, int tournamentId, int score)
         {
+            if (! await _suikaDbService.RemovePlayerFromActiveTournament(playerId, tournamentId))
+            {
+                var message = $"UpdatePlayerTournamentResult: Player {playerId} was not active in tournament {tournamentId}";
+                await _suikaDbService.Log(message, playerId);
+                Console.WriteLine(message);
+                return BadRequest("Could not submit result, player not in active tournament");
+            }
             var tournament = _suikaDbService?.LeiaContext?.Tournaments.FirstOrDefault(t => t.TournamentSessionId == tournamentId && t.IsOpen == true);
             if (tournament == null) return BadRequest("Could not submit result, tournament is closed");
 

@@ -21,6 +21,8 @@ namespace DAL
         public DbSet<Currencies> Currencies { get; set; }
         public DbSet<PlayerCurrencies> PlayerCurrencies { get; set; }
         public DbSet<PlayerTournamentSession> PlayerTournamentSession { get; set; }
+        public DbSet<PlayerActiveTournament> PlayerActiveTournaments { get; set; }
+        public DbSet<BackendLog> BackendLogs { get; set; }
 
         public LeiaContext(DbContextOptions<LeiaContext> options) : base(options) {}
         public LeiaContext(/* string? connectionString*/)
@@ -57,6 +59,14 @@ namespace DAL
               .WithMany(t => t.Players)
               .UsingEntity<PlayerTournamentSession>(e =>
                   e.Property(pt => pt.DidClaim));
+
+            modelBuilder.Entity<PlayerActiveTournament>()
+                .HasIndex(p => p.PlayerId).IsUnique();
+            modelBuilder.Entity<PlayerActiveTournament>()
+                .HasIndex(p => new {p.PlayerId, p.TournamentId}).IsUnique();
+
+            modelBuilder.Entity<BackendLog>()
+                .HasIndex(p => p.Timestamp);
 
             #region Configure MtM for players and currencies
             modelBuilder.Entity<Player>()

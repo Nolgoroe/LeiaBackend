@@ -19,6 +19,15 @@ namespace Services
         public Task<double?> GetPlayerBalance(Guid? playerId, int? currencyId);
         public Task<List<PlayerCurrencies?>?> GetAllPlayerBalances(Guid playerId);
         public Task<PlayerCurrencies?> UpdatePlayerBalance(Guid? playerId, int? currencyId, double? amount);
+        public Task Log(string message);
+
+        public Task Log(string message, Guid playerId);
+
+        Task<bool> MarkPlayerAsMatchMaking(Guid playerId);
+
+        public Task<bool> RemovePlayerFromActiveMatchMaking(Guid playerId);
+        Task<bool> RemovePlayerFromActiveTournament(Guid playerId, int tournamentId);
+        public Task<bool> SetPlayerActiveTournament(Guid playerId, int tournamentId);
         public LeiaContext LeiaContext { get; set; }
     }
 
@@ -204,6 +213,87 @@ namespace Services
                 }
             }
             return null;
+        }
+
+
+        public async Task Log(string message)
+        {
+            await Log(message, Guid.Empty);
+        }
+
+        public async Task Log(string message, Guid playerId)
+        {
+            _leiaContext.BackendLogs.Add(new BackendLog()
+            {
+                Timestamp = DateTime.Now,
+                Log = message,
+                PlayerId = playerId,
+            });
+            await _leiaContext.SaveChangesAsync();
+        }
+
+        public async Task<bool> MarkPlayerAsMatchMaking(Guid playerId)
+        {
+
+            try
+            {
+                _leiaContext.PlayerActiveTournaments.Add(new PlayerActiveTournament()
+                {
+                    PlayerId = playerId,
+                    TournamentId = -1,
+                    MatchmakeStartTime = DateTime.Now,
+                });
+                await _leiaContext.SaveChangesAsync();
+                return true;
+            }
+            catch (DbUpdateException ex) 
+            {
+                var message = $"Could not mark player as matchmaking, player {playerId} is either already matchmaking or in a tournament";
+                Log(message, playerId);
+                Console.WriteLine(message);
+                return false;
+            }
+            catch (Exception ex)
+            {
+                var message = $"Unknown error while trying to mark player as 'matchmaking': {ex.Message}";
+                Log(message, playerId);
+                Console.WriteLine(message);
+                return false;
+            }
+        }
+
+        public async Task<bool> RemovePlayerFromActiveMatchMaking(Guid playerId)
+        {
+            var stub = new PlayerActiveTournament
+            {
+                PlayerId = playerId,
+                TournamentId = -1,
+            };
+            _leiaContext.PlayerActiveTournaments.Attach(stub);
+            _leiaContext.PlayerActiveTournaments.Remove(stub);
+            var rowsAffected = await _leiaContext.SaveChangesAsync();
+            return rowsAffected > 0;
+        }
+
+        public async Task<bool> RemovePlayerFromActiveTournament(Guid playerId, int tournamentId)
+        {
+            var stub = new PlayerActiveTournament
+            {
+                PlayerId = playerId,
+                TournamentId = tournamentId,
+            };
+            _leiaContext.PlayerActiveTournaments.Attach(stub);
+            _leiaContext.PlayerActiveTournaments.Remove(stub);
+            var rowsAffected = await _leiaContext.SaveChangesAsync();
+            return rowsAffected > 0;
+        }
+
+        public async Task<bool> SetPlayerActiveTournament(Guid playerId, int tournamentId)
+        {
+            var rowsUpdated = await _leiaContext.PlayerActiveTournaments
+                .Where(p => p.PlayerId == playerId && p.TournamentId == -1)
+                .ExecuteUpdateAsync(p => p.SetProperty(p => p.TournamentId, tournamentId).SetProperty(p => p.JoinTournamentTime, DateTime.UtcNow));
+            return rowsUpdated > 0;
         }
 
         public async Task<Player?> GetPlayerById(Guid playerId)
