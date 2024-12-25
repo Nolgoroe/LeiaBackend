@@ -79,41 +79,7 @@ namespace Services
                     var playersByTimeWaiting = await dbService.GetPlayersWaitingForMatch(50);
                     foreach (var waitingPlayer in playersByTimeWaiting)
                     {
-                        var playerBalance = await dbService.GetPlayerBalance(waitingPlayer.Player.PlayerId, waitingPlayer.QueueEntry.CurrencyId);
-                        if (playerBalance == null)
-                        {
-                            await dbService.RemovePlayerFromActiveMatchMaking(waitingPlayer.Player.PlayerId);
-                            continue;
-                        }
-                        var suitableTournaments = await dbService.FindSuitableTournamentForRating(
-                            waitingPlayer.Player.Rating,
-                            MAX_RATING_DRIFT,
-                            waitingPlayer.QueueEntry.TournamentTypeId, 
-                            waitingPlayer.QueueEntry.CurrencyId, 
-                            playerBalance.Value, 
-                            1
-                            );
-                        try
-                        { 
-                            if (suitableTournaments.Any())
-                            {
-                                await AddToExistingTournament(waitingPlayer.ConvertToLegacyMatchRequest(
-                                    dbService.LeiaContext),
-                                    suitableTournaments.First()
-                                    );
-                            }
-                            else
-                            {
-                                await CreateNewTournament(waitingPlayer.ConvertToLegacyMatchRequest(dbService.LeiaContext));
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            dbService.RemovePlayerFromActiveMatchMaking(waitingPlayer.Player.PlayerId);
-                            var errorMessage = ex.Message.ToString() + "\n\n" + ex.InnerException?.Message.ToString();
-                            Debug.WriteLine(errorMessage);
-                            await dbService.Log($"Fatal error during matchmaking of user {waitingPlayer.Player.PlayerId}: {errorMessage}", waitingPlayer.Player.PlayerId);
-                        }
+                        await MatchPlayerIntoBestTournament(dbService, waitingPlayer);
                     }
                 }
                 catch (Exception ex)
@@ -127,6 +93,45 @@ namespace Services
                     // Ensure the semaphore is released even if an exception occurs
                     _createMatchesFromQueueSemaphore.Release();
                 }
+            }
+        }
+
+        private async Task MatchPlayerIntoBestTournament(ISuikaDbService dbService, MatchQueueEntry waitingPlayer)
+        {
+            var playerBalance = await dbService.GetPlayerBalance(waitingPlayer.Player.PlayerId, waitingPlayer.QueueEntry.CurrencyId);
+            if (playerBalance == null)
+            {
+                await dbService.RemovePlayerFromActiveMatchMaking(waitingPlayer.Player.PlayerId);
+                return;
+            }
+            var suitableTournaments = await dbService.FindSuitableTournamentForRating(
+                waitingPlayer.Player.Rating,
+                MAX_RATING_DRIFT,
+                waitingPlayer.QueueEntry.TournamentTypeId,
+                waitingPlayer.QueueEntry.CurrencyId,
+                playerBalance.Value,
+                1
+                );
+            try
+            {
+                if (suitableTournaments.Any())
+                {
+                    await AddToExistingTournament(waitingPlayer.ConvertToLegacyMatchRequest(
+                        dbService.LeiaContext),
+                        suitableTournaments.First()
+                        );
+                }
+                else
+                {
+                    await CreateNewTournament(waitingPlayer.ConvertToLegacyMatchRequest(dbService.LeiaContext));
+                }
+            }
+            catch (Exception ex)
+            {
+                dbService.RemovePlayerFromActiveMatchMaking(waitingPlayer.Player.PlayerId);
+                var errorMessage = ex.Message.ToString() + "\n\n" + ex.InnerException?.Message.ToString();
+                Debug.WriteLine(errorMessage);
+                await dbService.Log($"Fatal error during matchmaking of user {waitingPlayer.Player.PlayerId}: {errorMessage}", waitingPlayer.Player.PlayerId);
             }
         }
 
