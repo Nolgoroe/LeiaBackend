@@ -81,6 +81,7 @@ namespace CustomMatching.Controllers
         public async Task<IActionResult> RequestMatch(Guid playerId, double matchFee, int currency, [FromBody] TournamentType tournamentType)
 
         {
+            _tournamentService.PlayerAddedToTournament -= PlayerAddedToTournamentHandler;
             var player = await _suikaDbService.GetPlayerById(playerId);
             if (player == null) return NotFound("There is no such id");
             var canMatchMake = await _suikaDbService.MarkPlayerAsMatchMaking(player.PlayerId);
@@ -114,7 +115,6 @@ namespace CustomMatching.Controllers
 
 
                     // UNSUBSCRIBE FROM THE EVENT! without it, the Controller will be kept alive after it is done and closed. because the PlayerAddedToTournamentHandler is still connected to the event, and that keeps the Controller instance alive, and not garbage collected
-                    _tournamentService.PlayerAddedToTournament -= PlayerAddedToTournamentHandler;
                     isSuccess = true;
                     return Ok($"Match request #{request.RequestId}, added to queue");
                 }
