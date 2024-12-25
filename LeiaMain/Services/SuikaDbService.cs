@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+﻿using System;
+using System.Diagnostics;
 using System.Numerics;
 
 using DAL;
@@ -29,13 +30,15 @@ namespace Services
         public Task<bool> RemovePlayerFromActiveTournament(Guid playerId, int tournamentId);
         public Task<bool> RemovePlayerFromAnyActiveTournament(Guid playerId);
         public Task<bool> SetPlayerActiveTournament(Guid playerId, int tournamentId);
+
+        public Task<bool> IsPlayerInAnActiveTournament(Guid? playerId);
         public LeiaContext LeiaContext { get; set; }
     }
 
     public class SuikaDbService : ISuikaDbService
     {
         /// <summary>
-        /// This is the value of tournamentId inside PlayerActiveTournament incase they are still matchmaking
+        /// This is the value of tournamentId inside PlayerActiveTournament in case they are still matchmaking
         /// </summary>
         private const int PLAYER_ACTIVE_TOURNAMENT_MATCHMAKING_TOURNAMENT_ID = -1;
 
@@ -48,7 +51,7 @@ namespace Services
         }
 
         public LeiaContext LeiaContext { get; set; }
-      
+
         public async Task<Player> AddNewPlayer(Player player)
         {
             if (player != null)
@@ -238,6 +241,15 @@ namespace Services
             );
         }
 
+        public async Task<bool> IsPlayerInAnActiveTournament(Guid? playerId)
+        {
+           if (playerId == null) return true;
+            var inActiveTounament = LeiaContext.PlayerActiveTournaments.Any(pat => pat.PlayerId == playerId && pat.TournamentId != -1); // -1 means that the player is 
+            // waiting or a match and is not in a tournament yet. When there is an actual  tournamentId, it means that the player is in a tournament
+            Log($"Is Player {playerId} in an active tournament: {inActiveTounament}",playerId.Value);
+            return inActiveTounament;
+        }
+
         public async Task<bool> MarkPlayerAsMatchMaking(Guid playerId)
         {
 
@@ -252,7 +264,8 @@ namespace Services
                 await _leiaContext.SaveChangesAsync();
                 return true;
             }
-            catch (DbUpdateException ex) 
+            catch (DbUpdateException ex) // This exception is thrown because you can't add a player if he is already in table, because PlayerId is a unique index.
+                                         // thus adding a  player that is already in the table will throw a  DbUpdateException
             {
                 var message = $"Could not mark player as matchmaking, player {playerId} is either already matchmaking or in a tournament";
                 Log(message, playerId);

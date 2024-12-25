@@ -135,8 +135,8 @@ namespace CustomMatching.Controllers
 
            var (amountClaimed, wasTournamentClaimed) =  await _postTournamentService.GrantTournamentPrizes(tournament, player);
 
-            if (amountClaimed == null || amountClaimed == -1) return StatusCode(500, $"Returned {amountClaimed}, Failed to claim prize");
-            if (wasTournamentClaimed == null || wasTournamentClaimed == false) return StatusCode(500, $"Returned {wasTournamentClaimed}, Failed to claim tournament");
+            if (amountClaimed == null || amountClaimed == -1) return StatusCode(403, $"Returned {amountClaimed}, Failed to claim prize");
+            if (wasTournamentClaimed == null || wasTournamentClaimed == false) return StatusCode(403, $"Returned {wasTournamentClaimed}, Failed to claim tournament");
 
             return Ok($"Prize claimed successfully: {amountClaimed}. Tournament claimed: {wasTournamentClaimed}");
         }

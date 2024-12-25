@@ -222,25 +222,15 @@ namespace CustomMatching.Controllers
         }
 
         // dump endpoint for testing stuff. DO NOT USE! 
-        [HttpGet, Route("TestStuff/{tournamentId}/{playerId}")]
-        private async Task<IActionResult> TestStuff(int tournamentId, Guid playerId)
+        [HttpPost, Route("TestStuff/{matchFee}/{currencyId}/{tournamentTypeId}")]
+        public async Task<IActionResult> TestStuff(double matchFee, int currencyId, int tournamentTypeId, [FromBody] Guid?[] playerIds)
         {
-            // await _tournamentService.CheckTournamentStatus(tournamentId);
-
-            var player = _suikaDbService?.LeiaContext?.Players?.Where(p => p.PlayerId == playerId)
-                .Include(p => p.PlayerCurrencies)
-                .FirstOrDefault();
-
-            var tournament = _suikaDbService?.LeiaContext?.Tournaments?.Where(t => t.TournamentSessionId == tournamentId)
-                .Include(t => t.TournamentData)
-                    .ThenInclude(td => td.TournamentType)
-                .Include(t => t.PlayerTournamentSessions)
-                .Include(t => t.Players)
-                .FirstOrDefault();
-
-            if (player == null || tournament == null) return NotFound("Player or tournament were not found");
+            _tournamentService.PlayerAddedToTournament -= PlayerAddedToTournamentHandler;
+            
+               var tournament = await _tournamentService?.SaveNewTournament(matchFee, currencyId, tournamentTypeId, playerIds);
+            var isNull = tournament == null ? "null" : tournament?.TournamentDataId.ToString();
             // await _postTournamentService.GrantTournamentPrizes(tournament, player);
-            return Ok();
+            return Ok($"Got tournament in response: {isNull}");
 
             /*var playerCurrency = await _suikaDbService.LeiaContext.PlayerCurrencies.FirstOrDefaultAsync(pc => pc.PlayerId == playerId && pc.CurrenciesId == currencyId);
 
