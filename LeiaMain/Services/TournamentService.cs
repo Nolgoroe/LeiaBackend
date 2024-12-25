@@ -43,7 +43,7 @@ namespace Services
     {
         private int _timerCycles = 0;
 
-        public int NumMilliseconds { get; set; } = 2000; // get these numbers from tournament DB or config file
+        public int NumMilliseconds { get; set; } = 1000; // get these numbers from tournament DB or config file
         private int _maxNumPlayers = 2; // get these numbers from tournament DB or config file
         private int _scoreVariance = 200; // get these numbers from tournament DB or config file 
         private int _scoreVarianceSteps = 400; // get these numbers from tournament DB or config file 
@@ -111,7 +111,7 @@ namespace Services
                 }
                 try
                 {
-                    var safety = 100;
+                    var safety = 10;
                     // TODO: After verifying this keeps returning the same context id, there's no need for this debug log to 
                     // contain the context id
                     Debug.WriteLine($"=====> Inside GetMatch. Semaphore was entered with context {dbService.LeiaContext.ContextId}");
@@ -411,6 +411,11 @@ namespace Services
             {
                 try
                 {
+                    if (id == null || !await _suikaDbService.IsPlayerMatchMaking(id.Value))
+                    {
+                        await _suikaDbService.Log($"SaveNewTournament: Player {id} cannot join new tournmanet because the player is not in matchmake state", id.Value);
+                        continue;
+                    }
                     var player = _suikaDbService.LeiaContext.Players.Find(id);
                     if (player != null) dbPlayers.Add(player);
                 }
@@ -420,7 +425,10 @@ namespace Services
                     throw;
                 }
             }
-
+            if (dbPlayers.Count == 0)
+            {
+                return null;
+            }
 
             //var tournamentTypeId = await  GetTournamentTypeByCurrency(currencyId);
 
@@ -453,7 +461,7 @@ namespace Services
                 if (saved > 0) {
                     SendPlayerAndSeed(savedTournament?.Entity?.TournamentSeed, savedTournament?.Entity?.TournamentSessionId, idsArray);
                     var addedPlayerIds = new List<Guid>();
-                    foreach (var playerId in playerIds)
+                    foreach (var playerId in idsArray)
                     {
                         if (playerId == null) 
                         {

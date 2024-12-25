@@ -29,6 +29,7 @@ namespace Services
         public Task<bool> RemovePlayerFromActiveTournament(Guid playerId, int tournamentId);
         public Task<bool> RemovePlayerFromAnyActiveTournament(Guid playerId);
         public Task<bool> SetPlayerActiveTournament(Guid playerId, int tournamentId);
+        public Task<bool> IsPlayerMatchMaking(Guid playId);
         public LeiaContext LeiaContext { get; set; }
     }
 
@@ -295,6 +296,12 @@ namespace Services
                 .Where(p => p.PlayerId == playerId && p.TournamentId == PLAYER_ACTIVE_TOURNAMENT_MATCHMAKING_TOURNAMENT_ID)
                 .ExecuteUpdateAsync(p => p.SetProperty(p => p.TournamentId, tournamentId).SetProperty(p => p.JoinTournamentTime, DateTime.UtcNow));
             return rowsUpdated > 0;
+        }
+        public async Task<bool> IsPlayerMatchMaking(Guid playerId)
+        {
+            return await _leiaContext.PlayerActiveTournaments
+                .Where(p => p.TournamentId == PLAYER_ACTIVE_TOURNAMENT_MATCHMAKING_TOURNAMENT_ID)
+                .CountAsync(p => p.PlayerId == playerId) > 0;
         }
 
         public async Task<Player?> GetPlayerById(Guid playerId)
