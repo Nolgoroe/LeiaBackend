@@ -149,8 +149,9 @@ namespace Services
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine(ex.Message + "\n" + ex.InnerException?.Message);
-                    throw;
+                    var errorMessage = ex.Message + "\n" + ex.InnerException?.Message;
+                    Debug.WriteLine(errorMessage);
+                    await dbService.Log($"Fatal error during matchmaking: {errorMessage}");
                 }
                 finally
                 {
