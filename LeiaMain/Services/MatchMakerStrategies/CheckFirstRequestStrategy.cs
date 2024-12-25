@@ -28,9 +28,14 @@ namespace Services.MatchMakerStrategies
                 Trace.WriteLine("=====> Inside FirstRequestStrategy ➡️ WaitingRequests.Count <= 0");
                 
                 var isFirstTournament = await _tournamentService.ProcessFirstRequest(_tournamentService.MatchesQueue[0]);
-                if (isFirstTournament) return null;
-                else return new FindMatchInOngoingTournamentsStrategy(_suikaDbService, _tournamentService, _tournamentService.MatchesQueue[0]);
-
+                if (isFirstTournament)
+                {
+                    return null;
+                }
+                else
+                {
+                    return new FindMatchInOngoingTournamentsStrategy(_suikaDbService, _tournamentService, _tournamentService.MatchesQueue[0]);
+                }
             }
             // MULTIPLE REQUESTS PART
             else if (_tournamentService.MatchesQueue.Count > 0)

@@ -278,18 +278,19 @@ namespace Services
                 var dbTournament = _suikaDbService.LeiaContext.Tournaments.Find(matchingTournament?.TournamentSessionId);
 
                 Player dbPlayer;
+                MatchRequest chosenRequest;
                 if (request != null)
                 {
                     dbPlayer = _suikaDbService.LeiaContext.Players.Find(request?.Player?.PlayerId);
 
-
+                    chosenRequest = request;
                     //MatchesQueue.Remove(request);
                 }
                 else if (matchedRequest != null)
                 {
                     dbPlayer = _suikaDbService.LeiaContext.Players.Find(matchedRequest?.Player?.PlayerId);
+                    chosenRequest = matchedRequest;
 
-                    
                     //WaitingRequests?.Remove(matchedRequest);
                 }
                 else
@@ -312,7 +313,9 @@ namespace Services
                 var canJoinTournament = await _suikaDbService.SetPlayerActiveTournament(dbPlayer.PlayerId, dbTournament.TournamentSessionId);
                 if (!canJoinTournament)
                 {
-                    var message = $"AddToExistingTournament: Player {dbPlayer.PlayerId} attempted to join tournament {dbTournament.TournamentSessionId}, but was not in matchmaking state!";
+                    var message = $"AddToExistingTournament: Player {dbPlayer.PlayerId} attempted to join tournament {dbTournament.TournamentSessionId}, but was not in matchmaking state!";                    
+                    MatchesQueue.Remove(chosenRequest);
+                    WaitingRequests.Remove(chosenRequest);
                     await _suikaDbService.Log(message, dbPlayer.PlayerId);
                     Trace.WriteLine(message);
                     return;
