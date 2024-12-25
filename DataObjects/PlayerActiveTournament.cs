@@ -22,6 +22,15 @@ namespace DataObjects
         /// </summary>
         public int TournamentId { get; set; }
 
+        /// <summary>
+        ///  ???
+        /// </summary>
+        public double EntryFee { get; set; }
+
+        public int CurrencyId { get; set; }
+
+        public int TournamentTypeId { get; set; }
+
         public DateTime MatchmakeStartTime { get; set; }
         public DateTime JoinTournamentTime { get; set; }
     }

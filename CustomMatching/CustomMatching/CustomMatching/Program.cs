@@ -3,7 +3,6 @@ using DAL;
 
 using Microsoft.EntityFrameworkCore;
 using System.Security.Cryptography.Xml;
-using Services.MatchMakerStrategies;
 
 var builder = WebApplication.CreateBuilder(args);
 

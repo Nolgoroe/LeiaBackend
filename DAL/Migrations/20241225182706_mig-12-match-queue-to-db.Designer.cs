@@ -4,6 +4,7 @@ using DAL;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DAL.Migrations
 {
     [DbContext(typeof(LeiaContext))]
-    partial class LeiaContextModelSnapshot : ModelSnapshot
+    [Migration("20241225182706_mig-12-match-queue-to-db")]
+    partial class mig12matchqueuetodb
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -147,12 +150,16 @@ namespace DAL.Migrations
 
                     b.HasKey("PlayerId");
 
+                    b.HasIndex("CurrencyId");
+
                     b.HasIndex("MatchmakeStartTime");
 
                     b.HasIndex("PlayerId")
                         .IsUnique();
 
                     b.HasIndex("TournamentId");
+
+                    b.HasIndex("TournamentTypeId");
 
                     b.ToTable("PlayerActiveTournaments");
                 });
@@ -437,6 +444,25 @@ namespace DAL.Migrations
                     b.HasIndex("TournamentSessionId");
 
                     b.ToTable("SessionDataTournamentSession");
+                });
+
+            modelBuilder.Entity("DataObjects.PlayerActiveTournament", b =>
+                {
+                    b.HasOne("DataObjects.Currencies", "Currency")
+                        .WithMany()
+                        .HasForeignKey("CurrencyId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("DataObjects.TournamentType", "TournamentType")
+                        .WithMany()
+                        .HasForeignKey("TournamentTypeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Currency");
+
+                    b.Navigation("TournamentType");
                 });
 
             modelBuilder.Entity("DataObjects.PlayerCurrencies", b =>

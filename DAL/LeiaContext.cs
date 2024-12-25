@@ -2,7 +2,6 @@
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
-using Microsoft.IdentityModel.Protocols;
 
 namespace DAL
 {
@@ -67,8 +66,12 @@ namespace DAL
 
             modelBuilder.Entity<PlayerActiveTournament>()
                 .HasIndex(p => p.PlayerId).IsUnique();
+            // This index is used for getting players still in the queue
             modelBuilder.Entity<PlayerActiveTournament>()
-                .HasIndex(p => new {p.PlayerId, p.TournamentId}).IsUnique();
+                .HasIndex(p => p.TournamentId);
+            // This index is used to sort players by their waiting time in the queue
+            modelBuilder.Entity<PlayerActiveTournament>()
+                .HasIndex(p => p.MatchmakeStartTime);
 
             modelBuilder.Entity<BackendLog>()
                 .HasIndex(p => p.Timestamp);

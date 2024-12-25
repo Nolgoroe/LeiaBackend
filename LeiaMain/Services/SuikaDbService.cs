@@ -9,6 +9,34 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Services
 {
+    /// <summary>
+    /// A virtual object (not in db) that unifies several records related to a current match-make request of a
+    /// specific player
+    /// </summary>
+    public class MatchQueueEntry
+    {
+        public Player Player;
+        public PlayerActiveTournament QueueEntry;
+
+        /// <summary>
+        /// A temporary method that is meant to reduce the amount of refactoring done in a single iteration
+        /// Eventually the class MatchRequest is to be deprecated
+        /// </summary>
+        public MatchRequest ConvertToLegacyMatchRequest(LeiaContext leiaContext)
+        {
+            var currency = leiaContext.Currencies.First(c => c.CurrencyId == QueueEntry.CurrencyId);
+            var tournamentType = leiaContext.TournamentTypes.First(t => t.TournamentTypeId == QueueEntry.TournamentTypeId);
+            return new MatchRequest()
+            {
+                Player = Player,
+                MatchFee = QueueEntry.EntryFee,
+                MatchFeeCurrency = currency,
+                RequestTime = QueueEntry.MatchmakeStartTime,
+                TournamentType = tournamentType,
+            };
+        }
+    }
+
     public interface ISuikaDbService
     {
         public Task<Player> AddNewPlayer(Player player);
@@ -23,13 +51,40 @@ namespace Services
 
         public Task Log(string message, Guid playerId);
 
-        public Task<bool> MarkPlayerAsMatchMaking(Guid playerId);
+        public Task<bool> MarkPlayerAsMatchMaking(Guid playerId, double entryFee, int currencyId, int tournamentTypeId);
 
         public Task<bool> RemovePlayerFromActiveMatchMaking(Guid playerId);
         public Task<bool> RemovePlayerFromActiveTournament(Guid playerId, int tournamentId);
         public Task<bool> RemovePlayerFromAnyActiveTournament(Guid playerId);
         public Task<bool> SetPlayerActiveTournament(Guid playerId, int tournamentId);
         public Task<bool> IsPlayerMatchMaking(Guid playId);
+        /// <summary>
+        /// Returns, up to `maxPlayers`, `MatchQueueEntry`s that are pending to join a match (in queue)
+        /// The results are sorted by waiting time, from longest to shortest
+        /// </summary>
+        /// <param name="maxPlayers">Maximum amount of players to return</param>
+        /// <returns>Queue entries sorted by waiting time</returns>
+        public Task<IEnumerable<MatchQueueEntry>> GetPlayersWaitingForMatch(int maxPlayers);
+
+        /// <summary>
+        /// Returns up to `maxResults` tournaments that comply with ALL the following rules:
+        /// 1. Tournament is open
+        /// 2. Suitable for `playerRating`
+        /// 3. Fit the given `tournamentTypeId`
+        /// 4. Fit the given `currencyId`
+        /// 5. Player has sufficient balance to join
+        /// 6. Tournament is not full
+        /// 
+        /// The results are sorted by how suitable the tournament rating is to the given player rating
+        /// </summary>
+        /// <param name="playerRating">Player rating</param>
+        /// <param name="maxRatingDrift">Maximum amount of rating drift</param>
+        /// <param name="tournamentTypeId"></param>
+        /// <param name="currencyId"></param>
+        /// <param name="playerBalance"></param>
+        /// <param name="maxResults"></param>
+        /// <returns></returns>
+        public Task<IEnumerable<TournamentSession>> FindSuitableTournamentForRating(int playerRating, int maxRatingDrift, int tournamentTypeId, int currencyId, double playerBalance, int maxResults);
         public LeiaContext LeiaContext { get; set; }
     }
 
@@ -146,6 +201,38 @@ namespace Services
             return null;
         }
 
+
+        public async Task<IEnumerable<MatchQueueEntry>> GetPlayersWaitingForMatch(int maxPlayers)
+        {
+            return await (from player in _leiaContext.Players
+                   join activeTournament in _leiaContext.PlayerActiveTournaments
+                   on player.PlayerId equals activeTournament.PlayerId
+                   where activeTournament.TournamentId == PLAYER_ACTIVE_TOURNAMENT_MATCHMAKING_TOURNAMENT_ID
+                   orderby activeTournament.JoinTournamentTime
+                   select new MatchQueueEntry
+                   {
+                       Player = player,
+                       QueueEntry = activeTournament,
+                   })
+                   .Take(maxPlayers)
+                   .ToListAsync();
+        }
+
+        public async Task<IEnumerable<TournamentSession>> FindSuitableTournamentForRating(int playerRating, int maxRatingDrift, int tournamentTypeId, int currencyId, double playerBalance, int maxResults)
+        {
+            return await _leiaContext.Tournaments
+                .Where(
+                    t => Math.Abs(t.Rating - playerRating) < maxRatingDrift &&         // Rating is in range
+                    t.TournamentData.TournamentTypeId == tournamentTypeId &&
+                    t.IsOpen &&                                                        // Tournament is open
+                    t.TournamentData.EntryFeeCurrencyId == currencyId &&               // The currency Id is matching
+                    t.TournamentData.EntryFee <= playerBalance &&                      // Player has enough balance
+                    t.Players.Count < t.TournamentData.TournamentType.NumberOfPlayers) // Tournament is not full
+                .OrderBy(t => Math.Abs(t.Rating - playerRating))
+                .Take(maxResults)
+                .ToListAsync();
+        }
+
         public async Task<List<PlayerCurrencies?>?> GetAllPlayerBalances(Guid playerId)
         {
             try
@@ -239,7 +326,7 @@ namespace Services
             );
         }
 
-        public async Task<bool> MarkPlayerAsMatchMaking(Guid playerId)
+        public async Task<bool> MarkPlayerAsMatchMaking(Guid playerId, double entryFee, int currencyId, int tournamentTypeId)
         {
 
             try
@@ -249,21 +336,26 @@ namespace Services
                     PlayerId = playerId,
                     TournamentId = -1,
                     MatchmakeStartTime = DateTime.Now,
+                    CurrencyId = currencyId,
+                    TournamentTypeId = tournamentTypeId,
+                    EntryFee = entryFee
                 });
                 await _leiaContext.SaveChangesAsync();
+                var message = $"Player {playerId} started matchmaking";
+                await Log(message, playerId);
                 return true;
             }
             catch (DbUpdateException ex) 
             {
                 var message = $"Could not mark player as matchmaking, player {playerId} is either already matchmaking or in a tournament";
-                Log(message, playerId);
+                await Log(message, playerId);
                 Trace.WriteLine(message);
                 return false;
             }
             catch (Exception ex)
             {
                 var message = $"Unknown error while trying to mark player as 'matchmaking': {ex.Message}";
-                Log(message, playerId);
+                await Log(message, playerId);
                 Trace.WriteLine(message);
                 return false;
             }
@@ -300,8 +392,7 @@ namespace Services
         public async Task<bool> IsPlayerMatchMaking(Guid playerId)
         {
             return await _leiaContext.PlayerActiveTournaments
-                .Where(p => p.TournamentId == PLAYER_ACTIVE_TOURNAMENT_MATCHMAKING_TOURNAMENT_ID)
-                .CountAsync(p => p.PlayerId == playerId) > 0;
+                .Where(p => p.TournamentId == PLAYER_ACTIVE_TOURNAMENT_MATCHMAKING_TOURNAMENT_ID).CountAsync(p => p.PlayerId == playerId) > 0;
         }
 
         public async Task<Player?> GetPlayerById(Guid playerId)

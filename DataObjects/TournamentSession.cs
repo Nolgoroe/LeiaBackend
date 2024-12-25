@@ -28,6 +28,8 @@ namespace DataObjects
         public int TournamentSeed { get; set; }
         public bool IsOpen { get; set; }
 
+        public int Rating { get; set; }
+
         #region old properties
         /*
                 public List<PlayerTournamentSession> PlayerTournamentSession { get; set; } // a link to the MtM table

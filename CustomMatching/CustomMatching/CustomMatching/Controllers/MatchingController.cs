@@ -1,16 +1,9 @@
-﻿//using CustomMatching.Models;
-using Services;
+﻿using Services;
 using DataObjects;
 using Microsoft.AspNetCore.Mvc;
-using System;
 using System.Diagnostics;
-using System.Text.Json;
-using System.Text.Json.Serialization;
-using DAL;
 using Microsoft.EntityFrameworkCore;
-using System.Drawing;
 using static Services.TournamentService;
-using NuGet.Protocol;
 using Newtonsoft.Json;
 
 
@@ -81,9 +74,16 @@ namespace CustomMatching.Controllers
         public async Task<IActionResult> RequestMatch(Guid playerId, double matchFee, int currency, [FromBody] TournamentType tournamentType)
 
         {
+            var currencies = await _suikaDbService.LeiaContext.Currencies.FindAsync(currency);
+            if (currencies == null) {
+                return NotFound("There is no such currency"); 
+            }
             var player = await _suikaDbService.GetPlayerById(playerId);
-            if (player == null) return NotFound("There is no such id");
-            var canMatchMake = await _suikaDbService.MarkPlayerAsMatchMaking(player.PlayerId);
+            if (player == null)
+            {
+                return NotFound("There is no such id");
+            }
+            var canMatchMake = await _suikaDbService.MarkPlayerAsMatchMaking(player.PlayerId, matchFee, currencies.CurrencyId, tournamentType.TournamentTypeId);
             var isSuccess = false;
             if (!canMatchMake)
             {
@@ -93,30 +93,19 @@ namespace CustomMatching.Controllers
             {
                 var dbTournamentType = await _suikaDbService.LeiaContext.TournamentTypes.FindAsync(tournamentType.TournamentTypeId);
                 if (dbTournamentType == null) return NotFound("There is no such Tournament Type");
-
-                var currencies = await _suikaDbService.LeiaContext.Currencies.FindAsync(currency);
-                if (currencies == null) return NotFound("There is no such currency");
-
                 var playerBalance = await _suikaDbService.GetPlayerBalance(playerId, /*dbTournamentType?.CurrenciesId*/currency);
                 if (playerBalance == null) return BadRequest("The player doesn't have a balance for this currency");
-                if (playerBalance < dbTournamentType?.EntryFee /* matchFee*/) return BadRequest("The player doesn't have enough of this currency to join this match");
+                if (playerBalance < dbTournamentType?.EntryFee /* matchFee*/)
+                {
+                    return BadRequest("The player doesn't have enough of this currency to join this match");
+                }
                 else
                 {
-                    MatchRequest request = new()
-                    {
-                        RequestId = new Random().Next(1, 100),
-                        Player = player,
-                        MatchFee = matchFee/*Convert.ToDouble( dbTournamentType?.EntryFee)*/,
-                        MatchFeeCurrency = currencies,
-                        TournamentType = dbTournamentType
-                    };
-                    _tournamentService.MatchesQueue.Add(request);
-
 
                     // UNSUBSCRIBE FROM THE EVENT! without it, the Controller will be kept alive after it is done and closed. because the PlayerAddedToTournamentHandler is still connected to the event, and that keeps the Controller instance alive, and not garbage collected
                     _tournamentService.PlayerAddedToTournament -= PlayerAddedToTournamentHandler;
                     isSuccess = true;
-                    return Ok($"Match request #{request.RequestId}, added to queue");
+                    return Ok($"Match request, added to queue");
                 }
             }
             finally
@@ -130,31 +119,6 @@ namespace CustomMatching.Controllers
             
             
 
-        }
-
-        [HttpGet, Route("GetMatchesQueue")]
-        public IActionResult GetMatchesQueue()
-        {
-            var matchesQueue = _tournamentService.MatchesQueue.Take(100);
-            _tournamentService.PlayerAddedToTournament -= PlayerAddedToTournamentHandler;
-            return Ok(matchesQueue);
-        }
-
-
-        [HttpGet, Route("GetWaitingRequests")]
-        public IActionResult GetWaitingRequests()
-        {
-            var waiting = _tournamentService.WaitingRequests;
-            _tournamentService.PlayerAddedToTournament -= PlayerAddedToTournamentHandler;
-            return Ok(waiting);
-        }
-
-        [HttpGet, Route("GetOpenGames")]
-        public IActionResult GetOpenGames()
-        {
-            var openGames = _tournamentService.OngoingTournaments.Take(100);
-            _tournamentService.PlayerAddedToTournament -= PlayerAddedToTournamentHandler;
-            return Ok(openGames);
         }
 
         [HttpGet, Route("GetPlayerSeeds")]
@@ -266,33 +230,10 @@ namespace CustomMatching.Controllers
         [HttpGet, Route("ResetLists")]
         public IActionResult ResetLists()
         {
-            _tournamentService.MatchesQueue.Clear();
-            _tournamentService.WaitingRequests.Clear();
-            _tournamentService.OngoingTournaments.Clear();
             _tournamentService.PlayersSeeds.Clear();
-            return Ok($"MatchesQueue count: {_tournamentService.MatchesQueue.Count}\nWaitingRequests count: {_tournamentService.WaitingRequests.Count}\nOngoingTournaments count: {_tournamentService.OngoingTournaments.Count}\nPlayersSeeds count: {_tournamentService.PlayersSeeds.Count}");
+            return Ok();
         }
 
-        [HttpGet, Route("ResetMatchesQueue")]
-        public IActionResult ResetMatchesQueue()
-        {
-            _tournamentService.MatchesQueue.Clear();
-            return Ok($"MatchesQueue count: {_tournamentService.MatchesQueue.Count}");
-        }
-
-        [HttpGet, Route("ResetWaitingRequests")]
-        public IActionResult ResetWaitingRequests()
-        {
-            _tournamentService.WaitingRequests.Clear();
-            return Ok($"WaitingRequests count: {_tournamentService.WaitingRequests.Count}");
-        }
-
-        [HttpGet, Route("ResetOngoingTournaments")]
-        public IActionResult ResetOngoingTournaments()
-        {
-            _tournamentService.OngoingTournaments.Clear();
-            return Ok($"OngoingTournaments count: {_tournamentService.OngoingTournaments.Count}");
-        }
 
         [HttpGet, Route("ResetPlayersSeeds")]
         public IActionResult ResetPlayersSeeds()
