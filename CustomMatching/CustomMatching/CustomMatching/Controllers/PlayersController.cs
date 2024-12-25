@@ -76,6 +76,7 @@ namespace CustomMatching.Controllers
         [HttpPut, Route("UpdatePlayerTournamentResult/{playerId}/{tournamentId}/{score}")]
         public async Task<IActionResult> UpdatePlayerTournamentResult(Guid playerId, int tournamentId, int score)
         {
+            await _suikaDbService.Log($"Player {playerId} wants to set score {score} for tournament {tournamentId}", playerId);
             if (! await _suikaDbService.RemovePlayerFromActiveTournament(playerId, tournamentId))
             {
                 var message = $"UpdatePlayerTournamentResult: Player {playerId} was not active in tournament {tournamentId}";
@@ -84,7 +85,11 @@ namespace CustomMatching.Controllers
                 return BadRequest("Could not submit result, player not in active tournament");
             }
             var tournament = _suikaDbService?.LeiaContext?.Tournaments.FirstOrDefault(t => t.TournamentSessionId == tournamentId && t.IsOpen == true);
-            if (tournament == null) return BadRequest("Could not submit result, tournament is closed");
+            if (tournament == null)
+            {
+                await _suikaDbService.Log($"Player {playerId} cannot set score, tournament={tournamentId} not found!", playerId);
+                return BadRequest("Could not submit result, tournament is closed");
+            }
 
             var playerTournament = _suikaDbService?.LeiaContext?.PlayerTournamentSession.FirstOrDefault(pt => pt.PlayerId == playerId && pt.TournamentSessionId == tournamentId);
 
@@ -106,7 +111,9 @@ namespace CustomMatching.Controllers
                 }
                 catch (Exception ex)
                 {
-                    Trace.WriteLine(ex.Message + "\n" + ex.InnerException?.Message);
+                    var msg = ex.Message.ToString() + "\n" + ex.InnerException?.Message.ToString();
+                    Trace.WriteLine(msg);
+                    await _suikaDbService.Log($"Player {playerId} cannot set score, tournament={tournamentId}:\n{msg}", playerId);
                 }
             }
 

@@ -222,7 +222,7 @@ namespace Services
                 }
                 catch (Exception ex)
                 {
-                    var message = $"AddToExistingTournament: Error during attempt of player {dbPlayer.PlayerId} to join tournament {dbTournament.TournamentSessionId}: {ex.Message}";
+                    var message = $"AddToExistingTournament: Error during attempt of player {dbPlayer.PlayerId} to join tournament {dbTournament.TournamentSessionId}: {ex.Message.ToString()}: {ex.InnerException.Message.ToString()}";
                     await _suikaDbService.Log(message, dbPlayer.PlayerId);
                     Trace.WriteLine(message);
                     await _suikaDbService.RemovePlayerFromActiveTournament(dbPlayer.PlayerId, dbTournament.TournamentSessionId);
