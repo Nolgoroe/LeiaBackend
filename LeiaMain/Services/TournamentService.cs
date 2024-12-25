@@ -210,6 +210,8 @@ namespace Services
                         );
                         // send the tournament seed to controller list
                         SendPlayerAndSeed(savedTournament?.Entity?.TournamentSeed, savedTournament?.Entity?.TournamentSessionId, request?.Player?.PlayerId);
+                        var message = $"AddToExistingTournament: Player {dbPlayer.PlayerId} joined tournament {dbTournament.TournamentSessionId}";
+                        await _suikaDbService.Log(message, dbPlayer.PlayerId);
                     }
                 }
                 catch (Exception ex)
