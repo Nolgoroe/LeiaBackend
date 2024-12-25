@@ -43,7 +43,7 @@ namespace Services
     {
         private int _timerCycles = 0;
 
-        public int NumMilliseconds { get; set; } = 500; // get these numbers from tournament DB or config file
+        public int NumMilliseconds { get; set; } = 2000; // get these numbers from tournament DB or config file
         private int _maxNumPlayers = 2; // get these numbers from tournament DB or config file
         private int _scoreVariance = 200; // get these numbers from tournament DB or config file 
         private int _scoreVarianceSteps = 400; // get these numbers from tournament DB or config file 
@@ -105,7 +105,6 @@ namespace Services
             using (var scope = _scopeFactory.CreateScope())
             {
                 var dbService = scope.ServiceProvider.GetRequiredService<ISuikaDbService>();
-                await Task.Delay(NumMilliseconds);
                 if (!await _createMatchesFromQueueSemaphore.WaitAsync(0))
                 {
                     return;
@@ -117,6 +116,7 @@ namespace Services
                     Debug.WriteLine($"=====> Inside GetMatch. Semaphore was entered with context {dbService.LeiaContext.ContextId}");
                     if (MatchesQueue.Count > 0)
                     {
+                        dbService.Log("Matching from MatchesQueue");
                         //_strategiesHandler.InitiateStrategies();
                         _currentMatchingStrategy = new CheckFirstRequestStrategy(dbService, this);
                         while (_currentMatchingStrategy != null)
@@ -127,11 +127,16 @@ namespace Services
                     // check for waiting requests that are in the list for too long without tournament match
                     else if (WaitingRequests.Count > 0)
                     {
+                        dbService.Log("Matching from WaitingRequests");
                         _currentMatchingStrategy = new CheckPendingWaitingRequestsStrategy(dbService, this);
                         while (_currentMatchingStrategy != null)
                         {
                             _currentMatchingStrategy = await _currentMatchingStrategy.RunStrategy();
                         }
+                    }
+                    else
+                    {
+                        dbService.Log("Cannot match any players");
                     }
                 }
                 catch (Exception ex)
