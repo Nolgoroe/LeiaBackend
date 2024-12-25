@@ -54,7 +54,6 @@ namespace Services
         private readonly SemaphoreSlim _createMatchesFromQueueSemaphore = new SemaphoreSlim(1, 1);
         //private readonly IConfiguration _configuration;
         private JsonSerializerOptions _jsonOptions;
-        private Task _createMatchesFromQueueTask;
         public System.Timers.Timer MatchTimer { get; set; }
         private bool _isCreatingMatchesAllowed = true;
         public event EventHandler PlayerAddedToTournament;
@@ -79,7 +78,6 @@ namespace Services
                 ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles,
                 WriteIndented = true,
             };
-            _createMatchesFromQueueTask = CreateMatchesFromQueue();
             MatchTimer = new System.Timers.Timer()
             {
                 Interval = NumMilliseconds,
@@ -117,13 +115,13 @@ namespace Services
                     Debug.WriteLine($"=====> Inside GetMatch. Semaphore was entered with context {dbService.LeiaContext.ContextId}");
                     if (MatchesQueue.Count > 0)
                     {
-                        dbService.Log("Matching from MatchesQueue");
+                        await dbService.Log("Matching from MatchesQueue");
                         //_strategiesHandler.InitiateStrategies();
                         _currentMatchingStrategy = new CheckFirstRequestStrategy(dbService, this);
                         while (_currentMatchingStrategy != null)
                         {
                             if (safety-- <= 0){
-                                dbService.Log("Aborting match make due to max iterations");
+                                await dbService.Log("Aborting match make due to max iterations");
                                 break;
                             }
                             _currentMatchingStrategy = await _currentMatchingStrategy.RunStrategy();
@@ -132,13 +130,13 @@ namespace Services
                     // check for waiting requests that are in the list for too long without tournament match
                     else if (WaitingRequests.Count > 0)
                     {
-                        dbService.Log("Matching from WaitingRequests");
+                        await dbService.Log("Matching from WaitingRequests");
                         _currentMatchingStrategy = new CheckPendingWaitingRequestsStrategy(dbService, this);
                         while (_currentMatchingStrategy != null)
                         {
                             if (safety-- <= 0)
                             {
-                                dbService.Log("Aborting match make due to max iterations");
+                                await dbService.Log("Aborting match make due to max iterations");
                                 break;
                             }
                             _currentMatchingStrategy = await _currentMatchingStrategy.RunStrategy();
@@ -146,7 +144,7 @@ namespace Services
                     }
                     else
                     {
-                        dbService.Log("Cannot match any players");
+                        await dbService.Log("Cannot match any players");
                     }
                 }
                 catch (Exception ex)

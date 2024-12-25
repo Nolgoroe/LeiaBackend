@@ -30,16 +30,21 @@ namespace DAL
             //_connectionString = connectionString;
         }
 
+        private static IConfigurationRoot _configurationBuild;
+
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
             base.OnConfiguring(optionsBuilder);
 
             optionsBuilder.EnableSensitiveDataLogging();
 
-            var configuration = new ConfigurationBuilder()
-                .AddJsonFile("appsettings.json", false, true)
+            if (_configurationBuild == null)
+            {
+                _configurationBuild = new ConfigurationBuilder()
+                .AddJsonFile("appsettings.json", false, false)
                 .Build();
-            var connectionString = configuration["ConnectionStrings:SuikaDb"];
+            }
+            var connectionString = _configurationBuild["ConnectionStrings:SuikaDb"];
 
             optionsBuilder.UseSqlServer(connectionString);
         }
