@@ -50,6 +50,9 @@ namespace Services
         public Task Log(string message);
 
         public Task Log(string message, Guid playerId);
+        
+        public Task Log(Exception ex);
+        public Task Log(Exception ex, Guid playerId);
 
         public Task<bool> MarkPlayerAsMatchMaking(Guid playerId, double entryFee, int currencyId, int tournamentTypeId);
 
@@ -315,6 +318,17 @@ namespace Services
             await Log(message, Guid.Empty);
         }
 
+        public async Task Log(Exception ex)
+        {
+            await Log(ex, Guid.Empty);
+        }
+
+        public async Task Log(Exception ex, Guid playerId)
+        {
+            var message = $"Exception: {ex.ToString()}:\n{ex.InnerException.ToString()}";
+            await Log(message, playerId);
+        }
+
         public async Task Log(string message, Guid playerId)
         {
             // We do not use SaveChanges here, because that may cause deadlocks
@@ -324,6 +338,7 @@ namespace Services
                 DateTime.UtcNow,
                 message
             );
+            Trace.WriteLine(message);
         }
 
         public async Task<bool> MarkPlayerAsMatchMaking(Guid playerId, double entryFee, int currencyId, int tournamentTypeId)

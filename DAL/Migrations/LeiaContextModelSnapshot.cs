@@ -32,8 +32,8 @@ namespace DAL.Migrations
 
                     b.Property<string>("Log")
                         .IsRequired()
-                        .HasMaxLength(1024)
-                        .HasColumnType("nvarchar(1024)");
+                        .HasMaxLength(8196)
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<Guid>("PlayerId")
                         .HasColumnType("uniqueidentifier");

@@ -12,7 +12,6 @@ namespace Services
     {
         public event EventHandler PlayerAddedToTournament;
         public Dictionary<Guid?, int?[]> PlayersSeeds { get; set; }
-        public Task<int?> GetTournamentTypeByCurrency(int? currencyId);
         public Task CheckTournamentStatus(int tournamentId);
         public Task<PlayerCurrencies?> ChargePlayer(Guid playerId, int? tournamentId);
     }
@@ -84,9 +83,7 @@ namespace Services
                 }
                 catch (Exception ex)
                 {
-                    var errorMessage = ex.Message.ToString() + "\n\n" + ex.InnerException?.Message.ToString();
-                    Debug.WriteLine(errorMessage);
-                    await dbService.Log($"Fatal error during matchmaking: {errorMessage}");
+                    await dbService.Log(ex);
                 }
                 finally
                 {
@@ -128,10 +125,8 @@ namespace Services
             }
             catch (Exception ex)
             {
-                dbService.RemovePlayerFromActiveMatchMaking(waitingPlayer.Player.PlayerId);
-                var errorMessage = ex.Message.ToString() + "\n\n" + ex.InnerException?.Message.ToString();
-                Debug.WriteLine(errorMessage);
-                await dbService.Log($"Fatal error during matchmaking of user {waitingPlayer.Player.PlayerId}: {errorMessage}", waitingPlayer.Player.PlayerId);
+                await dbService.RemovePlayerFromActiveMatchMaking(waitingPlayer.Player.PlayerId);
+                await dbService.Log(ex, waitingPlayer.Player.PlayerId);
             }
         }
 
@@ -174,14 +169,12 @@ namespace Services
                 {
                     var message = "AddToExistingTournament: Got null request AND null MatchRequest";
                     await _suikaDbService.Log(message);
-                    Trace.WriteLine(message);
                     return; // Don't change anything
                 }
                 if (dbPlayer == null)
                 {
                     var message = $"AddToExistingTournament: Got null player while attempting to join tournament {dbTournament.TournamentSessionId}";
                     await _suikaDbService.Log(message);
-                    Trace.WriteLine(message);
                     return; // Don't change anything
                 }
                 dbTournament?.Players?.Add(dbPlayer);
@@ -192,7 +185,6 @@ namespace Services
                 {
                     var message = $"AddToExistingTournament: Player {dbPlayer.PlayerId} attempted to join tournament {dbTournament.TournamentSessionId}, but was not in matchmaking state!";                    
                     await _suikaDbService.Log(message, dbPlayer.PlayerId);
-                    Trace.WriteLine(message);
                     return;
                 }
 
@@ -222,30 +214,10 @@ namespace Services
                 }
                 catch (Exception ex)
                 {
-                    var message = $"AddToExistingTournament: Error during attempt of player {dbPlayer.PlayerId} to join tournament {dbTournament.TournamentSessionId}: {ex.Message.ToString()}: {ex.InnerException.Message.ToString()}";
-                    await _suikaDbService.Log(message, dbPlayer.PlayerId);
-                    Trace.WriteLine(message);
+                    await _suikaDbService.Log(ex, dbPlayer.PlayerId);
                     await _suikaDbService.RemovePlayerFromActiveTournament(dbPlayer.PlayerId, dbTournament.TournamentSessionId);
-                    Trace.WriteLine(ex.Message + "\n" + ex.InnerException?.Message);
                 }
             }
-        }
-
-        // Deprecate this 👇🏻
-        public async Task<int?> GetTournamentTypeByCurrency(int? currencyId)
-        {
-            var currency = _suikaDbService.LeiaContext.Currencies.Find(currencyId);
-            var tournamentTypes = _suikaDbService.LeiaContext.TournamentTypes.ToList();
-            switch (currency?.CurrencyName)
-            {
-                case "Gems":
-                    return tournamentTypes.FirstOrDefault(tt => tt.TournamentTypeName == "SCFor2Players")?.TournamentTypeId;
-
-                default:
-                    return tournamentTypes.FirstOrDefault(tt => tt.TournamentTypeName == "Paid")?.TournamentTypeId;
-
-            }
-
         }
 
         public async Task<TournamentSession?> SaveNewTournament(double matchFee, int? currencyId, int? tournamentTypeId, params Guid?[]? playerIds)
@@ -281,9 +253,6 @@ namespace Services
             {
                 return null;
             }
-
-            //var tournamentTypeId = await  GetTournamentTypeByCurrency(currencyId);
-
 
             var tournament = new TournamentSession
             {
@@ -345,11 +314,9 @@ namespace Services
             }
             catch (Exception ex)
             {
-                Trace.WriteLine(ex.Message + "\n" + ex.InnerException?.Message);
-                throw;
-                //return null;
+                await _suikaDbService.Log(ex);
+                return null;
             }
-
         }
 
         private void SendPlayerAndSeed(int? seed, int? tournamentId, params Guid?[]? playerIds)

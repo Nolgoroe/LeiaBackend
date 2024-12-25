@@ -81,7 +81,6 @@ namespace CustomMatching.Controllers
             {
                 var message = $"UpdatePlayerTournamentResult: Player {playerId} was not active in tournament {tournamentId}";
                 await _suikaDbService.Log(message, playerId);
-                Trace.WriteLine(message);
                 return BadRequest("Could not submit result, player not in active tournament");
             }
             var tournament = _suikaDbService?.LeiaContext?.Tournaments.FirstOrDefault(t => t.TournamentSessionId == tournamentId && t.IsOpen == true);
@@ -111,9 +110,7 @@ namespace CustomMatching.Controllers
                 }
                 catch (Exception ex)
                 {
-                    var msg = ex.Message.ToString() + "\n" + ex.InnerException?.Message.ToString();
-                    Trace.WriteLine(msg);
-                    await _suikaDbService.Log($"Player {playerId} cannot set score, tournament={tournamentId}:\n{msg}", playerId);
+                    await _suikaDbService.Log(ex, playerId);
                 }
             }
 

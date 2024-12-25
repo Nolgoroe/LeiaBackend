@@ -23,7 +23,7 @@ namespace DataObjects
         /// </summary>
         public Guid PlayerId { get; set; }
 
-        [MaxLength(1024)]
+        [MaxLength(8196)]
         public string Log { get; set; }
     }
 }
