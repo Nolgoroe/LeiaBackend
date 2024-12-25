@@ -93,22 +93,32 @@ namespace Services
                             playerBalance.Value, 
                             1
                             );
-                        if (suitableTournaments.Any())
-                        {
-                            await AddToExistingTournament(waitingPlayer.ConvertToLegacyMatchRequest(
-                                dbService.LeiaContext),
-                                suitableTournaments.First()
-                                );
+                        try
+                        { 
+                            if (suitableTournaments.Any())
+                            {
+                                await AddToExistingTournament(waitingPlayer.ConvertToLegacyMatchRequest(
+                                    dbService.LeiaContext),
+                                    suitableTournaments.First()
+                                    );
+                            }
+                            else
+                            {
+                                await CreateNewTournament(waitingPlayer.ConvertToLegacyMatchRequest(dbService.LeiaContext));
+                            }
                         }
-                        else
+                        catch (Exception ex)
                         {
-                            await CreateNewTournament(waitingPlayer.ConvertToLegacyMatchRequest(dbService.LeiaContext));
+                            dbService.RemovePlayerFromActiveMatchMaking(waitingPlayer.Player.PlayerId);
+                            var errorMessage = ex.Message.ToString() + "\n\n" + ex.InnerException?.Message.ToString();
+                            Debug.WriteLine(errorMessage);
+                            await dbService.Log($"Fatal error during matchmaking of user {waitingPlayer.Player.PlayerId}: {errorMessage}", waitingPlayer.Player.PlayerId);
                         }
                     }
                 }
                 catch (Exception ex)
                 {
-                    var errorMessage = ex.Message + "\n" + ex.InnerException?.Message;
+                    var errorMessage = ex.Message.ToString() + "\n\n" + ex.InnerException?.Message.ToString();
                     Debug.WriteLine(errorMessage);
                     await dbService.Log($"Fatal error during matchmaking: {errorMessage}");
                 }
