@@ -100,47 +100,52 @@ namespace Services
             {
                 await Task.Delay(NumMilliseconds);
             }
-            var context = _suikaDbService.LeiaContext;
+            
             while (true)
             {
             // Create tournament new DbContext instance for this operation
 
-                await Task.Delay(NumMilliseconds);
-                await _createMatchesFromQueueSemaphore.WaitAsync(NumMilliseconds);
-                try
+                using (var scope = _scopeFactory.CreateScope())
                 {
-                    // TODO: After verifying this keeps returning the same context id, there's no need for this debug log to 
-                    // contain the context id
-                    Debug.WriteLine($"=====> Inside GetMatch. Semaphore was entered with context {context.ContextId}");
-                    if (MatchesQueue.Count > 0)
+                    var dbService = scope.ServiceProvider.GetRequiredService<ISuikaDbService>();
+                    await Task.Delay(NumMilliseconds);
+                    await _createMatchesFromQueueSemaphore.WaitAsync(NumMilliseconds);
+                    try
                     {
-                        //_strategiesHandler.InitiateStrategies();
-                        _currentMatchingStrategy = new CheckFirstRequestStrategy(_suikaDbService, this);
-                        while (_currentMatchingStrategy != null)
+                        // TODO: After verifying this keeps returning the same context id, there's no need for this debug log to 
+                        // contain the context id
+                        Debug.WriteLine($"=====> Inside GetMatch. Semaphore was entered with context {dbService.LeiaContext.ContextId}");
+                        if (MatchesQueue.Count > 0)
                         {
-                            _currentMatchingStrategy = await _currentMatchingStrategy.RunStrategy();
+                            //_strategiesHandler.InitiateStrategies();
+                            _currentMatchingStrategy = new CheckFirstRequestStrategy(dbService, this);
+                            while (_currentMatchingStrategy != null)
+                            {
+                                _currentMatchingStrategy = await _currentMatchingStrategy.RunStrategy();
+                            }
+                        }
+                        // check for waiting requests that are in the list for too long without tournament match
+                        else if (WaitingRequests.Count > 0)
+                        {
+                            _currentMatchingStrategy = new CheckPendingWaitingRequestsStrategy(dbService, this);
+                            while (_currentMatchingStrategy != null)
+                            {
+                                _currentMatchingStrategy = await _currentMatchingStrategy.RunStrategy();
+                            }
                         }
                     }
-                    // check for waiting requests that are in the list for too long without tournament match
-                    else if (WaitingRequests.Count > 0)
+                    catch (Exception ex)
                     {
-                        _currentMatchingStrategy = new CheckPendingWaitingRequestsStrategy(_suikaDbService, this);
-                        while (_currentMatchingStrategy != null)
-                        {
-                            _currentMatchingStrategy = await _currentMatchingStrategy.RunStrategy();
-                        }
+                        Debug.WriteLine(ex.Message + "\n" + ex.InnerException?.Message);
+                        throw;
+                    }
+                    finally
+                    {
+                        // Ensure the semaphore is released even if an exception occurs
+                        _createMatchesFromQueueSemaphore.Release();
                     }
                 }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine(ex.Message + "\n" + ex.InnerException?.Message);
-                    throw;
-                }
-                finally
-                {
-                    // Ensure the semaphore is released even if an exception occurs
-                    _createMatchesFromQueueSemaphore.Release();
-                }
+             
             }
             
         }
