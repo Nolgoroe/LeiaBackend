@@ -37,7 +37,7 @@ namespace CustomMatching.Controllers
             _postTournamentService = postTournamentService;
             //OngoingTournaments = new List<MatchSession>();
 
-            _tournamentService.MatchTimer.Start();
+            //_tournamentService.MatchTimer.Start();
             _tournamentService.PlayerAddedToTournament += PlayerAddedToTournamentHandler;
             // UNSUBSCRIBE FROM THE EVENT! In any endpoint we should unsubscribe from this event because it is subscribed in any call to the Controller. The only exception to that is the GetTournamentTypes(), which is called first and keeps 1 event listener alive so the PlayerAddedToTournamentHandler method will prompt every time the event is raised 
         }
@@ -196,20 +196,6 @@ namespace CustomMatching.Controllers
             /// DON'T UNSUBSCRIBE FROM THE EVENT HERE! this keeps the PlayerAddedToTournamentHandler  connected to the event, and that makes sure  the PlayerAddedToTournamentHandler method is fired 
             //_tournamentService.PlayerAddedToTournament -= PlayerAddedToTournamentHandler;
             return Ok(tournamentTypes);
-        }
-
-        [HttpGet, Route("StopTimer")]
-        public IActionResult StopTimer()
-        {
-            _tournamentService.StopTimer();
-            return Ok("Timer Stopped");
-        }
-
-        [HttpGet, Route("StartTimer")]
-        public IActionResult StartTimer()
-        {
-            _tournamentService.StartTimer();
-            return Ok("Timer Started");
         }
 
 

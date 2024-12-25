@@ -24,7 +24,7 @@ namespace Services
         public List<MatchRequest> MatchesQueue { get; set; }
         public List<MatchRequest> WaitingRequests { get; }
         public List<TournamentSession> OngoingTournaments { get; set; }
-        public System.Timers.Timer MatchTimer { get; set; }
+        //public System.Timers.Timer MatchTimer { get; set; }
         public event EventHandler PlayerAddedToTournament;
         public Dictionary<Guid?, int?[]> PlayersSeeds { get; set; }
         public int NumMilliseconds { get; set; }
@@ -37,8 +37,6 @@ namespace Services
         public Task<int?> GetTournamentTypeByCurrency(int? currencyId);
         public Task CheckTournamentStatus(int tournamentId);
         public Task<PlayerCurrencies?> ChargePlayer(Guid playerId, int? tournamentId);
-        public void StopTimer();
-        public void StartTimer();
     }
 
     public class TournamentService : ITournamentService
@@ -53,9 +51,11 @@ namespace Services
         private readonly ISuikaDbService _suikaDbService;
         private readonly IPostTournamentService _postTournamentService;
         private readonly IServiceScopeFactory _scopeFactory;
-        private SemaphoreSlim _semaphore;
+        private readonly SemaphoreSlim _createMatchesFromQueueSemaphore = new SemaphoreSlim(1, 1);
         //private readonly IConfiguration _configuration;
         private JsonSerializerOptions _jsonOptions;
+        private Task _createMatchesFromQueueTask;
+        private bool _isCreatingMatchesAllowed = true;
         public event EventHandler PlayerAddedToTournament;
 
         public Dictionary<Guid?, int?[]> PlayersSeeds { get; set; } = [];
@@ -74,13 +74,12 @@ namespace Services
             _suikaDbService = new SuikaDbService(new LeiaContext());
             _postTournamentService = new PostTournamentService(_suikaDbService);
             //_suikaDbService = new SuikaDbService(new LeiaContext(configuration.GetConnectionString("SuikaDb"))) /*suikaDbService*/;
-            _semaphore = new SemaphoreSlim(1, 1);
             _jsonOptions = new()
             {
                 ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles,
                 WriteIndented = true,
             };
-            InitTimer();
+            _createMatchesFromQueueTask = CreateMatchesFromQueue();
 
             #region How to hash strings
             //  var byteKey = Encoding.UTF8.GetBytes("some-secret-string");
@@ -89,157 +88,47 @@ namespace Services
 
         }
 
-        private void InitTimer()
+
+
+        public async Task CreateMatchesFromQueue()
         {
-            MatchTimer = new System.Timers.Timer
+            // Wait for context
+            // Lital: Possibly this is not needed, but research must be done to prove that.
+            // Most likely it is not needed since SuikaDbService is already getting a context in its constructor
+            // TODO: Check later if this can be removed
+            while (_suikaDbService.LeiaContext == null)
             {
-                Interval = NumMilliseconds
-            };
-            MatchTimer.Elapsed += MatchTimer_Elapsed;
-            MatchTimer.AutoReset = true;
-        }
-
-        private async void MatchTimer_Elapsed(object? sender, ElapsedEventArgs e)
-        {
-            Debug.WriteLine("One match cycle ticked");
-
-            //MatchTimer.Interval = NumMilliseconds * 10;
-            _timerCycles++;
-
-            ///<summary>
-            /// THIS IS IMPORTANT!!!!
-            /// the Dispatcher's lambda  SHOULD NOT be asynchronous !!!
-            /// if it is, the calls to the database (through the context) happen in parallel. This causes an error because only one context instance can be alive at any given times.
-            /// when two parallel calls to the database happen simultaneously with the same context, there are data conflicts.
-            /// when we pass a regular function to the InvokeAsync method (not an async lambda) the calls happen sequentially and not simultaneously 
-            ///</summary>
-            await Dispatcher.CreateDefault().InvokeAsync(/*async () =>*/
-            //{
-                 GetMatch
-            //await GetMatch();
-            //}
-            );
-
-            // if (_timerCycles > 240) MatchTimer.Stop();
-        }
-
-        public void StopTimer()
-        {
-            MatchTimer.Stop();
-            MatchTimer.Elapsed -= MatchTimer_Elapsed;
-        }
-
-        public void StartTimer()
-        {
-            MatchTimer.Start();
-            MatchTimer.Elapsed += MatchTimer_Elapsed;
-        }
-
-
-        // Matching Strategies driver code
-        public async Task<IEnumerable<TournamentSession>> GetMatch(/*Guid PlayerId*/)
-        {
-            Debug.WriteLine(JsonSerializer.Serialize<List<MatchRequest>>(MatchesQueue, _jsonOptions));
-            // Attempt to enter the semaphore immediately
-            if (await _semaphore.WaitAsync(0))
+                await Task.Delay(NumMilliseconds);
+            }
+            var context = _suikaDbService.LeiaContext;
+            while (true)
             {
+            // Create tournament new DbContext instance for this operation
+
+                await Task.Delay(NumMilliseconds);
+                await _createMatchesFromQueueSemaphore.WaitAsync(NumMilliseconds);
                 try
                 {
-                    // Create tournament new DbContext instance for this operation
-                    using (var context = new LeiaContext())
+                    // TODO: After verifying this keeps returning the same context id, there's no need for this debug log to 
+                    // contain the context id
+                    Debug.WriteLine($"=====> Inside GetMatch. Semaphore was entered with context {context.ContextId}");
+                    if (MatchesQueue.Count > 0)
                     {
-                        _suikaDbService.LeiaContext = context;
-                        Debug.WriteLine($"=====> Inside GetMatch. Semaphore was entered with context {context.ContextId}");
-                        if (MatchesQueue.Count > 0)
+                        //_strategiesHandler.InitiateStrategies();
+                        _currentMatchingStrategy = new CheckFirstRequestStrategy(_suikaDbService, this);
+                        while (_currentMatchingStrategy != null)
                         {
-                            //_strategiesHandler.InitiateStrategies();
-                            _currentMatchingStrategy = new CheckFirstRequestStrategy(_suikaDbService, this);
-                            while (_currentMatchingStrategy != null)
-                            {
-                                _currentMatchingStrategy = await _currentMatchingStrategy.RunStrategy();
-                            }
-                            #region Full Matching logic 
-                            /* // FIRST REQUEST PART
-                             if (WaitingRequests.Count <= 0)// check if there are any waiting requests. if not, add one the to list ( = the first request)
-                             {
-                                 ProcessFirstRequest(MatchesQueue[0]);
-                             }
-                             // MULTIPLE REQUESTS PART
-                             else if (MatchesQueue.Count > 0)
-                             {
-
-                                 var ordered = MatchesQueue.OrderByDescending(m => m.Player?.Score).ToList();
-
-                                 foreach (var request in ordered)
-                                 {
-                                     if (WaitingRequests.Any()) // make sure the list is not empty before iterating on it
-                                     {
-                                         // FIND MATCH IN WaitingRequests PART
-                                         var matchedRequest = WaitingRequests?.FirstOrDefault(r => CheckRequestsMatch(r, request).Result); // check if the current request in queue, matches any of the previous requests the in the WaitingRequests list, by Score and if the players have enough money
-
-                                         //FOUND A MATCH IN THE WaitingRequests LIST
-                             if (matchedRequest != null) // if the players match, add them to a tournament
-                                         {
-                                 if (OngoingTournaments.Count <= 0) // if there is no current tournament, create a new one
-                                             {
-                                                await CreateNewTournament(request, matchedRequest);
-                                             }
-                                 else if (OngoingTournaments.Count > 0) // if there is a current tournament, see if the matchedRequest and the request could fit any other open tournaments
-                                             {
-                                                 var matchingTournament = OngoingTournaments.FirstOrDefault(t => FindMatchingTournament(t, request, matchedRequest).Result);
-
-                                     if (matchingTournament == null) // if it doesn't match other tournaments, create a new one
-                                                 {
-                                                     await CreateNewTournament(request, matchedRequest);
-                                                 }
-                                                 else // meaning there is tournament fitting tournament for the current request and the found matchedRequest
-                                                 {
-                                                     await AddToExistingTournament(request, matchedRequest, matchingTournament);
-                                                 }
-                                             }
-                                         }
-
-                                         // IF NO MATCH IN THE WaitingRequests LIST, FIND MATCH IN OngoingTournaments PART
-                             else // if the players don't match, check for a matching ongoing tournament, and if there isn't one, add the requesting player to WaitingRequests
-                                         {
-                                             if (OngoingTournaments.Count > 0) // check if the current request can fit into one of the opened tournaments  
-                                             {
-                                                 var matchingTournament = OngoingTournaments.FirstOrDefault(t => FindMatchingTournament(t, request).Result
-                                                  // check if the request.Player't score fits the first player in the ongoing tournament, because the first player in the tournament determines the score that other players should match in that tournament
-                                                  );
-
-                                                 //FOUND A MATCH IN THE OngoingTournaments LIST
-                                     if (matchingTournament != null) await AddToExistingTournament(request, null, matchingTournament); // if we find a matching tournament, add the request to it
-
-                                                 // IF NO MATCH IN OngoingTournaments
-                                                 else //if not add the request to the WaitingRequests list
-                                                 {
-                                                     WaitingRequests?.Add(request);
-                                                     MatchesQueue.Remove(request);
-                                                 }
-
-                                             }
-                                             else // if there are no ongoing tournaments, add the request to the WaitingRequests list
-                                             {
-                                                 WaitingRequests?.Add(request);
-                                                 MatchesQueue.Remove(request);
-                                             }
-                                         }
-                                     }
-                                 }
-                             }*/
-                            #endregion
+                            _currentMatchingStrategy = await _currentMatchingStrategy.RunStrategy();
                         }
-                        // check for waiting requests that are in the list for too long without tournament match
-                        else if (WaitingRequests.Count > 0)
+                    }
+                    // check for waiting requests that are in the list for too long without tournament match
+                    else if (WaitingRequests.Count > 0)
+                    {
+                        _currentMatchingStrategy = new CheckPendingWaitingRequestsStrategy(_suikaDbService, this);
+                        while (_currentMatchingStrategy != null)
                         {
-                            _currentMatchingStrategy = new CheckPendingWaitingRequestsStrategy(_suikaDbService, this);
-                            while (_currentMatchingStrategy != null)
-                            {
-                                _currentMatchingStrategy = await _currentMatchingStrategy.RunStrategy();
-                            }
+                            _currentMatchingStrategy = await _currentMatchingStrategy.RunStrategy();
                         }
-                        return OngoingTournaments;
                     }
                 }
                 catch (Exception ex)
@@ -250,15 +139,15 @@ namespace Services
                 finally
                 {
                     // Ensure the semaphore is released even if an exception occurs
-                    _semaphore.Release();
+                    _createMatchesFromQueueSemaphore.Release();
                 }
             }
-            else
-            {
-                Debug.WriteLine("=====> Inside GetMatch. The semaphore was not entered because an operation is already in progress");
-                return OngoingTournaments;
-            }
+            
         }
+
+
+        // Matching Strategies driver code
+       
 
         public async Task<bool> FindMatchingTournament(TournamentSession? tournament, params MatchRequest?[] requests)
         {
@@ -613,29 +502,26 @@ namespace Services
 
         public async Task CheckTournamentStatus(int tournamentId)
         {
-            using (var context = new LeiaContext())
+            var context = _suikaDbService.LeiaContext;
+            try
             {
-
-                try
+                var tournament = context.Tournaments
+                    .Include(t => t.TournamentData)
+                        .ThenInclude(td => td.TournamentType)
+                    .Include(t => t.PlayerTournamentSessions)
+                    .Include(t => t.Players)
+                    .FirstOrDefault(t => t.TournamentSessionId == tournamentId);
+                if (tournament != null)
                 {
-                    var tournament = context.Tournaments
-                        .Include(t => t.TournamentData)
-                            .ThenInclude(td => td.TournamentType)
-                        .Include(t => t.PlayerTournamentSessions)
-                        .Include(t => t.Players)
-                        .FirstOrDefault(t => t.TournamentSessionId == tournamentId);
-                    if (tournament != null)
-                    {
-                        var scores = context.PlayerTournamentSession.Where(pt => pt.TournamentSessionId == tournamentId).Select(pt => pt.PlayerScore).ToList();
-                        if (scores.All(s => s != null) && scores.Count >= tournament.TournamentData.TournamentType.NumberOfPlayers) await _postTournamentService.CloseTournament(tournament); // close tournament
+                    var scores = context.PlayerTournamentSession.Where(pt => pt.TournamentSessionId == tournamentId).Select(pt => pt.PlayerScore).ToList();
+                    if (scores.All(s => s != null) && scores.Count >= tournament.TournamentData.TournamentType.NumberOfPlayers) await _postTournamentService.CloseTournament(tournament); // close tournament
 
-                    }
                 }
-                catch (Exception ex)
-                {
-                    Trace.WriteLine(ex.Message + "\n" + ex.InnerException?.Message);
-                    throw;
-                }
+            }
+            catch (Exception ex)
+            {
+                Trace.WriteLine(ex.Message + "\n" + ex.InnerException?.Message);
+                throw;
             }
         }
 
