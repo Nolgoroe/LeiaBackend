@@ -111,6 +111,7 @@ namespace Services
                 }
                 try
                 {
+                    var safety = 100;
                     // TODO: After verifying this keeps returning the same context id, there's no need for this debug log to 
                     // contain the context id
                     Debug.WriteLine($"=====> Inside GetMatch. Semaphore was entered with context {dbService.LeiaContext.ContextId}");
@@ -121,6 +122,10 @@ namespace Services
                         _currentMatchingStrategy = new CheckFirstRequestStrategy(dbService, this);
                         while (_currentMatchingStrategy != null)
                         {
+                            if (safety-- <= 0){
+                                dbService.Log("Aborting match make due to max iterations");
+                                break;
+                            }
                             _currentMatchingStrategy = await _currentMatchingStrategy.RunStrategy();
                         }
                     }
@@ -131,6 +136,11 @@ namespace Services
                         _currentMatchingStrategy = new CheckPendingWaitingRequestsStrategy(dbService, this);
                         while (_currentMatchingStrategy != null)
                         {
+                            if (safety-- <= 0)
+                            {
+                                dbService.Log("Aborting match make due to max iterations");
+                                break;
+                            }
                             _currentMatchingStrategy = await _currentMatchingStrategy.RunStrategy();
                         }
                     }
