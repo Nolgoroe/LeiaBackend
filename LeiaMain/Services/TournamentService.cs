@@ -316,8 +316,7 @@ namespace Services
             }
             catch (Exception ex)
             {
-                await _suikaDbService.Log(ex);
-                return null;
+                throw;
             }
         }
 
