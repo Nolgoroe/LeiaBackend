@@ -38,7 +38,8 @@ namespace Services
             _scopeFactory = scopeFactory;
             _suikaDbService = new SuikaDbService(new LeiaContext());
             _postTournamentService = new PostTournamentService(_suikaDbService);
-            
+            var process = Process.GetCurrentProcess();
+            _suikaDbService.Log($"Instance started: {process.Id}");
             _jsonOptions = new()
             {
                 ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles,
