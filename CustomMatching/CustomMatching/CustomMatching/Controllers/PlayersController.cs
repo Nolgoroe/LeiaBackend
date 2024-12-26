@@ -150,7 +150,7 @@ namespace CustomMatching.Controllers
 
                     if (saved > 0)
                     {
-                        await _tournamentService.CheckTournamentStatus(updatedPlayerTournament.Entity.TournamentSessionId);
+                        await _tournamentService.CheckTournamentStatus(_suikaDbService, updatedPlayerTournament.Entity.TournamentSessionId);
                     }
                     return Ok(updatedPlayerTournament.Entity);
                 }

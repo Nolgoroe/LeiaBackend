@@ -36,7 +36,7 @@ namespace Services
         private readonly ISuikaDbService _suikaDbService;
         //public ISuikaDbService SuikaDbService { get; set; }
 
-        public PostTournamentService(ISuikaDbService suikaDbService)
+        public PostTournamentService()
         {
             //SuikaDbService = suikaDbService;
             _suikaDbService = new SuikaDbService(new LeiaContext()); ;
