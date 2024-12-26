@@ -147,9 +147,13 @@ namespace CustomMatching.Controllers
             try
             {
                 var matchmakeRecord = await _suikaDbService.GetPlayerActiveMatchMakeRecord(playerId);
-                if (matchmakeRecord == null || matchmakeRecord.IsStillMatchmaking())
+                if (matchmakeRecord == null)
                 {
                     return NotFound("Player not in tournament");
+                }
+                if (matchmakeRecord.IsStillMatchmaking())
+                {
+                    return NotFound("Still match making");
                 }
                 var tournament = await _suikaDbService.LeiaContext.Tournaments.FindAsync(matchmakeRecord.TournamentId);
                 if (tournament == null)
