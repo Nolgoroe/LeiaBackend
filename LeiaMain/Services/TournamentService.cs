@@ -298,7 +298,7 @@ namespace Services
 
   
             var savedTournament = dbService?.LeiaContext?.Tournaments?.Add(tournament);
-            dbService.Log("SaveNewTournament: Going to create new tournament", dbPlayers[0].PlayerId);
+            await dbService.Log("SaveNewTournament: Going to create new tournament", dbPlayers[0].PlayerId);
             var saved = await dbService?.LeiaContext?.SaveChangesAsync();
 
             var idsArray = dbPlayers?.Select(p => p?.PlayerId).ToArray();
