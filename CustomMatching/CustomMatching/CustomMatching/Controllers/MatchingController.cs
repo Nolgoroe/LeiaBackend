@@ -87,6 +87,14 @@ namespace CustomMatching.Controllers
             var isSuccess = false;
             if (!canMatchMake)
             {
+                // If we're in a tournament that timedout - allow to perform a new match
+                var matchmakeRecord = await _suikaDbService.GetPlayerActiveMatchMakeRecord(player.PlayerId);
+                if (matchmakeRecord != null && !matchmakeRecord.IsStillMatchmaking() && (DateTime.UtcNow - matchmakeRecord.MatchmakeStartTime) > TimeSpan.FromMinutes(15))
+                {
+                    await _suikaDbService.Log("Removing player from tournament due to timeout so the player can matchmake", playerId);
+                    await _suikaDbService.RemovePlayerFromActiveTournament(playerId, matchmakeRecord.TournamentId);
+                    return await RequestMatch(playerId, matchFee, currency, tournamentType);
+                }
                 return BadRequest("Player cannot match make");
             }
             try
