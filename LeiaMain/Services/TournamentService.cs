@@ -275,49 +275,45 @@ namespace Services
             tournament.Players?.AddRange(dbPlayers);
             _suikaDbService.LeiaContext.Entry(currency).State = EntityState.Detached;
 
-            try
-            {
-                var savedTournament = _suikaDbService?.LeiaContext?.Tournaments?.Add(tournament);
-                var saved = await _suikaDbService?.LeiaContext?.SaveChangesAsync();
+  
+            var savedTournament = _suikaDbService?.LeiaContext?.Tournaments?.Add(tournament);
+            _suikaDbService.Log("SaveNewTournament: Going to create new tournament", dbPlayers[0].PlayerId);
+            var saved = await _suikaDbService?.LeiaContext?.SaveChangesAsync();
 
-                var idsArray = dbPlayers?.Select(p => p?.PlayerId).ToArray();
-                if (saved > 0) {
-                    SendPlayerAndSeed(savedTournament?.Entity?.TournamentSeed, savedTournament?.Entity?.TournamentSessionId, idsArray);
-                    var addedPlayerIds = new List<Guid>();
-                    foreach (var playerId in idsArray)
+            var idsArray = dbPlayers?.Select(p => p?.PlayerId).ToArray();
+            if (saved > 0) {
+                SendPlayerAndSeed(savedTournament?.Entity?.TournamentSeed, savedTournament?.Entity?.TournamentSessionId, idsArray);
+                var addedPlayerIds = new List<Guid>();
+                foreach (var playerId in idsArray)
+                {
+                    if (playerId == null) 
                     {
-                        if (playerId == null) 
+                        continue; 
+                    }
+                    await _suikaDbService.Log($"SaveNewTournament: Player {playerId} will create tournament {savedTournament.Entity.TournamentSessionId}");
+                    var canCreateTournament = await _suikaDbService.SetPlayerActiveTournament(playerId.Value, savedTournament.Entity.TournamentSessionId);
+                    if (!canCreateTournament)
+                    {
+                        var message = $"SaveNewTournament: Player {playerId} attempted to create a new tournament, but was not in matchmaking state!";
+                        await _suikaDbService.Log(message, playerId.Value);
+                        foreach (var alreadyAddedPlayerId in addedPlayerIds)
                         {
-                            continue; 
+                            var message2 = $"SaveNewTournament: Player {playerId} attempted to create a new tournament, but is removed because another player {playerId.Value} could not join";
+                            await _suikaDbService.Log(message2, alreadyAddedPlayerId);
+                            await _suikaDbService.RemovePlayerFromAnyActiveTournament(alreadyAddedPlayerId);
                         }
-                        await _suikaDbService.Log($"SaveNewTournament: Player {playerId} will create tournament {savedTournament.Entity.TournamentSessionId}");
-                        var canCreateTournament = await _suikaDbService.SetPlayerActiveTournament(playerId.Value, savedTournament.Entity.TournamentSessionId);
-                        if (!canCreateTournament)
-                        {
-                            var message = $"SaveNewTournament: Player {playerId} attempted to create a new tournament, but was not in matchmaking state!";
-                            await _suikaDbService.Log(message, playerId.Value);
-                            foreach (var alreadyAddedPlayerId in addedPlayerIds)
-                            {
-                                var message2 = $"SaveNewTournament: Player {playerId} attempted to create a new tournament, but is removed because another player {playerId.Value} could not join";
-                                await _suikaDbService.Log(message2, alreadyAddedPlayerId);
-                                await _suikaDbService.RemovePlayerFromAnyActiveTournament(alreadyAddedPlayerId);
-                            }
-                            savedTournament.Entity.IsOpen = false;
-                            await _suikaDbService?.LeiaContext?.SaveChangesAsync();
-                            return null;
-                        }
-                        else
-                        {
-                            addedPlayerIds.Add(playerId.Value);
-                        }
+                        savedTournament.Entity.IsOpen = false;
+                        await _suikaDbService?.LeiaContext?.SaveChangesAsync();
+                        return null;
+                    }
+                    else
+                    {
+                        addedPlayerIds.Add(playerId.Value);
                     }
                 }
-                return savedTournament?.Entity;
             }
-            catch (Exception ex)
-            {
-                throw;
-            }
+            return savedTournament?.Entity;
+
         }
 
         private void SendPlayerAndSeed(int? seed, int? tournamentId, params Guid?[]? playerIds)
