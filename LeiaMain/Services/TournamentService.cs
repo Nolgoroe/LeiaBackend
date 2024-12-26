@@ -131,8 +131,13 @@ namespace Services
             }
             catch (Exception ex)
             {
-                await dbService.RemovePlayerFromActiveMatchMaking(waitingPlayer.Player.PlayerId);
-                await dbService.Log(ex, waitingPlayer.Player.PlayerId);
+                using (var scope = _scopeFactory.CreateScope())
+                {
+                    var dbServiceForException = scope.ServiceProvider.GetRequiredService<ISuikaDbService>();
+                    await dbServiceForException.Log(ex, waitingPlayer.Player.PlayerId);
+                    await dbServiceForException.RemovePlayerFromActiveMatchMaking(waitingPlayer.Player.PlayerId);
+                }
+                return null;
             }
         }
 
@@ -165,7 +170,7 @@ namespace Services
         {
             if (matchingTournament?.Players?.Count >= request?.TournamentType?.NumberOfPlayers /*_maxNumPlayers*/) // if tournament has room in it, add the current request player
             {
-                dbService.Log($"AddToExistingTournament: Error: Tournament is full: {matchingTournament.TournamentSessionId}", request.Player.PlayerId, request.Player.PlayerId);
+                dbService.Log($"AddToExistingTournament: Error: Tournament is full: {matchingTournament.TournamentSessionId}", request.Player.PlayerId);
                 return null;
             }
             var dbTournament = dbService.LeiaContext.Tournaments.Find(matchingTournament?.TournamentSessionId);
