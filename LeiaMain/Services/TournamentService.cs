@@ -29,6 +29,7 @@ namespace Services
         public System.Timers.Timer MatchTimer { get; set; }
         private bool _isCreatingMatchesAllowed = true;
         public event EventHandler PlayerAddedToTournament;
+        public Random TournamentSeedRandom = new Random();
 
         public Dictionary<Guid?, int?[]> PlayersSeeds { get; set; } = [];
 
@@ -261,9 +262,11 @@ namespace Services
                 return null;
             }
 
+            
+
             var tournament = new TournamentSession
             {
-                TournamentSeed = new Random().Next(),
+                TournamentSeed = TournamentSeedRandom.Next(),
                 IsOpen = true,
                 TournamentData = new TournamentData
                 {
