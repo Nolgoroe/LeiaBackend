@@ -161,15 +161,22 @@ namespace CustomMatching.Controllers
                     await _suikaDbService.Log($"GetTournamentSeed: Tournament {matchmakeRecord.TournamentId} does not exist!", playerId);
                     return StatusCode(500);
                 }
+                // Already charged? Just return the seed
+                if (matchmakeRecord.DidCharge)
+                {
+                    return Ok(new int[] { tournament.TournamentSessionId, tournament.TournamentSeed });
+                }
                 // CHARGE PLAYER
                 ///////////////////////////////
                 if (tournament != null)
                 {
-                    // TODO: This should be in the same transaction as adding the player to a tournament
+                    // TODO: Lock inside a semaphore
+                    
                     var newBalance = await _tournamentService.ChargePlayer(playerId, tournament.TournamentSeed); // we use IdAndSeed[0] to get tournament Id because it first int the array
                     if (newBalance != null)
                     {
                         await _suikaDbService.Log($"Player {playerId}, was charged for tournament: {tournament.TournamentSessionId}. New balance is: {newBalance?.CurrencyBalance}, currency type is: {newBalance?.CurrenciesId}", playerId);
+                        await _suikaDbService.MarkMatchMakeEntryAsCharged(playerId, tournament.TournamentSessionId);
                     }
                     else
                     {

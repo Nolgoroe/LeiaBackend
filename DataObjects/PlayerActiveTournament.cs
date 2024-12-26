@@ -39,6 +39,8 @@ namespace DataObjects
         public DateTime MatchmakeStartTime { get; set; }
         public DateTime JoinTournamentTime { get; set; }
 
+        public bool DidCharge { get; set; }
+
         /// <summary>
         /// Returns true if the player is in the queue
         /// </summary>

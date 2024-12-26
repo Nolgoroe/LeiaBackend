@@ -130,6 +130,9 @@ namespace DAL.Migrations
                     b.Property<int>("CurrencyId")
                         .HasColumnType("int");
 
+                    b.Property<bool>("DidCharge")
+                        .HasColumnType("bit");
+
                     b.Property<double>("EntryFee")
                         .HasColumnType("float");
 
