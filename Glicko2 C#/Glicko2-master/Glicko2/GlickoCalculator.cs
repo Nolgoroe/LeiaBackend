@@ -80,18 +80,18 @@ namespace Glicko2
             {
                 var k = 1;
                 double x;
-
+                var safety1 = 500;
                 do {
                     x = a - (k * VolatilityChange);
                     k++;
-                } while (VolatilityFunction(x, rankingChange, rankDeviation, variance, competitor.Volatility) < 0);
+                } while (safety1-- > 0 && VolatilityFunction(x, rankingChange, rankDeviation, variance, competitor.Volatility) < 0);
                 B = x;
             }
 
             var fA = VolatilityFunction(A, rankingChange, rankDeviation, variance, competitor.Volatility);
             var fB = VolatilityFunction(B, rankingChange, rankDeviation, variance, competitor.Volatility);
-
-            while (Math.Abs(B - A) > ConvergenceTolerance)
+            var safety2 = 500;
+            while (safety2-- > 0 && Math.Abs(B - A) > ConvergenceTolerance)
             {
                 var C = A + ((A - B) * fA / (fB - fA));
                 var fC = VolatilityFunction(C, rankingChange, rankDeviation, variance, competitor.Volatility);
