@@ -41,21 +41,5 @@ namespace DataObjects
         public List<Currencies> Currencies { get; } = [];
         [JsonIgnore]
         public List<PlayerCurrencies> PlayerCurrencies { get; } = [];
-
-        #region Old properties
-        /*public int Gems { get; set; } // soft currency
-        public int? Leias { get; set; }
-        public int? USDT { get; set; }
-        public int? USDC { get; set; }
-        public int? USD { get; set; }
-        public double? TotalMoneyDeposited { get; set; }
-        public double? TotalMoneyCashedOut { get; set; }
-        public double? TotalTournamentsFeesPaid { get; set; }
-        public double? TotalTournamentsEarnings { get; set; }
-        public int NumCashTournamentsPlayed { get; set; }
-        public List<DateTime> LoginDays { get; set; }*/
-        #endregion
-
-
     }
 }

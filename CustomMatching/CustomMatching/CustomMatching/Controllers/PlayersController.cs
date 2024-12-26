@@ -17,6 +17,19 @@ namespace CustomMatching.Controllers
     [ApiController]
     public class PlayersController : ControllerBase
     {
+        public class LoginResponse : Player
+        {
+            public int? ActiveTournamentSeed { get; set; }
+            public int? ActiveTournamentId { get; set; }
+            public DateTime? ActiveTournamentEntryTime { get; set; }
+
+            public LoginResponse(Player player)
+            {
+                this.UpdatePropertiesFrom(player);
+            }
+               
+        }
+
         private readonly ILogger<MatchingController> _logger;
         private readonly ITournamentService _tournamentService;
         private readonly ISuikaDbService _suikaDbService;
@@ -60,8 +73,27 @@ namespace CustomMatching.Controllers
         public async Task<IActionResult> GetPlayerByName(string name)
         {
             var player = await _suikaDbService.GetPlayerByName(name);
-            if (player != null) return Ok(player);
-            else return NotFound($"Player: {name}, was not found");
+            if (player != null)
+            {
+                var activeMatchMakeRecord = await _suikaDbService.GetPlayerActiveMatchMakeRecord(player.PlayerId);
+                int? activeTournamentSeed = null;
+                if (activeMatchMakeRecord != null)
+                {
+                    var tournament = await _suikaDbService.LeiaContext.Tournaments.FindAsync(activeMatchMakeRecord.TournamentId);
+                    activeTournamentSeed = tournament.TournamentSeed;
+                }
+                var loginResponse = new LoginResponse(player)
+                {
+                    ActiveTournamentEntryTime = activeMatchMakeRecord?.JoinTournamentTime,
+                    ActiveTournamentId = activeMatchMakeRecord?.TournamentId,
+                    ActiveTournamentSeed = activeTournamentSeed
+                };
+                return Ok(loginResponse);
+            }
+            else
+            {
+                return NotFound($"Player: {name}, was not found");
+            }
 
         }
 

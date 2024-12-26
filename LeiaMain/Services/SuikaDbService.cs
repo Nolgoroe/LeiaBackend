@@ -56,6 +56,7 @@ namespace Services
 
         public Task<bool> MarkPlayerAsMatchMaking(Guid playerId, double entryFee, int currencyId, int tournamentTypeId);
 
+        public Task<PlayerActiveTournament> GetPlayerActiveMatchMakeRecord(Guid playerId);
         public Task<bool> RemovePlayerFromActiveMatchMaking(Guid playerId);
         public Task<bool> RemovePlayerFromActiveTournament(Guid playerId, int tournamentId);
         public Task<bool> RemovePlayerFromAnyActiveTournament(Guid playerId);
@@ -387,6 +388,12 @@ namespace Services
         public async Task<bool> RemovePlayerFromActiveMatchMaking(Guid playerId)
         {
             return await RemovePlayerFromActiveTournament(playerId, PLAYER_ACTIVE_TOURNAMENT_MATCHMAKING_TOURNAMENT_ID);
+        }
+
+
+        public async Task<PlayerActiveTournament> GetPlayerActiveMatchMakeRecord(Guid playerId)
+        {
+            return await _leiaContext.PlayerActiveTournaments.FindAsync(playerId);
         }
 
         public async Task<bool> RemovePlayerFromActiveTournament(Guid playerId, int tournamentId)
