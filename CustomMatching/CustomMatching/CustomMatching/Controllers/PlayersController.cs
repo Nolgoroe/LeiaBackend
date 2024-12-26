@@ -35,8 +35,16 @@ namespace CustomMatching.Controllers
         [HttpGet, Route("GetPlayerTournamentHistory/{playerId}")]
         public async Task<IActionResult> GetPlayerTournamentHistory(Guid playerId)
         {
-            var tournaments = await _suikaDbService.GetPlayerTournaments(playerId);
-            return Ok(tournaments);
+            try
+            {
+                var tournaments = await _suikaDbService.GetPlayerTournaments(playerId);
+                return Ok(tournaments);
+            }
+            catch (Exception ex) 
+            {
+                await _suikaDbService.Log(ex, playerId);
+                return StatusCode(500);
+            }
         }
 
         // GET /GetPlayerById/5

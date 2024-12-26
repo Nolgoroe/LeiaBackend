@@ -18,7 +18,7 @@ namespace Services
 
     public class TournamentService : ITournamentService
     {
-        private const int MAX_RATING_DRIFT = 500; 
+        private const int MAX_RATING_DRIFT = 5000; 
         private const int MATCH_MAKER_INTERVAL = 500; // get these numbers from tournament DB or config file
         private readonly ISuikaDbService _suikaDbService;
         private readonly IPostTournamentService _postTournamentService;
@@ -64,6 +64,9 @@ namespace Services
             await CreateMatchesFromQueue();
         }
 
+        /// <summary>
+        /// Formerly known as 'GetMatch'
+        /// </summary>
         public async Task CreateMatchesFromQueue()
         {
             using (var scope = _scopeFactory.CreateScope())
@@ -99,6 +102,7 @@ namespace Services
             if (playerBalance == null)
             {
                 await dbService.RemovePlayerFromActiveMatchMaking(waitingPlayer.Player.PlayerId);
+                await dbService.Log("Player is waiting for tournament but has no balance", waitingPlayer.Player.PlayerId);
                 return;
             }
             var suitableTournaments = await dbService.FindSuitableTournamentForRating(
@@ -290,7 +294,7 @@ namespace Services
                     {
                         continue; 
                     }
-                    await _suikaDbService.Log($"SaveNewTournament: Player {playerId} will create tournament {savedTournament.Entity.TournamentSessionId}");
+                    await _suikaDbService.Log($"SaveNewTournament: Player {playerId} will create tournament {savedTournament.Entity.TournamentSessionId}", playerId.Value);
                     var canCreateTournament = await _suikaDbService.SetPlayerActiveTournament(playerId.Value, savedTournament.Entity.TournamentSessionId);
                     if (!canCreateTournament)
                     {
