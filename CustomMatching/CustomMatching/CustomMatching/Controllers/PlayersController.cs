@@ -122,41 +122,42 @@ namespace CustomMatching.Controllers
         public async Task<IActionResult> UpdatePlayerTournamentResult(Guid playerId, int tournamentId, int score)
         {
             await _suikaDbService.Log($"Player {playerId} wants to set score {score} for tournament {tournamentId}", playerId);
-            if (! await _suikaDbService.RemovePlayerFromActiveTournament(playerId, tournamentId))
+            try
             {
-                var message = $"UpdatePlayerTournamentResult: Player {playerId} was not active in tournament {tournamentId}";
-                await _suikaDbService.Log(message, playerId);
-                return BadRequest("Could not submit result, player not in active tournament");
-            }
-            var tournament = _suikaDbService?.LeiaContext?.Tournaments.FirstOrDefault(t => t.TournamentSessionId == tournamentId && t.IsOpen == true);
-            if (tournament == null)
-            {
-                await _suikaDbService.Log($"Player {playerId} cannot set score, tournament={tournamentId} not found!", playerId);
-                return BadRequest("Could not submit result, tournament is closed");
-            }
-
-            var playerTournament = _suikaDbService?.LeiaContext?.PlayerTournamentSession.FirstOrDefault(pt => pt.PlayerId == playerId && pt.TournamentSessionId == tournamentId);
-
-            if (playerTournament != null)
-            {
-                playerTournament.PlayerScore = score;
-                try
+                if (!await _suikaDbService.RemovePlayerFromActiveTournament(playerId, tournamentId))
                 {
+                    var message = $"UpdatePlayerTournamentResult: Player {playerId} was not active in tournament {tournamentId}";
+                    await _suikaDbService.Log(message, playerId);
+                    return BadRequest("Could not submit result, player not in active tournament");
+                }
+                var tournament = _suikaDbService?.LeiaContext?.Tournaments.FirstOrDefault(t => t.TournamentSessionId == tournamentId && t.IsOpen == true);
+                if (tournament == null)
+                {
+                    await _suikaDbService.Log($"Player {playerId} cannot set score, tournament={tournamentId} not found!", playerId);
+                    return BadRequest("Could not submit result, tournament is closed");
+                }
+
+                var playerTournament = _suikaDbService?.LeiaContext?.PlayerTournamentSession.FirstOrDefault(pt => pt.PlayerId == playerId && pt.TournamentSessionId == tournamentId);
+
+                if (playerTournament != null)
+                {
+                    playerTournament.PlayerScore = score;
+
                     _suikaDbService.LeiaContext.Entry(playerTournament).State = EntityState.Modified;
                     var updatedPlayerTournament = _suikaDbService.LeiaContext.PlayerTournamentSession.Update(playerTournament);
 
                     var saved = await _suikaDbService.LeiaContext.SaveChangesAsync();
-                    
+
                     if (saved > 0)
                     {
                         await _tournamentService.CheckTournamentStatus(updatedPlayerTournament.Entity.TournamentSessionId);
                     }
                     return Ok(updatedPlayerTournament.Entity);
                 }
-                catch (Exception ex)
-                {
-                    await _suikaDbService.Log(ex, playerId);
-                }
+            }
+            catch (Exception ex)
+            {
+                await _suikaDbService.Log(ex, playerId);
             }
 
             return NotFound($"PlayerTournamentSession was not found for playerId: {playerId}, and tournamentId: {tournamentId}");

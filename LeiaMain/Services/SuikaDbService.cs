@@ -321,7 +321,7 @@ namespace Services
 
         public async Task Log(Exception ex, Guid playerId)
         {
-            var message = $"Exception: {ex.ToString()}:\n{ex.InnerException.ToString()}";
+            var message = $"Exception: {ex.ToString()}:\n{ex.InnerException?.ToString()}";
             await Log(message, playerId);
         }
 
