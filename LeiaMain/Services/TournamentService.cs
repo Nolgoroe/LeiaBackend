@@ -105,6 +105,7 @@ namespace Services
                 return null;
             }
             var suitableTournaments = await dbService.FindSuitableTournamentForRating(
+                waitingPlayer.Player.PlayerId,
                 waitingPlayer.Player.Rating,
                 MAX_RATING_DRIFT,
                 waitingPlayer.QueueEntry.TournamentTypeId,
@@ -403,30 +404,29 @@ namespace Services
             using (var scope = _scopeFactory.CreateScope())
             {
                 var suikaDbService = scope.ServiceProvider.GetRequiredService<ISuikaDbService>();
-                try
+                var dbPlayer = await suikaDbService.GetPlayerById(playerId);
+                if (dbPlayer == null)
                 {
-                    var dbPlayer = await /*_*/suikaDbService.GetPlayerById(playerId);
-                    if (dbPlayer == null) return null;
-
-                    var dbTournament =/* context_*/suikaDbService.LeiaContext.Tournaments
-                        .Include(t => t.TournamentData)
-                            .ThenInclude(td => td.TournamentType)
-                            .FirstOrDefault(t => t.TournamentSessionId == tournamentId);
-
-                    if (dbTournament == null) return null;
-
-                    var currencyId = dbTournament?.TournamentData?.TournamentType?.CurrenciesId;
-                    var fee = -dbTournament?.TournamentData?.TournamentType?.EntryFee;
-
-                    var updatedBalance = await /*_*/suikaDbService.UpdatePlayerBalance(playerId, currencyId, fee);
-                    return updatedBalance;
-
+                    throw new Exception($"ChargePlayer: Could not load player {playerId}");
                 }
-                catch (Exception ex)
+
+                var dbTournament = suikaDbService.LeiaContext.Tournaments
+                    .Include(t => t.TournamentData)
+                        .ThenInclude(td => td.TournamentType)
+                        .FirstOrDefault(t => t.TournamentSessionId == tournamentId);
+
+                if (dbTournament == null)
                 {
-                    Trace.WriteLine(ex.Message + "\n" + ex.InnerException?.Message);
-                    throw;
+                    throw new Exception($"ChargePlayer: Could not charge player player {playerId}, tournament '{tournamentId}' not found!");
                 }
+
+                var currencyId = dbTournament?.TournamentData?.TournamentType?.CurrenciesId;
+                var fee = -dbTournament?.TournamentData?.TournamentType?.EntryFee;
+
+                var updatedBalance = await suikaDbService.UpdatePlayerBalance(playerId, currencyId, fee);
+                return updatedBalance;
+
+                
             }
         }
     }

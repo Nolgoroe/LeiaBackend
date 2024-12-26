@@ -90,7 +90,7 @@ namespace Services
         /// <param name="playerBalance"></param>
         /// <param name="maxResults"></param>
         /// <returns></returns>
-        public Task<IEnumerable<TournamentSession>> FindSuitableTournamentForRating(int playerRating, int maxRatingDrift, int tournamentTypeId, int currencyId, double playerBalance, int maxResults);
+        public Task<IEnumerable<TournamentSession>> FindSuitableTournamentForRating(Guid playerId, int playerRating, int maxRatingDrift, int tournamentTypeId, int currencyId, double playerBalance, int maxResults);
         public LeiaContext LeiaContext { get; set; }
     }
 
@@ -219,7 +219,7 @@ namespace Services
                    .ToListAsync();
         }
 
-        public async Task<IEnumerable<TournamentSession>> FindSuitableTournamentForRating(int playerRating, int maxRatingDrift, int tournamentTypeId, int currencyId, double playerBalance, int maxResults)
+        public async Task<IEnumerable<TournamentSession>> FindSuitableTournamentForRating(Guid playerId, int playerRating, int maxRatingDrift, int tournamentTypeId, int currencyId, double playerBalance, int maxResults)
         {
             return await _leiaContext.Tournaments
                 .Where(
@@ -228,7 +228,9 @@ namespace Services
                     t.IsOpen &&                                                        // Tournament is open
                     t.TournamentData.EntryFeeCurrencyId == currencyId &&               // The currency Id is matching
                     t.TournamentData.EntryFee <= playerBalance &&                      // Player has enough balance
-                    t.Players.Count < t.TournamentData.TournamentType.NumberOfPlayers) // Tournament is not full
+                    t.Players.Count < t.TournamentData.TournamentType.NumberOfPlayers &&
+                    !t.Players.Select(p => p.PlayerId).Contains(playerId)
+                    ) // Tournament is not full
                 .OrderBy(t => Math.Abs(t.Rating - playerRating))
                 .Take(maxResults)
                 .ToListAsync();
