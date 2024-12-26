@@ -14,6 +14,11 @@ namespace DataObjects
     /// </summary>
     public class PlayerActiveTournament
     {
+        /// <summary>
+        /// This is the value of tournamentId inside PlayerActiveTournament incase they are still matchmaking
+        /// </summary>
+        public const int MATCH_MAKING_TOURNAMENT_ID = -1;
+
         [Key]
         public Guid PlayerId { get; set; }
         /// <summary>
@@ -33,5 +38,10 @@ namespace DataObjects
 
         public DateTime MatchmakeStartTime { get; set; }
         public DateTime JoinTournamentTime { get; set; }
+
+        /// <summary>
+        /// Returns true if the player is in the queue
+        /// </summary>
+        public bool IsStillMatchmaking() => TournamentId == MATCH_MAKING_TOURNAMENT_ID;
     }
 }

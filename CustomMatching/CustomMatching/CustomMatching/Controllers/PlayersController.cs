@@ -77,10 +77,14 @@ namespace CustomMatching.Controllers
             {
                 var activeMatchMakeRecord = await _suikaDbService.GetPlayerActiveMatchMakeRecord(player.PlayerId);
                 int? activeTournamentSeed = null;
-                if (activeMatchMakeRecord != null)
+                if (activeMatchMakeRecord != null && !activeMatchMakeRecord.IsStillMatchmaking())
                 {
                     var tournament = await _suikaDbService.LeiaContext.Tournaments.FindAsync(activeMatchMakeRecord.TournamentId);
                     activeTournamentSeed = tournament.TournamentSeed;
+                }
+                else
+                {
+                    activeMatchMakeRecord = null;
                 }
                 var loginResponse = new LoginResponse(player)
                 {
@@ -88,6 +92,7 @@ namespace CustomMatching.Controllers
                     ActiveTournamentId = activeMatchMakeRecord?.TournamentId,
                     ActiveTournamentSeed = activeTournamentSeed
                 };
+                await _suikaDbService.Log($"Player login {player.Name} id={player.PlayerId}, activeTournament?={activeMatchMakeRecord?.TournamentId}", player.PlayerId);
                 return Ok(loginResponse);
             }
             else

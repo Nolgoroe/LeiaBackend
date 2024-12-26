@@ -94,11 +94,6 @@ namespace Services
 
     public class SuikaDbService : ISuikaDbService
     {
-        /// <summary>
-        /// This is the value of tournamentId inside PlayerActiveTournament incase they are still matchmaking
-        /// </summary>
-        private const int PLAYER_ACTIVE_TOURNAMENT_MATCHMAKING_TOURNAMENT_ID = -1;
-
         private readonly LeiaContext _leiaContext;
 
         public SuikaDbService(LeiaContext leiaContext)
@@ -211,7 +206,7 @@ namespace Services
             return await (from player in _leiaContext.Players
                    join activeTournament in _leiaContext.PlayerActiveTournaments
                    on player.PlayerId equals activeTournament.PlayerId
-                   where activeTournament.TournamentId == PLAYER_ACTIVE_TOURNAMENT_MATCHMAKING_TOURNAMENT_ID
+                   where activeTournament.TournamentId == PlayerActiveTournament.MATCH_MAKING_TOURNAMENT_ID
                    orderby activeTournament.JoinTournamentTime
                    select new MatchQueueEntry
                    {
@@ -387,7 +382,7 @@ namespace Services
 
         public async Task<bool> RemovePlayerFromActiveMatchMaking(Guid playerId)
         {
-            return await RemovePlayerFromActiveTournament(playerId, PLAYER_ACTIVE_TOURNAMENT_MATCHMAKING_TOURNAMENT_ID);
+            return await RemovePlayerFromActiveTournament(playerId, PlayerActiveTournament.MATCH_MAKING_TOURNAMENT_ID);
         }
 
 
@@ -407,14 +402,14 @@ namespace Services
         public async Task<bool> SetPlayerActiveTournament(Guid playerId, int tournamentId)
         {
             var rowsUpdated = await _leiaContext.PlayerActiveTournaments
-                .Where(p => p.PlayerId == playerId && p.TournamentId == PLAYER_ACTIVE_TOURNAMENT_MATCHMAKING_TOURNAMENT_ID)
+                .Where(p => p.PlayerId == playerId && p.TournamentId == PlayerActiveTournament.MATCH_MAKING_TOURNAMENT_ID)
                 .ExecuteUpdateAsync(p => p.SetProperty(p => p.TournamentId, tournamentId).SetProperty(p => p.JoinTournamentTime, DateTime.UtcNow));
             return rowsUpdated > 0;
         }
         public async Task<bool> IsPlayerMatchMaking(Guid playerId)
         {
             return await _leiaContext.PlayerActiveTournaments
-                .Where(p => p.TournamentId == PLAYER_ACTIVE_TOURNAMENT_MATCHMAKING_TOURNAMENT_ID).CountAsync(p => p.PlayerId == playerId) > 0;
+                .Where(p => p.TournamentId == PlayerActiveTournament.MATCH_MAKING_TOURNAMENT_ID).CountAsync(p => p.PlayerId == playerId) > 0;
         }
 
         public async Task<Player?> GetPlayerById(Guid playerId)
