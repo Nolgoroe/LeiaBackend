@@ -172,7 +172,7 @@ namespace CustomMatching.Controllers
                 {
                     // TODO: Lock inside a semaphore
                     
-                    var newBalance = await _tournamentService.ChargePlayer(playerId, tournament.TournamentSeed); // we use IdAndSeed[0] to get tournament Id because it first int the array
+                    var newBalance = await _tournamentService.ChargePlayer(playerId, tournament.TournamentSessionId); // we use IdAndSeed[0] to get tournament Id because it first int the array
                     if (newBalance != null)
                     {
                         await _suikaDbService.Log($"Player {playerId}, was charged for tournament: {tournament.TournamentSessionId}. New balance is: {newBalance?.CurrencyBalance}, currency type is: {newBalance?.CurrenciesId}", playerId);
