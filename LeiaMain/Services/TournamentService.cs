@@ -95,14 +95,14 @@ namespace Services
             }
         }
 
-        private async Task MatchPlayerIntoBestTournament(ISuikaDbService dbService, MatchQueueEntry waitingPlayer)
+        private async Task<TournamentSession> MatchPlayerIntoBestTournament(ISuikaDbService dbService, MatchQueueEntry waitingPlayer)
         {
             var playerBalance = await dbService.GetPlayerBalance(waitingPlayer.Player.PlayerId, waitingPlayer.QueueEntry.CurrencyId);
             if (playerBalance == null)
             {
                 await dbService.RemovePlayerFromActiveMatchMaking(waitingPlayer.Player.PlayerId);
                 await dbService.Log("Player is waiting for tournament but has no balance", waitingPlayer.Player.PlayerId);
-                return;
+                return null;
             }
             var suitableTournaments = await dbService.FindSuitableTournamentForRating(
                 waitingPlayer.Player.Rating,
@@ -114,16 +114,19 @@ namespace Services
                 );
             try
             {
+                var playerId = waitingPlayer.Player.PlayerId;
+                // ADD PLAYER TO TOURNAMENT
+                ///////////////////////////////
                 if (suitableTournaments.Any())
                 {
-                    await AddToExistingTournament(dbService, waitingPlayer.ConvertToLegacyMatchRequest(
+                    return await AddToExistingTournament(dbService, waitingPlayer.ConvertToLegacyMatchRequest(
                         dbService.LeiaContext),
                         suitableTournaments.First()
                         );
                 }
                 else
                 {
-                    await CreateNewTournament(dbService, waitingPlayer.ConvertToLegacyMatchRequest(dbService.LeiaContext));
+                    return await CreateNewTournament(dbService, waitingPlayer.ConvertToLegacyMatchRequest(dbService.LeiaContext));
                 }
             }
             catch (Exception ex)
@@ -133,7 +136,7 @@ namespace Services
             }
         }
 
-        public async Task CreateNewTournament(ISuikaDbService dbService, MatchRequest? matchedRequest)
+        public async Task<TournamentSession> CreateNewTournament(ISuikaDbService dbService, MatchRequest? matchedRequest)
         {
 
             if (matchedRequest != null)
@@ -150,79 +153,87 @@ namespace Services
                                 .ThenInclude(td => td.TournamentType)
                             .FirstOrDefault(t => t.TournamentSessionId == tournament.TournamentSessionId);
                 }
+                return tournament;
             }
             else {
                 await dbService.Log("Got null match request");
+                return null;
             }
         }
 
-        public async Task AddToExistingTournament(ISuikaDbService dbService, MatchRequest request, TournamentSession? matchingTournament)
+        public async Task<TournamentSession> AddToExistingTournament(ISuikaDbService dbService, MatchRequest request, TournamentSession? matchingTournament)
         {
-            if (matchingTournament?.Players?.Count < request?.TournamentType?.NumberOfPlayers /*_maxNumPlayers*/) // if tournament has room in it, add the current request player
+            if (matchingTournament?.Players?.Count >= request?.TournamentType?.NumberOfPlayers /*_maxNumPlayers*/) // if tournament has room in it, add the current request player
             {
-                var dbTournament = dbService.LeiaContext.Tournaments.Find(matchingTournament?.TournamentSessionId);
+                dbService.Log($"AddToExistingTournament: Error: Tournament is full: {matchingTournament.TournamentSessionId}", request.Player.PlayerId, request.Player.PlayerId);
+                return null;
+            }
+            var dbTournament = dbService.LeiaContext.Tournaments.Find(matchingTournament?.TournamentSessionId);
 
-                Player dbPlayer;
-                if (request != null)
-                {
-                    dbPlayer = dbService.LeiaContext.Players.Find(request?.Player?.PlayerId);
-                    //MatchesQueue.Remove(request);
-                }
-                else
-                {
-                    var message = "AddToExistingTournament: Got null request AND null MatchRequest";
-                    await dbService.Log(message);
-                    return; // Don't change anything
-                }
-                if (dbPlayer == null)
-                {
-                    var message = $"AddToExistingTournament: Got null player while attempting to join tournament {dbTournament.TournamentSessionId}";
-                    await dbService.Log(message);
-                    return; // Don't change anything
-                }
-                dbTournament?.Players?.Add(dbPlayer);
+            Player dbPlayer;
+            if (request != null)
+            {
+                dbPlayer = dbService.LeiaContext.Players.Find(request?.Player?.PlayerId);
+            }
+            else
+            {
+                var message = "AddToExistingTournament: Got null request AND null MatchRequest";
+                await dbService.Log(message);
+                return null; // Don't change anything
+            }
+            if (dbPlayer == null)
+            {
+                var message = $"AddToExistingTournament: Got null player while attempting to join tournament {dbTournament.TournamentSessionId}";
+                await dbService.Log(message);
+                return null; // Don't change anything
+            }
+            dbTournament?.Players?.Add(dbPlayer);
                 
 
-                var canJoinTournament = await dbService.SetPlayerActiveTournament(dbPlayer.PlayerId, dbTournament.TournamentSessionId);
-                if (!canJoinTournament)
-                {
-                    var message = $"AddToExistingTournament: Player {dbPlayer.PlayerId} attempted to join tournament {dbTournament.TournamentSessionId}, but was not in matchmaking state!";                    
-                    await dbService.Log(message, dbPlayer.PlayerId);
-                    return;
-                }
-
-                // try to update the tournament in the database
-                try
-                {
-                    dbService.LeiaContext.Entry(dbTournament).State = EntityState.Modified;
-
-                    var savedTournament = dbService?.LeiaContext?.Tournaments?.Update(dbTournament);
-                    var saved = await dbService?.LeiaContext?.SaveChangesAsync();
-
-                    Trace.WriteLine($"AddToExistingTournament: Player: {request?.Player?.Rating}, rating: {request?.Player?.Rating}, \n were added to tournament: {savedTournament?.Entity?.TournamentSessionId}.");
-
-                    if (saved > 0)//if the tournament was saved to the DB -
-                    {
-                        matchingTournament?.Players.Add(request?.Player);
-                        matchingTournament?.PlayerTournamentSessions?.Add(new PlayerTournamentSession
-                        {
-                            PlayerId = request.Player.PlayerId,
-                            TournamentSessionId = matchingTournament.TournamentSessionId,
-                            PlayerScore = null,
-                        }
-                        );
-                        // send the tournament seed to controller list
-                        SendPlayerAndSeed(savedTournament?.Entity?.TournamentSeed, savedTournament?.Entity?.TournamentSessionId, request?.Player?.PlayerId);
-                        var message = $"AddToExistingTournament: Player {dbPlayer.PlayerId} joined tournament {dbTournament.TournamentSessionId}";
-                        await dbService.Log(message, dbPlayer.PlayerId);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    await dbService.Log(ex, dbPlayer.PlayerId);
-                    await dbService.RemovePlayerFromActiveTournament(dbPlayer.PlayerId, dbTournament.TournamentSessionId);
-                }
+            var canJoinTournament = await dbService.SetPlayerActiveTournament(dbPlayer.PlayerId, dbTournament.TournamentSessionId);
+            if (!canJoinTournament)
+            {
+                var message = $"AddToExistingTournament: Player {dbPlayer.PlayerId} attempted to join tournament {dbTournament.TournamentSessionId}, but was not in matchmaking state!";                    
+                await dbService.Log(message, dbPlayer.PlayerId);
+                return null;
             }
+
+            // try to update the tournament in the database
+            try
+            {
+                dbService.LeiaContext.Entry(dbTournament).State = EntityState.Modified;
+
+                var savedTournament = dbService?.LeiaContext?.Tournaments?.Update(dbTournament);
+                var saved = await dbService?.LeiaContext?.SaveChangesAsync();
+
+                Trace.WriteLine($"AddToExistingTournament: Player: {request?.Player?.Rating}, rating: {request?.Player?.Rating}, \n were added to tournament: {savedTournament?.Entity?.TournamentSessionId}.");
+                    
+                if (saved > 0)//if the tournament was saved to the DB -
+                {
+                    matchingTournament?.Players.Add(request?.Player);
+                    matchingTournament?.PlayerTournamentSessions?.Add(new PlayerTournamentSession
+                    {
+                        PlayerId = request.Player.PlayerId,
+                        TournamentSessionId = matchingTournament.TournamentSessionId,
+                        PlayerScore = null,
+                    }
+                    );
+                    // send the tournament seed to controller list
+                    SendPlayerAndSeed(savedTournament?.Entity?.TournamentSeed, savedTournament?.Entity?.TournamentSessionId, request?.Player?.PlayerId);
+                    var message = $"AddToExistingTournament: Player {dbPlayer.PlayerId} joined tournament {dbTournament.TournamentSessionId}";
+                    await dbService.Log(message, dbPlayer.PlayerId);
+                    return dbTournament;
+                }
+                throw new Exception($"AddToExistingTournament: Tournament {dbTournament.TournamentSessionId} was not saved to database!");
+                    
+            }
+            catch (Exception ex)
+            {
+                await dbService.Log(ex, dbPlayer.PlayerId);
+                await dbService.RemovePlayerFromActiveTournament(dbPlayer.PlayerId, dbTournament.TournamentSessionId);
+            }
+            return null;
+            
         }
 
         public async Task<TournamentSession?> SaveNewTournament(ISuikaDbService dbService, double matchFee, int? currencyId, int? tournamentTypeId, params Guid?[]? playerIds)

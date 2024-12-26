@@ -144,19 +144,44 @@ namespace CustomMatching.Controllers
         [HttpGet, Route("GetTournamentSeed/{playerId}")]
         public async Task<IActionResult> GetTournamentSeed(Guid playerId)
         {
-            _tournamentService.PlayerAddedToTournament -= PlayerAddedToTournamentHandler;
-            if (_tournamentService.PlayersSeeds.TryGetValue(playerId, out int?[]? IdAndSeed))
+            try
             {
-                _tournamentService.PlayersSeeds.Remove(playerId);
-                var newBalance = await _tournamentService.ChargePlayer(playerId, IdAndSeed[0]); // we use IdAndSeed[0] to get tournament Id because it first int the array
-                if (newBalance != null) Trace.WriteLine($"=====> Player {playerId}, was charged. New balance is: {newBalance?.CurrencyBalance}, currency type is: {newBalance?.CurrenciesId}");
-                else Trace.WriteLine($"=====> Player {playerId}, was not charged");
-                
-                return Ok(IdAndSeed);
+                var matchmakeRecord = await _suikaDbService.GetPlayerActiveMatchMakeRecord(playerId);
+                if (matchmakeRecord == null || matchmakeRecord.IsStillMatchmaking())
+                {
+                    return NotFound("Player not in tournament");
+                }
+                var tournament = await _suikaDbService.LeiaContext.Tournaments.FindAsync(matchmakeRecord.TournamentId);
+                if (tournament == null)
+                {
+                    await _suikaDbService.Log($"GetTournamentSeed: Tournament {matchmakeRecord.TournamentId} does not exist!", playerId);
+                    return StatusCode(500);
+                }
+                // CHARGE PLAYER
+                ///////////////////////////////
+                if (tournament != null)
+                {
+                    // TODO: This should be in the same transaction as adding the player to a tournament
+                    var newBalance = await _tournamentService.ChargePlayer(playerId, tournament.TournamentSeed); // we use IdAndSeed[0] to get tournament Id because it first int the array
+                    if (newBalance != null)
+                    {
+                        await _suikaDbService.Log($"Player {playerId}, was charged for tournament: {tournament.TournamentSessionId}. New balance is: {newBalance?.CurrencyBalance}, currency type is: {newBalance?.CurrenciesId}", playerId);
+                    }
+                    else
+                    {
+                        await _suikaDbService.Log($"Failed to charge player {playerId} for tournament: {tournament.TournamentSessionId}. New balance is: {newBalance?.CurrencyBalance}", playerId);
+                    }
+                }
+                else
+                {
+                    await _suikaDbService.Log($"Could not add player to tournament... unknown reason", playerId);
+                }
+                return Ok(new int[] { tournament.TournamentSessionId, tournament.TournamentSeed });
             }
-            else
+            catch (Exception ex)
             {
-                return NotFound("The seed or id were not found");
+                await _suikaDbService.Log(ex, playerId);
+                return StatusCode(500);
             }
         }
 
