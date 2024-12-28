@@ -417,7 +417,7 @@ namespace Services
 
                 if (dbTournament == null)
                 {
-                    throw new Exception($"ChargePlayer: Could not charge player player {playerId}, tournament '{tournamentId}' not found!");
+                    throw new Exception($"ChargePlayer: Could not charge player {playerId}, tournament '{tournamentId}' not found!");
                 }
 
                 var currencyId = dbTournament?.TournamentData?.TournamentType?.CurrenciesId;

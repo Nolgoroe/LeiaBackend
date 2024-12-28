@@ -54,12 +54,28 @@ namespace Services
         public Task Log(Exception ex);
         public Task Log(Exception ex, Guid playerId);
 
+        /// <summary>
+        /// Adds a player to PlayerActiveTournaments
+        /// </summary>
+        /// <param name="playerId"></param>
+        /// <param name="entryFee">Entry fee of the tournament type selected</param>
+        /// <param name="currencyId">Currency Id of the tournament type selected</param>
+        /// <param name="tournamentTypeId">Tournament type selected</param>
+        /// <returns>True if player is added, returns false and exception if not</returns>
         public Task<bool> MarkPlayerAsMatchMaking(Guid playerId, double entryFee, int currencyId, int tournamentTypeId);
 
+        /// <summary>
+        /// Gets the PlayerActiveTournament for a player
+        /// </summary>
+        /// <param name="playerId"></param>
+        /// <returns>The PlayerActiveTournament of the player</returns>
         public Task<PlayerActiveTournament> GetPlayerActiveMatchMakeRecord(Guid playerId);
 
         public Task<bool> MarkMatchMakeEntryAsCharged(Guid playerId, int tournamentId);
         public Task<bool> RemovePlayerFromActiveMatchMaking(Guid playerId);
+        /// <summary>
+        /// Checks if this should use PlayerActiveTournaments.Remove instead of ExecuteDeleteAsync
+        /// </summary>
         public Task<bool> RemovePlayerFromActiveTournament(Guid playerId, int tournamentId);
         public Task<bool> RemovePlayerFromAnyActiveTournament(Guid playerId);
         public Task<bool> SetPlayerActiveTournament(Guid playerId, int tournamentId);

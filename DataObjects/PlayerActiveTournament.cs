@@ -42,7 +42,8 @@ namespace DataObjects
         public bool DidCharge { get; set; }
 
         /// <summary>
-        /// Returns true if the player is in the queue
+        /// If the player is in the table but doesn't have a tournament yet, the `TournamentId` should be -1.
+        /// Returns true if the player is in the queue.
         /// </summary>
         public bool IsStillMatchmaking() => TournamentId == MATCH_MAKING_TOURNAMENT_ID;
     }
