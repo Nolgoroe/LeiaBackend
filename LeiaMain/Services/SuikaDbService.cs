@@ -276,7 +276,7 @@ namespace Services
             var balances = _leiaContext.PlayerCurrencies.Where(p => p.PlayerId == playerId).ToList();
             if (balances == null)
             {
-                Trace.WriteLine("In SuikaDbService.UpdatePlayerBalance: Player balances not found");
+                await Log("In SuikaDbService.UpdatePlayerBalance: Player balances not found", playerId.Value);
                 return null;
             }
 
@@ -292,12 +292,13 @@ namespace Services
                         _leiaContext.Entry(balance).State = EntityState.Modified;
                         var savedBalance = _leiaContext.PlayerCurrencies.Update(balance);
                         var saved = await _leiaContext?.SaveChangesAsync();
-                        if (saved > 0) Trace.WriteLine($"In SuikaDbService.UpdatePlayerBalance, updated PlayerCurrencies: Player - {savedBalance?.Entity?.PlayerId}, Currency - {savedBalance?.Entity?.CurrenciesId}, Amount - {savedBalance?.Entity?.CurrencyBalance}");
+                        if (saved > 0) await Log($"In SuikaDbService.UpdatePlayerBalance, updated PlayerCurrencies: Player - {savedBalance?.Entity?.PlayerId}, Currency - {savedBalance?.Entity?.CurrenciesId}, Amount - {savedBalance?.Entity?.CurrencyBalance}", savedBalance.Entity.PlayerId);
 
                         return savedBalance?.Entity;
                     }
                     catch (Exception ex)
                     {
+                        await Log(ex,playerId.Value);
                         Trace.WriteLine(ex.Message + "\n" + ex.InnerException?.Message);
                         throw;
                     }
@@ -314,12 +315,13 @@ namespace Services
                     {
                         var savedBalance = _leiaContext.PlayerCurrencies.Add(newBalance);
                         var saved = await _leiaContext?.SaveChangesAsync();
-                        if (saved > 0) Trace.WriteLine($"In UpdateBalanceWithReward, saved new PlayerCurrencies: Player - {savedBalance?.Entity?.PlayerId}, Currency - {savedBalance?.Entity?.CurrenciesId}, Amount - {savedBalance?.Entity?.CurrencyBalance}");
+                        if (saved > 0) await Log($"In UpdateBalanceWithReward, saved new PlayerCurrencies: Player - {savedBalance?.Entity?.PlayerId}, Currency - {savedBalance?.Entity?.CurrenciesId}, Amount - {savedBalance?.Entity?.CurrencyBalance}", playerId.Value);
 
                         return savedBalance?.Entity;
                     }
                     catch (Exception ex)
                     {
+                        await Log(ex, playerId.Value);
                         Trace.WriteLine(ex.Message + "\n" + ex.InnerException?.Message);
                         throw;
                     }

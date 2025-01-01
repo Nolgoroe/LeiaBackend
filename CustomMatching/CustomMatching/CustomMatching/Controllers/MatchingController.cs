@@ -74,6 +74,9 @@ namespace CustomMatching.Controllers
         public async Task<IActionResult> RequestMatch(Guid playerId, double matchFee, int currency, [FromBody] TournamentType tournamentType)
 
         {
+            // UNSUBSCRIBE FROM THE EVENT! without it, the Controller will be kept alive after it is done and closed. because the PlayerAddedToTournamentHandler is still connected to the event, and that keeps the Controller instance alive, and not garbage collected
+            _tournamentService.PlayerAddedToTournament -= PlayerAddedToTournamentHandler;
+
             var currencies = await _suikaDbService.LeiaContext.Currencies.FindAsync(currency);
             if (currencies == null) {
                 return NotFound("There is no such currency"); 
@@ -109,9 +112,6 @@ namespace CustomMatching.Controllers
                 }
                 else
                 {
-
-                    // UNSUBSCRIBE FROM THE EVENT! without it, the Controller will be kept alive after it is done and closed. because the PlayerAddedToTournamentHandler is still connected to the event, and that keeps the Controller instance alive, and not garbage collected
-                    _tournamentService.PlayerAddedToTournament -= PlayerAddedToTournamentHandler;
                     isSuccess = true;
                     return Ok($"Match request, added to queue");
                 }
@@ -146,6 +146,7 @@ namespace CustomMatching.Controllers
         {
             try
             {
+                #region Active Tournaments Part
                 var matchmakeRecord = await _suikaDbService.GetPlayerActiveMatchMakeRecord(playerId);
                 if (matchmakeRecord == null)
                 {
@@ -154,24 +155,27 @@ namespace CustomMatching.Controllers
                 if (matchmakeRecord.IsStillMatchmaking())
                 {
                     return NotFound("Still match making");
-                }
+                } 
+                #endregion
+
+
                 var tournament = await _suikaDbService.LeiaContext.Tournaments.FindAsync(matchmakeRecord.TournamentId);
                 if (tournament == null)
                 {
                     await _suikaDbService.Log($"GetTournamentSeed: Tournament {matchmakeRecord.TournamentId} does not exist!", playerId);
-                    return StatusCode(500);
+                    return StatusCode(500,"Could not find tournament for player");
                 }
                 // Already charged? Just return the seed
                 if (matchmakeRecord.DidCharge)
                 {
                     return Ok(new int[] { tournament.TournamentSessionId, tournament.TournamentSeed });
                 }
-                // CHARGE PLAYER
-                ///////////////////////////////
+                
                 if (tournament != null)
                 {
+                    #region CHARGE PLAYER Part
                     // TODO: Lock inside a semaphore
-                    
+
                     var newBalance = await _tournamentService.ChargePlayer(playerId, tournament.TournamentSessionId); // we use IdAndSeed[0] to get tournament Id because it first int the array
                     if (newBalance != null)
                     {
@@ -181,18 +185,21 @@ namespace CustomMatching.Controllers
                     else
                     {
                         await _suikaDbService.Log($"Failed to charge player {playerId} for tournament: {tournament.TournamentSessionId}. New balance is: {newBalance?.CurrencyBalance}", playerId);
+                        return StatusCode(500,"Failed to charge player for the tournament");
                     }
+                        #endregion
                 }
                 else
                 {
                     await _suikaDbService.Log($"Could not add player to tournament... unknown reason", playerId);
+                    return StatusCode(500, "Could not find tournament for player");
                 }
                 return Ok(new int[] { tournament.TournamentSessionId, tournament.TournamentSeed });
             }
             catch (Exception ex)
             {
                 await _suikaDbService.Log(ex, playerId);
-                return StatusCode(500);
+                return StatusCode(500, $"Encountered error: {ex.Message + "\n" + ex.InnerException?.Message}");
             }
         }
 
