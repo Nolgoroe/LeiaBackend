@@ -407,7 +407,9 @@ namespace Services
                 var dbPlayer = await suikaDbService.GetPlayerById(playerId);
                 if (dbPlayer == null)
                 {
-                    throw new Exception($"ChargePlayer: Could not load player {playerId}");
+                    var ex = new Exception($"ChargePlayer: Could not load player {playerId}");
+                    await suikaDbService.Log(ex, playerId);
+                    throw ex;
                 }
 
                 var dbTournament = suikaDbService.LeiaContext.Tournaments
@@ -417,7 +419,9 @@ namespace Services
 
                 if (dbTournament == null)
                 {
-                    throw new Exception($"ChargePlayer: Could not charge player {playerId}, tournament '{tournamentId}' not found!");
+                    var ex =  new Exception($"ChargePlayer: Could not charge player {playerId}, tournament '{tournamentId}' not found!");
+                    await suikaDbService.Log(ex, playerId);
+                    throw ex;
                 }
 
                 var currencyId = dbTournament?.TournamentData?.TournamentType?.CurrenciesId;
