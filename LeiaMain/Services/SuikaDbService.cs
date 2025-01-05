@@ -477,6 +477,7 @@ namespace Services
                     .ThenInclude(td => td.TournamentType)
                         .ThenInclude(tt => tt.Reward)
                 .Include(t => t.Players)
+                .Take(100)
                 .ToList();
             return tournaments;
         }
