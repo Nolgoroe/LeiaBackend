@@ -10,6 +10,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Services
 {
     /// <summary>
+    /// Formally MatchRequest
     /// A virtual object (not in db) that unifies several records related to a current match-make request of a
     /// specific player
     /// </summary>
@@ -81,6 +82,7 @@ namespace Services
         public Task<bool> SetPlayerActiveTournament(Guid playerId, int tournamentId);
         public Task<bool> IsPlayerMatchMaking(Guid playId);
         /// <summary>
+        /// Joins Players and PlayerActiveTournaments tables on playerId, and gets the ActiveTournaments with an Id of -1
         /// Returns, up to `maxPlayers`, `MatchQueueEntry`s that are pending to join a match (in queue)
         /// The results are sorted by waiting time, from longest to shortest
         /// </summary>

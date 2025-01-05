@@ -70,14 +70,14 @@ namespace CustomMatching.Controllers
 
         //[HttpGet, Route("RequestMatch/{playerId}/{matchFee}/{currency}")]
         //public async Task<IActionResult> RequestMatch(Guid playerId, double matchFee, int currency)
-        [HttpPost, Route("RequestMatch/{playerId}/{matchFee}/{currency}")]
-        public async Task<IActionResult> RequestMatch(Guid playerId, double matchFee, int currency, [FromBody] TournamentType tournamentType)
+        [HttpPost, Route("RequestMatch/{playerId}"/*/{matchFee}/{currency}"*/)]
+        public async Task<IActionResult> RequestMatch(Guid playerId,/* double matchFee, int currency,*/ [FromBody] TournamentType tournamentType)
 
         {
             // UNSUBSCRIBE FROM THE EVENT! without it, the Controller will be kept alive after it is done and closed. because the PlayerAddedToTournamentHandler is still connected to the event, and that keeps the Controller instance alive, and not garbage collected
             _tournamentService.PlayerAddedToTournament -= PlayerAddedToTournamentHandler;
 
-            var currencies = await _suikaDbService.LeiaContext.Currencies.FindAsync(currency);
+            var currencies = await _suikaDbService.LeiaContext.Currencies.FindAsync(tournamentType.CurrenciesId/*currency*/);
             if (currencies == null) {
                 return NotFound("There is no such currency"); 
             }
@@ -85,8 +85,8 @@ namespace CustomMatching.Controllers
             if (player == null)
             {
                 return NotFound("There is no such id");
-            }
-            var canMatchMake = await _suikaDbService.MarkPlayerAsMatchMaking(player.PlayerId, matchFee, currencies.CurrencyId, tournamentType.TournamentTypeId);
+            }                                                                                         
+            var canMatchMake = await _suikaDbService.MarkPlayerAsMatchMaking(player.PlayerId, tournamentType.EntryFee.Value, currencies.CurrencyId, tournamentType.TournamentTypeId);
             var isSuccess = false;
             if (!canMatchMake)
             {
@@ -96,7 +96,7 @@ namespace CustomMatching.Controllers
                 {
                     await _suikaDbService.Log("Removing player from tournament due to timeout so the player can matchmake", playerId);
                     await _suikaDbService.RemovePlayerFromActiveTournament(playerId, matchmakeRecord.TournamentId);
-                    return await RequestMatch(playerId, matchFee, currency, tournamentType);
+                    return await RequestMatch(playerId, /*matchFee, currency,*/ tournamentType);
                 }
                 return BadRequest("Player cannot match make");
             }
@@ -104,7 +104,7 @@ namespace CustomMatching.Controllers
             {
                 var dbTournamentType = await _suikaDbService.LeiaContext.TournamentTypes.FindAsync(tournamentType.TournamentTypeId);
                 if (dbTournamentType == null) return NotFound("There is no such Tournament Type");
-                var playerBalance = await _suikaDbService.GetPlayerBalance(playerId, /*dbTournamentType?.CurrenciesId*/currency);
+                var playerBalance = await _suikaDbService.GetPlayerBalance(playerId, dbTournamentType?.CurrenciesId/*currency*/);
                 if (playerBalance == null) return BadRequest("The player doesn't have a balance for this currency");
                 if (playerBalance < dbTournamentType?.EntryFee /* matchFee*/)
                 {
