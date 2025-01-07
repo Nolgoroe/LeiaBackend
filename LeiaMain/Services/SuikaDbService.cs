@@ -48,6 +48,7 @@ namespace Services
         public Task<double?> GetPlayerBalance(Guid? playerId, int? currencyId);
         public Task<List<PlayerCurrencies?>?> GetAllPlayerBalances(Guid playerId);
         public Task<PlayerCurrencies?> UpdatePlayerBalance(Guid? playerId, int? currencyId, double? amount);
+        public Task<League?> GetLeagueById(int leagueId);
         public Task Log(string message);
 
         public Task Log(string message, Guid playerId);
@@ -150,6 +151,9 @@ namespace Services
                         CurrencyBalance = 0
                     },
                 });
+
+                var league = await _leiaContext.League.FindAsync(player?.LeagueId);
+                if (league != null) player.League = league;
 
                 try
                 {
@@ -480,6 +484,13 @@ namespace Services
                 .Take(100)
                 .ToList();
             return tournaments;
+        }
+
+        public async  Task<League?> GetLeagueById(int leagueId)
+        {
+            var league = await _leiaContext.League.Include(l => l.Players)
+                .FirstOrDefaultAsync( l => l.LeagueId == leagueId);
+            return league;
         }
     }
 

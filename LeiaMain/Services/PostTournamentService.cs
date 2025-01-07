@@ -18,7 +18,7 @@ namespace Services
     public interface IPostTournamentService
     {
         public Task CloseTournament(TournamentSession tournament);
-        public Task<(double?, bool?)> GrantTournamentPrizes(TournamentSession? tournament, Player? player);
+        public Task<(double?, bool?, double?)> GrantTournamentPrizes(TournamentSession? tournament, Player? player);
 
     }
 
@@ -166,12 +166,12 @@ namespace Services
         }
 
         //turn this into an endpoint and get player as well
-        public async Task<(double?,bool?)> GrantTournamentPrizes(TournamentSession? tournament, Player? player)
+        public async Task<(double?,bool?, double?)> GrantTournamentPrizes(TournamentSession? tournament, Player? player)
         {
             if (tournament == null || player == null)
             {
                 Trace.WriteLine($"In PostTournamentService.GrantTournamentPrizes, tournament: {tournament?.TournamentSessionId}, or Player {player?.PlayerId} were null");
-                return (-1,false);
+                return (-1,false,-1);
             }
 
             var playersByScore = tournament?.PlayerTournamentSessions.OrderByDescending(pt => pt.PlayerScore).Select(pt =>
@@ -189,15 +189,35 @@ namespace Services
 
                 // TODO make this compatible with multiple rewards per player position (send list of rewards to UpdateBalanceWithReward) 
                 var reward = rewards?.FirstOrDefault(r => r.ForPosition == playerPosition);
+
+
                 if (reward != null) // if reward was found
                 {
                     var updated = await UpdateBalanceWithReward(reward, player);
-                    var wasClaimed = await MarkTournamentAsClaimed(tournament, player); 
-                    return (updated, wasClaimed);
+                    var wasClaimed = await MarkTournamentAsClaimed(tournament, player);
+                    double? PTbalance = -1;
+
+                    if (wasClaimed == true)
+                    { 
+                      PTbalance =  await GrantPurpleTokenRewrd(player, playerPosition);
+                    }
+                    
+                    return (updated, wasClaimed, PTbalance);
                 }
             }
-            // return -1 if updating failed
-            return (-1,false);
+           
+            return (-1,false,-1);
+        }
+
+        private async Task<double?> GrantPurpleTokenRewrd(Player player, int? playerPosition)
+        {
+            var rewards = _suikaDbService.LeiaContext.Rewards.Where(r => r.RewardName.Contains("PurpleToken")).OrderBy(r => r.ForPosition).ToList();
+
+            var reward = rewards.FirstOrDefault(r => r.ForPosition == playerPosition);
+            if (reward == null) return -1;
+
+            var newBalance = await UpdateBalanceWithReward(reward, player);
+            return newBalance;
         }
 
         private async Task<bool?> MarkTournamentAsClaimed(TournamentSession? tournament, Player player)
@@ -244,7 +264,7 @@ namespace Services
         {
             if (reward == null || player == null)
             {
-                Trace.WriteLine($"In PostTournamentService.UpdateBalanceWithReward, reward: {reward?.RewardName}, or player: {player?.PlayerId}, were null");
+                await _suikaDbService.Log($"In PostTournamentService.UpdateBalanceWithReward, reward: {reward?.RewardName}, or player: {player?.PlayerId}, were null", player.PlayerId);
                 return -1;
             }
             //check if the player even have balances
@@ -300,7 +320,7 @@ namespace Services
             if (updated != null) return updated?.CurrencyBalance;
             else
             {
-                Trace.WriteLine($"In PostTournamentService.UpdateBalanceWithReward, the player {player?.PlayerId} has no balances");
+               await _suikaDbService.Log($"In PostTournamentService.UpdateBalanceWithReward, the player {player?.PlayerId} has no balances", player.PlayerId);
                 return -1;
             }
         }

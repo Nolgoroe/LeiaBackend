@@ -68,7 +68,7 @@ namespace CustomMatching.Controllers
             return Ok(player);
         }
 
-        // GET /Players/GetPlayerByName/5
+        // GET /Players/GetPlayerByName/"test01"
         [HttpGet, Route("GetPlayerByName/{name}")]
         public async Task<IActionResult> GetPlayerByName(string name)
         {
@@ -102,19 +102,38 @@ namespace CustomMatching.Controllers
 
         }
 
+        // GET /Players/GetLeagueById/5
+        [HttpGet, Route("GetLeagueById/{id}")]
+        public async Task<IActionResult> GetLeagueById(int id)
+        {
+            var league = await _suikaDbService.GetLeagueById(id);
+            if (league != null)
+            {
+                return Ok(league);
+            }
+            else
+            {
+                return NotFound($"League: {id}, was not found");
+            }
+
+        }
+
+
+
+
         // POST /Players/AddPlayer
         [HttpPost, Route("AddPlayer")]
         public async Task<IActionResult> AddPlayer([FromBody] Player player)
         {
             if (!VerifyPlayer(player)) return BadRequest("Player details are incomplete");
-            // check if tournaments with this name already exists
+            // check if tournaments with this id already exists
             var dbPlayer = await _suikaDbService.GetPlayerByName(player?.Name);
             if (dbPlayer == null)
             {
                 var newPlayer = await _suikaDbService.AddNewPlayer(player);
                 return Ok(newPlayer);
             }
-            else return BadRequest("A player with this name already exists");
+            else return BadRequest("A league with this id already exists");
         }
 
         // PUT /Players/UpdatePlayerTournamentResult/1/2/3
@@ -128,7 +147,7 @@ namespace CustomMatching.Controllers
                 {
                     var message = $"UpdatePlayerTournamentResult: Player {playerId} was not active in tournament {tournamentId}";
                     await _suikaDbService.Log(message, playerId);
-                    return BadRequest("Could not submit result, player not in active tournament");
+                    return BadRequest("Could not submit result, league not in active tournament");
                 }
                 var tournament = _suikaDbService?.LeiaContext?.Tournaments.FirstOrDefault(t => t.TournamentSessionId == tournamentId && t.IsOpen == true);
                 if (tournament == null)
@@ -183,12 +202,12 @@ namespace CustomMatching.Controllers
             if (player == null || tournament == null) return NotFound("Player or tournament were not found");
             if (tournament.PlayerTournamentSessions.FirstOrDefault(pt => pt.PlayerId == playerId && pt.TournamentSessionId == tournamentId)?.DidClaim != null) return BadRequest("Player already claimed this prize");
 
-           var (amountClaimed, wasTournamentClaimed) =  await _postTournamentService.GrantTournamentPrizes(tournament, player);
+           var (amountClaimed, wasTournamentClaimed, PTclaimed ) =  await _postTournamentService.GrantTournamentPrizes(tournament, player);
 
             if (amountClaimed == null || amountClaimed == -1) return StatusCode(500, $"Returned {amountClaimed}, Failed to claim prize");
             if (wasTournamentClaimed == null || wasTournamentClaimed == false) return StatusCode(500, $"Returned {wasTournamentClaimed}, Failed to claim tournament");
 
-            return Ok($"Prize claimed successfully: {amountClaimed}. Tournament claimed: {wasTournamentClaimed}");
+            return Ok($"Prize claimed successfully: {amountClaimed}. Tournament claimed: {wasTournamentClaimed}. Purple Tokens claimed: {PTclaimed}");
         }
 
         // POST/Players/GetAllPlayerBalances
@@ -234,7 +253,7 @@ namespace CustomMatching.Controllers
             dbPlayer.UpdatePropertiesFrom(player);
             var updatedPlayer = await _suikaDbService.UpdatePlayer(dbPlayer);
             if (updatedPlayer != null) return Ok(updatedPlayer);
-            else return BadRequest("Failed to update player");
+            else return BadRequest("Failed to update league");
         }
        
         // DELETE api/<PlayersController>/5
