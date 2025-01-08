@@ -108,7 +108,7 @@ namespace CustomMatching.Controllers
                 if (playerBalance == null) return BadRequest("The player doesn't have a balance for this currency");
                 if (playerBalance < dbTournamentType?.EntryFee /* matchFee*/)
                 {
-                    return BadRequest("The player doesn't have enough of this currency to join this match");
+                    return BadRequest(new { IsSuccess = false, ErrorMessage = "The player doesn't have enough of this currency to join this match", currencyId = dbTournamentType.CurrenciesId });
                 }
                 else
                 {
