@@ -9,7 +9,9 @@ using System.Threading.Tasks;
 using DAL;
 
 using DataObjects;
+
 using Glicko2;
+
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 
@@ -53,7 +55,7 @@ namespace Services
             // First we build the context
             var playerEntries = new TournamentGlickoRatingCalculationEntry[tournament.Players.Count];
             var playerScoreByGuid = tournament.PlayerTournamentSessions.ToDictionary(p => p.PlayerId, p => p.PlayerScore);
-            
+
 
             for (var i = 0; i < tournament.Players.Count; i++)
             {
@@ -61,7 +63,7 @@ namespace Services
                 var glickoPlayer = ConvertPlayerToGlicko(player);
                 var nullableScore = playerScoreByGuid[player.PlayerId];
                 var score = nullableScore.HasValue ? nullableScore.Value : 0;
-              
+
                 var playerEntry = new TournamentGlickoRatingCalculationEntry
                 {
                     score = score,
@@ -85,7 +87,7 @@ namespace Services
                 {
                     playerEntries[j].opponent.Result = j < i ? 0 : 1;
                 }
-                var playerOpponents = playerEntries.Where((e , idx) => idx != i).Select(e => e.opponent).ToList();
+                var playerOpponents = playerEntries.Where((e, idx) => idx != i).Select(e => e.opponent).ToList();
                 var glicko = GlickoCalculator.CalculateRanking(currentGlickoPlayer, playerOpponents);
                 result.Add(playerEntries[i].player.PlayerId, (int)Math.Round(glicko.Rating));
             }
@@ -94,7 +96,7 @@ namespace Services
 
         public async Task CloseTournament(TournamentSession? tournament)
         {
-           
+
             ArgumentNullException.ThrowIfNull(tournament);
             if (tournament is null) Trace.WriteLine($"In PostTournamentService.CloseTournament, tournament: {tournament?.TournamentSessionId}, was null");
 
@@ -166,12 +168,12 @@ namespace Services
         }
 
         //turn this into an endpoint and get player as well
-        public async Task<(double?,bool?, double?)> GrantTournamentPrizes(TournamentSession? tournament, Player? player)
+        public async Task<(double?, bool?, double?)> GrantTournamentPrizes(TournamentSession? tournament, Player? player)
         {
             if (tournament == null || player == null)
             {
-                Trace.WriteLine($"In PostTournamentService.GrantTournamentPrizes, tournament: {tournament?.TournamentSessionId}, or Player {player?.PlayerId} were null");
-                return (-1,false,-1);
+                await _suikaDbService.Log($"In PostTournamentService.GrantTournamentPrizes, tournament: {tournament?.TournamentSessionId}, or Player {player?.PlayerId} were null");
+                return (-1, false, -1);
             }
 
             var playersByScore = tournament?.PlayerTournamentSessions.OrderByDescending(pt => pt.PlayerScore).Select(pt =>
@@ -179,9 +181,14 @@ namespace Services
                 return tournament?.Players.FirstOrDefault(p => p.PlayerId == pt.PlayerId);
             }).ToList();
 
-            var rewards = _suikaDbService.LeiaContext.TournamentTypes.Where(tt => tt.TournamentTypeId == tournament.TournamentData.TournamentTypeId)
-                .Include(tt => tt.Reward)
-               .FirstOrDefault()?.Reward;
+            var individualPlayerTournament = _suikaDbService.LeiaContext.PlayerTournamentSession.FirstOrDefault(pt => pt.TournamentSessionId == tournament.TournamentSessionId && pt.PlayerId == player.PlayerId);
+            if (individualPlayerTournament == null)
+            {
+                await _suikaDbService.Log($"In PostTournamentService.GrantTournamentPrizes, the PlayerTournamentSession for: Player - {player?.PlayerId}, Tournament - {tournament?.TournamentSessionId}, is null", player.PlayerId);
+                return (-1, false, -1);
+            }
+
+            var rewards = _suikaDbService.LeiaContext.TournamentTypes.Include(tt => tt.Reward).FirstOrDefault(tt => tt.TournamentTypeId == individualPlayerTournament.TournamentData.TournamentTypeId)?.Reward;
 
             var playerPosition = playersByScore?.IndexOf(player) + 1; // +1 because the index is 0 based and positions are 1 based
             if (playerPosition != -1) //if player position was found
@@ -198,18 +205,18 @@ namespace Services
                     double? PTbalance = -1;
 
                     if (wasClaimed == true)
-                    { 
-                      PTbalance =  await GrantPurpleTokenRewrd(player, playerPosition);
+                    {
+                        PTbalance = await GrantPurpleTokenReward(player, playerPosition);
                     }
-                    
+
                     return (updated, wasClaimed, PTbalance);
                 }
             }
-           
-            return (-1,false,-1);
+
+            return (-1, false, -1);
         }
 
-        private async Task<double?> GrantPurpleTokenRewrd(Player player, int? playerPosition)
+        private async Task<double?> GrantPurpleTokenReward(Player player, int? playerPosition)
         {
             var rewards = _suikaDbService.LeiaContext.Rewards.Where(r => r.RewardName.Contains("PurpleToken")).OrderBy(r => r.ForPosition).ToList();
 
@@ -241,7 +248,7 @@ namespace Services
 
                     var savedPlayerTournament = _suikaDbService.LeiaContext.PlayerTournamentSession.Update(dbPlayerTournament);
 
-                    var saved = await _suikaDbService?.LeiaContext?.SaveChangesAsync(); 
+                    var saved = await _suikaDbService?.LeiaContext?.SaveChangesAsync();
 
                     if (saved > 0) Trace.WriteLine($"In PostTournamentService.MarkTournamentAsClaimed, updated PlayerTournamentSession: Player - {savedPlayerTournament?.Entity?.PlayerId}, Tournament - {savedPlayerTournament?.Entity?.TournamentSessionId}, DidClaim - {savedPlayerTournament?.Entity?.DidClaim}");
 
@@ -315,12 +322,12 @@ namespace Services
                     }
                 }
             }*/
-            
+
             var updated = await _suikaDbService.UpdatePlayerBalance(player?.PlayerId, reward?.CurrenciesId, reward?.RewardAmount);
             if (updated != null) return updated?.CurrencyBalance;
             else
             {
-               await _suikaDbService.Log($"In PostTournamentService.UpdateBalanceWithReward, the player {player?.PlayerId} has no balances", player.PlayerId);
+                await _suikaDbService.Log($"In PostTournamentService.UpdateBalanceWithReward, the player {player?.PlayerId} has no balances", player.PlayerId);
                 return -1;
             }
         }

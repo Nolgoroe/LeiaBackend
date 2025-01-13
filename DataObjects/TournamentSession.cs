@@ -25,6 +25,12 @@ namespace DataObjects
         public int TournamentDataId { get; set; }
         public TournamentData TournamentData { get; set; }
         
+        #region Parenting properties
+        public int? ParentTournamentId { get; set; }
+        public TournamentSession? ParentTournament { get; set; }
+        public List<TournamentSession>? ChildTournaments { get; set; }
+        #endregion
+
         public int TournamentSeed { get; set; }
         public bool IsOpen { get; set; }
 

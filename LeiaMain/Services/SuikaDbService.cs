@@ -246,9 +246,9 @@ namespace Services
             return await _leiaContext.Tournaments
                 .Where(
                     t => Math.Abs(t.Rating - playerRating) < maxRatingDrift &&         // Rating is in range
-                    t.TournamentData.TournamentTypeId == tournamentTypeId &&
+                   // t.TournamentData.TournamentTypeId == tournamentTypeId &&
                     t.IsOpen &&                                                        // Tournament is open
-                    t.TournamentData.EntryFeeCurrencyId == currencyId &&               // The currency Id is matching
+                   // t.TournamentData.EntryFeeCurrencyId == currencyId &&               // The currency Id is matching
                     t.TournamentData.EntryFee <= playerBalance &&                      // Player has enough balance
                     t.Players.Count < t.TournamentData.TournamentType.NumberOfPlayers &&
                     !t.Players.Select(p => p.PlayerId).Contains(playerId)

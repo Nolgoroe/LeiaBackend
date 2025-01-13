@@ -4,6 +4,7 @@ using DAL;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DAL.Migrations
 {
     [DbContext(typeof(LeiaContext))]
-    partial class LeiaContextModelSnapshot : ModelSnapshot
+    [Migration("20250112015319_mig16_MixTournamentTypes_SameAmountOfPlayers")]
+    partial class mig16_MixTournamentTypes_SameAmountOfPlayers
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -348,9 +351,6 @@ namespace DAL.Migrations
                     b.Property<bool>("IsOpen")
                         .HasColumnType("bit");
 
-                    b.Property<int?>("ParentTournamentId")
-                        .HasColumnType("int");
-
                     b.Property<int>("Rating")
                         .HasColumnType("int");
 
@@ -361,8 +361,6 @@ namespace DAL.Migrations
                         .HasColumnType("int");
 
                     b.HasKey("TournamentSessionId");
-
-                    b.HasIndex("ParentTournamentId");
 
                     b.HasIndex("TournamentDataId");
 
@@ -585,17 +583,11 @@ namespace DAL.Migrations
 
             modelBuilder.Entity("DataObjects.TournamentSession", b =>
                 {
-                    b.HasOne("DataObjects.TournamentSession", "ParentTournament")
-                        .WithMany("ChildTournaments")
-                        .HasForeignKey("ParentTournamentId");
-
                     b.HasOne("DataObjects.TournamentData", "TournamentData")
                         .WithMany()
                         .HasForeignKey("TournamentDataId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.Navigation("ParentTournament");
 
                     b.Navigation("TournamentData");
                 });
@@ -691,8 +683,6 @@ namespace DAL.Migrations
 
             modelBuilder.Entity("DataObjects.TournamentSession", b =>
                 {
-                    b.Navigation("ChildTournaments");
-
                     b.Navigation("PlayerTournamentSessions");
                 });
 #pragma warning restore 612, 618

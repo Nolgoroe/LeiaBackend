@@ -59,11 +59,13 @@ namespace DAL
                 .UsingEntity<PlayerTournamentSession>(e =>
                     e.Property(pt => pt.PlayerScore));
 
-            modelBuilder.Entity<Player>() 
+            modelBuilder.Entity<Player>()
               .HasMany(p => p.TournamentSessions)
               .WithMany(t => t.Players)
               .UsingEntity<PlayerTournamentSession>(e =>
                   e.Property(pt => pt.DidClaim));
+
+            #region Configure PlayerActiveTournament and BackendLog
 
             modelBuilder.Entity<PlayerActiveTournament>()
                 .HasIndex(p => p.PlayerId).IsUnique();
@@ -76,6 +78,7 @@ namespace DAL
 
             modelBuilder.Entity<BackendLog>()
                 .HasIndex(p => p.Timestamp);
+            #endregion
 
             #region Configure MtM for players and currencies
             modelBuilder.Entity<Player>()
@@ -98,6 +101,13 @@ namespace DAL
                 .WithMany(c => c.PlayerCurrencies)
                 .HasForeignKey(pc => pc.CurrenciesId);
             #endregion
+
+            // Parent-Child relationship between TournamentSession
+            modelBuilder.Entity<TournamentSession>()
+                .HasOne(t => t.ParentTournament)
+                .WithMany(t => t.ChildTournaments)
+                .HasForeignKey(t => t.ParentTournamentId);
+
         }
     }
 }

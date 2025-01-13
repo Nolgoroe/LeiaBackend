@@ -221,11 +221,21 @@ namespace Services
                     {
                         PlayerId = request.Player.PlayerId,
                         TournamentSessionId = matchingTournament.TournamentSessionId,
+                        TournamentData = new TournamentData
+                        {
+                            EntryFee = request.MatchFee,
+                            EntryFeeCurrencyId = request.MatchFeeCurrency.CurrencyId,
+                            EarningCurrencyId = request.MatchFeeCurrency.CurrencyId,
+                            TournamentTypeId = request.TournamentType.TournamentTypeId,
+                            TournamentStart = DateTime.Now,
+                            TournamentEnd = default,
+                            
+                        },
                         PlayerScore = null,
                     }
                     );
-                    // send the tournament seed to controller list
-                    SendPlayerAndSeed(savedTournament?.Entity?.TournamentSeed, savedTournament?.Entity?.TournamentSessionId, request?.Player?.PlayerId);
+                    // deprecate the old seed sending 
+                    // SendPlayerAndSeed(savedTournament?.Entity?.TournamentSeed, savedTournament?.Entity?.TournamentSessionId, request?.Player?.PlayerId);
                     var message = $"AddToExistingTournament: Player {dbPlayer.PlayerId} joined tournament {dbTournament.TournamentSessionId}";
                     await dbService.Log(message, dbPlayer.PlayerId);
                     return dbTournament;
@@ -259,7 +269,7 @@ namespace Services
                     }
                     if (!await dbService.IsPlayerMatchMaking(id.Value))
                     {
-                        await dbService.Log($"SaveNewTournament: Player {id} cannot join new tournmanet because the player is not in matchmake state", id.Value);
+                        await dbService.Log($"SaveNewTournament: Player {id} cannot join new tournament because the player is not in matchmake state", id.Value);
                         continue;
                     }
                     var player = dbService.LeiaContext.Players.Find(id);
@@ -267,7 +277,7 @@ namespace Services
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine(ex.Message + "\n" + ex.InnerException?.Message);
+                    await dbService.Log(ex.Message + "\n" + ex.InnerException?.Message);
                     throw;
                 }
             }
