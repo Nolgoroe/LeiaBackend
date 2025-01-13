@@ -8,6 +8,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 using Services;
+using Services.NuveiPayment;
+using static CustomMatching.Controllers.PlayersController;
 
 // For more information on enabling Web API for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
 
@@ -27,20 +29,22 @@ namespace CustomMatching.Controllers
             {
                 this.UpdatePropertiesFrom(player);
             }
-               
+
         }
 
         private readonly ILogger<MatchingController> _logger;
         private readonly ITournamentService _tournamentService;
         private readonly ISuikaDbService _suikaDbService;
         private readonly IPostTournamentService _postTournamentService;
+        private readonly INuveiPaymentService _nuveiPaymentService;
 
-        public PlayersController(ILogger<MatchingController> logger, ITournamentService tournamentService, ISuikaDbService suikaDbService, IPostTournamentService postTournamentService)
+        public PlayersController(ILogger<MatchingController> logger, INuveiPaymentService nuveiPaymentService, ITournamentService tournamentService, ISuikaDbService suikaDbService, IPostTournamentService postTournamentService)
         {
             _logger = logger;
             _tournamentService = tournamentService;
             _suikaDbService = suikaDbService;
             _postTournamentService = postTournamentService;
+            _nuveiPaymentService = nuveiPaymentService;
         }
 
 
@@ -53,7 +57,7 @@ namespace CustomMatching.Controllers
                 var tournaments = await _suikaDbService.GetPlayerTournaments(playerId);
                 return Ok(tournaments);
             }
-            catch (Exception ex) 
+            catch (Exception ex)
             {
                 await _suikaDbService.Log(ex, playerId);
                 return StatusCode(500);
@@ -66,6 +70,15 @@ namespace CustomMatching.Controllers
         {
             var player = await _suikaDbService.GetPlayerById(playerId);
             return Ok(player);
+        }
+
+        [HttpPost, Route("MakePayment/{playerId}")]
+        public async Task<IActionResult> MakePayment()
+        {
+            var resp = await _nuveiPaymentService.ProcessPaymentAsync("UNIQUE_TRANS_ID_TEST1", 10, "EUR");
+            dynamic response = new System.Dynamic.ExpandoObject();
+            response.Data = resp;
+            return Ok(response);
         }
 
         // GET /Players/GetPlayerByName/"test01"
