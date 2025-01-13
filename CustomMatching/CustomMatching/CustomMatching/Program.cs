@@ -2,7 +2,7 @@
 using DAL;
 
 using Microsoft.EntityFrameworkCore;
-using System.Security.Cryptography.Xml;
+using Services.NuveiPayment;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -23,6 +23,7 @@ builder.Services.AddDbContext<LeiaContext>(options =>
 builder.Services.AddScoped<ISuikaDbService, SuikaDbService>();
 builder.Services.AddScoped<IPostTournamentService, PostTournamentService>();
 builder.Services.AddSingleton<ITournamentService, TournamentService>();
+builder.Services.AddSingleton<INuveiPaymentService, NuveiPaymentService>();
 
 var app = builder.Build();
 using (var scope = app.Services.CreateScope())
