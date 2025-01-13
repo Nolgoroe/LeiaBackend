@@ -233,14 +233,9 @@ namespace CustomMatching.Controllers
                 .Include(p => p.PlayerCurrencies)
                 .FirstOrDefault();
 
-            var tournament = _suikaDbService?.LeiaContext?.Tournaments?.Where(t => t.TournamentSessionId == tournamentId)
-                .Include(t => t.TournamentData)
-                    .ThenInclude(td => td.TournamentType)
-                .Include(t => t.PlayerTournamentSessions)
-                .Include(t => t.Players)
-                .FirstOrDefault();
+            //var tournament = null;
 
-            if (player == null || tournament == null) return NotFound("Player or tournament were not found");
+            //if (player == null || tournament == null) return NotFound("Player or tournament were not found");
             // await _postTournamentService.GrantTournamentPrizes(tournament, player);
             return Ok();
 

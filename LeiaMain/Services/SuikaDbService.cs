@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 
 using DAL;
@@ -44,7 +45,7 @@ namespace Services
         public Task<Player>? UpdatePlayer(Player player);
         public Task<Player?> GetPlayerById(Guid playerId);
         public Task<Player?> GetPlayerByName(string playerName);
-        public Task<List<TournamentSession?>?> GetPlayerTournaments(Guid playerId);
+        public Task<List<PlayerTournamentSession>?> GetPlayerTournaments(Guid playerId);
         public Task<double?> GetPlayerBalance(Guid? playerId, int? currencyId);
         public Task<List<PlayerCurrencies?>?> GetAllPlayerBalances(Guid playerId);
         public Task<PlayerCurrencies?> UpdatePlayerBalance(Guid? playerId, int? currencyId, double? amount);
@@ -243,14 +244,22 @@ namespace Services
 
         public async Task<IEnumerable<TournamentSession>> FindSuitableTournamentForRating(Guid playerId, int playerRating, int maxRatingDrift, int tournamentTypeId, int currencyId, double playerBalance, int maxResults)
         {
+            var tournamentType = await _leiaContext.TournamentTypes.FindAsync(tournamentTypeId);
+            if (tournamentType == null)
+            {
+                throw new Exception($"Tournament type does not exist {tournamentTypeId}");
+            }
+            if (tournamentType.EntryFee > playerBalance)
+            {
+                    throw new Exception($"Player has not enough balance for tournament type {tournamentTypeId}, need {tournamentType.EntryFee}, has {playerBalance}");
+            }
             return await _leiaContext.Tournaments
                 .Where(
                     t => Math.Abs(t.Rating - playerRating) < maxRatingDrift &&         // Rating is in range
                    // t.TournamentData.TournamentTypeId == tournamentTypeId &&
                     t.IsOpen &&                                                        // Tournament is open
                    // t.TournamentData.EntryFeeCurrencyId == currencyId &&               // The currency Id is matching
-                    t.TournamentData.EntryFee <= playerBalance &&                      // Player has enough balance
-                    t.Players.Count < t.TournamentData.TournamentType.NumberOfPlayers &&
+                    t.Players.Count < tournamentType.NumberOfPlayers &&
                     !t.Players.Select(p => p.PlayerId).Contains(playerId)
                     ) // Tournament is not full
                 .OrderBy(t => Math.Abs(t.Rating - playerRating))
@@ -470,17 +479,12 @@ namespace Services
             }
         }
 
-        public async Task<List<TournamentSession?>?> GetPlayerTournaments(Guid playerId)
+        public async Task<List<PlayerTournamentSession>?> GetPlayerTournaments(Guid playerId)
         {
-            var tournaments = _leiaContext.Tournaments.Where(t => t.PlayerTournamentSessions.Any(pt => pt.PlayerId == playerId))
-                .Include(t => t.TournamentData)
-                    .ThenInclude(td => td.EntryFeeCurrency)
-                .Include(t => t.TournamentData)
-                    .ThenInclude(td => td.EarningCurrency)
-                .Include(t => t.TournamentData)
-                    .ThenInclude(td => td.TournamentType)
-                        .ThenInclude(tt => tt.Reward)
-                .Include(t => t.Players)
+            var tournaments = _leiaContext.PlayerTournamentSession.Where(s => s.PlayerId == playerId)
+                .Include(s => s.TournamentType).ThenInclude(t => t.Currencies)
+                .Include(s => s.TournamentType).ThenInclude(t => t.Reward)
+                .Include(s => s.TournamentSession).ThenInclude(s => s.Players)
                 .Take(100)
                 .ToList();
             return tournaments;

@@ -11,7 +11,6 @@ namespace DAL
 
         public DbSet<Player> Players { get; set; }
         public DbSet<SessionData> Sessions { get; set; }
-        public DbSet<TournamentData> TournamentsData { get; set; }
         public DbSet<TournamentSession> Tournaments { get; set; }
         public DbSet<TournamentType> TournamentTypes { get; set; }
         public DbSet<Transactions> Transactions { get; set; }
@@ -101,12 +100,11 @@ namespace DAL
                 .WithMany(c => c.PlayerCurrencies)
                 .HasForeignKey(pc => pc.CurrenciesId);
             #endregion
-
-            // Parent-Child relationship between TournamentSession
-            modelBuilder.Entity<TournamentSession>()
-                .HasOne(t => t.ParentTournament)
-                .WithMany(t => t.ChildTournaments)
-                .HasForeignKey(t => t.ParentTournamentId);
+            modelBuilder.Entity<PlayerTournamentSession>()
+                .HasOne (pc => pc.TournamentSession)
+                .WithMany()
+                .HasForeignKey(pc => pc.TournamentSessionId)
+                .OnDelete(DeleteBehavior.NoAction);
 
         }
     }

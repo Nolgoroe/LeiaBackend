@@ -169,7 +169,7 @@ namespace CustomMatching.Controllers
 
                     if (saved > 0)
                     {
-                        await _tournamentService.CheckTournamentStatus(_suikaDbService, updatedPlayerTournament.Entity.TournamentSessionId);
+                        await _tournamentService.CheckTournamentStatus(_suikaDbService, updatedPlayerTournament.Entity.TournamentSessionId, playerTournament);
                     }
                     return Ok(updatedPlayerTournament.Entity);
                 }
@@ -192,9 +192,15 @@ namespace CustomMatching.Controllers
                 .Include(p => p.PlayerCurrencies)
                 .FirstOrDefault();
 
-            var tournament = _suikaDbService?.LeiaContext?.Tournaments?.Where(t => t.TournamentSessionId == tournamentId)
-                .Include(t => t.TournamentData)
-                    .ThenInclude(td => td.TournamentType)
+            var playerTournamentSession = _suikaDbService.LeiaContext.PlayerTournamentSession.FirstOrDefault(p => p.PlayerId == playerId && p.TournamentSessionId == tournamentId);
+
+            if (playerTournamentSession == null)
+            {
+                return NotFound($"Player {playerId} was not in tournmanet {tournamentId}");
+            }
+
+            var tournament = _suikaDbService?.LeiaContext?.Tournaments?.Where(t => t.TournamentSessionId == tournamentId)               
+                .Include(td => playerTournamentSession.TournamentType)
                 .Include(t => t.PlayerTournamentSessions)
                 .Include(t => t.Players)
                 .FirstOrDefault();

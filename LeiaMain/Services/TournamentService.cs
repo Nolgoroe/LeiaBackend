@@ -12,7 +12,7 @@ namespace Services
     {
         public event EventHandler PlayerAddedToTournament;
         public Dictionary<Guid?, int?[]> PlayersSeeds { get; set; }
-        public Task CheckTournamentStatus(ISuikaDbService dbService, int tournamentId);
+        public Task CheckTournamentStatus(ISuikaDbService dbService, int tournamentId, PlayerTournamentSession playerTournamentSession);
         public Task<PlayerCurrencies?> ChargePlayer(Guid playerId, int? tournamentId);
     }
 
@@ -104,17 +104,20 @@ namespace Services
                 await dbService.Log("Player is waiting for tournament but has no balance", waitingPlayer.Player.PlayerId);
                 return null;
             }
-            var suitableTournaments = await dbService.FindSuitableTournamentForRating(
-                waitingPlayer.Player.PlayerId,
-                waitingPlayer.Player.Rating,
-                MAX_RATING_DRIFT,
-                waitingPlayer.QueueEntry.TournamentTypeId,
-                waitingPlayer.QueueEntry.CurrencyId,
-                playerBalance.Value,
-                1
-                );
+
+  
+
             try
             {
+                var suitableTournaments = await dbService.FindSuitableTournamentForRating(
+                    waitingPlayer.Player.PlayerId,
+                    waitingPlayer.Player.Rating,
+                    MAX_RATING_DRIFT,
+                    waitingPlayer.QueueEntry.TournamentTypeId,
+                    waitingPlayer.QueueEntry.CurrencyId,
+                    playerBalance.Value,
+                    1
+                );
                 var playerId = waitingPlayer.Player.PlayerId;
                 // ADD PLAYER TO TOURNAMENT
                 ///////////////////////////////
@@ -149,16 +152,8 @@ namespace Services
             {
                 var tournament = await SaveNewTournament(dbService, matchedRequest.MatchFee, matchedRequest?.MatchFeeCurrency?.CurrencyId, matchedRequest?.TournamentType?.TournamentTypeId, matchedRequest?.Player?.PlayerId);
 
-                Trace.WriteLine($"Player: {matchedRequest?.Player?.PlayerId}, rating: {matchedRequest?.Player?.Rating}\n was added to tournament: {tournament?.TournamentDataId}.");
+                Trace.WriteLine($"Player: {matchedRequest?.Player?.PlayerId}, rating: {matchedRequest?.Player?.Rating}\n was added to tournament: {tournament.TournamentSessionId}.");
 
-                // make sure the tournament isn't already full
-                if (tournament != null)
-                {
-                    var dbTournament = dbService.LeiaContext.Tournaments
-                            .Include(t => t.TournamentData)
-                                .ThenInclude(td => td.TournamentType)
-                            .FirstOrDefault(t => t.TournamentSessionId == tournament.TournamentSessionId);
-                }
                 return tournament;
             }
             else {
@@ -193,7 +188,7 @@ namespace Services
                 await dbService.Log(message);
                 return null; // Don't change anything
             }
-            dbTournament?.Players?.Add(dbPlayer);
+            //dbTournament?.Players?.Add(dbPlayer);
                 
 
             var canJoinTournament = await dbService.SetPlayerActiveTournament(dbPlayer.PlayerId, dbTournament.TournamentSessionId);
@@ -207,40 +202,34 @@ namespace Services
             // try to update the tournament in the database
             try
             {
-                dbService.LeiaContext.Entry(dbTournament).State = EntityState.Modified;
+                dbService.LeiaContext.Entry(dbTournament).State = EntityState.Detached;
 
                 var savedTournament = dbService?.LeiaContext?.Tournaments?.Update(dbTournament);
-                var saved = await dbService?.LeiaContext?.SaveChangesAsync();
+                
 
                 Trace.WriteLine($"AddToExistingTournament: Player: {request?.Player?.Rating}, rating: {request?.Player?.Rating}, \n were added to tournament: {savedTournament?.Entity?.TournamentSessionId}.");
-                    
-                if (saved > 0)//if the tournament was saved to the DB -
+       
+                dbTournament?.Players.Add(request.Player);
+                dbTournament?.PlayerTournamentSessions?.Add(new PlayerTournamentSession
                 {
-                    matchingTournament?.Players.Add(request?.Player);
-                    matchingTournament?.PlayerTournamentSessions?.Add(new PlayerTournamentSession
-                    {
-                        PlayerId = request.Player.PlayerId,
-                        TournamentSessionId = matchingTournament.TournamentSessionId,
-                        TournamentData = new TournamentData
-                        {
-                            EntryFee = request.MatchFee,
-                            EntryFeeCurrencyId = request.MatchFeeCurrency.CurrencyId,
-                            EarningCurrencyId = request.MatchFeeCurrency.CurrencyId,
-                            TournamentTypeId = request.TournamentType.TournamentTypeId,
-                            TournamentStart = DateTime.Now,
-                            TournamentEnd = default,
-                            
-                        },
-                        PlayerScore = null,
-                    }
-                    );
-                    // deprecate the old seed sending 
-                    // SendPlayerAndSeed(savedTournament?.Entity?.TournamentSeed, savedTournament?.Entity?.TournamentSessionId, request?.Player?.PlayerId);
-                    var message = $"AddToExistingTournament: Player {dbPlayer.PlayerId} joined tournament {dbTournament.TournamentSessionId}";
-                    await dbService.Log(message, dbPlayer.PlayerId);
-                    return dbTournament;
+                    PlayerId = request.Player.PlayerId,
+                    TournamentSessionId = matchingTournament.TournamentSessionId,
+                    JoinTime = DateTime.UtcNow,
+                    DidClaim = false,
+                    Position = 0,
+                    TournamentTypeId = request.TournamentType.TournamentTypeId,
+                    PlayerScore = null,
                 }
-                throw new Exception($"AddToExistingTournament: Tournament {dbTournament.TournamentSessionId} was not saved to database!");
+                );
+                // deprecate the old seed sending 
+                // SendPlayerAndSeed(savedTournament?.Entity?.TournamentSeed, savedTournament?.Entity?.TournamentSessionId, request?.Player?.PlayerId);
+                dbService.LeiaContext.Update(dbTournament);
+                var message = $"AddToExistingTournament: Player {dbPlayer.PlayerId} joined tournament {dbTournament.TournamentSessionId}";
+                await dbService.Log(message, dbPlayer.PlayerId);
+                var saved = await dbService?.LeiaContext?.SaveChangesAsync();
+                return dbTournament;
+                
+               // throw new Exception($"AddToExistingTournament: Tournament {dbTournament.TournamentSessionId} was not saved to database!");
                     
             }
             catch (Exception ex)
@@ -292,16 +281,7 @@ namespace Services
             {
                 TournamentSeed = TournamentSeedRandom.Next(),
                 IsOpen = true,
-                TournamentData = new TournamentData
-                {
-                    EntryFee = matchFee,
-                    EntryFeeCurrencyId = currency.CurrencyId,
-                    EarningCurrencyId = currency.CurrencyId,
-                    TournamentTypeId = (int)tournamentTypeId,
-                    TournamentStart = DateTime.Now,
-                    TournamentEnd = default,
-
-                },
+                StartTime = DateTime.UtcNow,
                 Rating = dbPlayers[0].Rating,
             };
             tournament.Players?.AddRange(dbPlayers);
@@ -376,21 +356,20 @@ namespace Services
             throw new NotImplementedException();
         }
 
-        public async Task CheckTournamentStatus(ISuikaDbService dbService, int tournamentId)
+        public async Task CheckTournamentStatus(ISuikaDbService dbService, int tournamentId, PlayerTournamentSession playerTournamentSession)
         {
             var context = dbService.LeiaContext;
             try
             {
                 var tournament = context.Tournaments
-                    .Include(t => t.TournamentData)
-                        .ThenInclude(td => td.TournamentType)
+     
                     .Include(t => t.PlayerTournamentSessions)
                     .Include(t => t.Players)
                     .FirstOrDefault(t => t.TournamentSessionId == tournamentId);
                 if (tournament != null)
                 {
                     var scores = context.PlayerTournamentSession.Where(pt => pt.TournamentSessionId == tournamentId).Select(pt => pt.PlayerScore).ToList();
-                    if (scores.All(s => s != null) && scores.Count >= tournament.TournamentData.TournamentType.NumberOfPlayers) await _postTournamentService.CloseTournament(tournament); // close tournament
+                    if (scores.All(s => s != null) && scores.Count >= playerTournamentSession.TournamentType.NumberOfPlayers) await _postTournamentService.CloseTournament(tournament); // close tournament
 
                 }
             }
@@ -422,9 +401,16 @@ namespace Services
                     throw ex;
                 }
 
+                var playerTournamentSession = await suikaDbService.LeiaContext.PlayerTournamentSession
+                    .FirstOrDefaultAsync(s => s.PlayerId == playerId && s.TournamentSessionId == tournamentId);
+                if (playerTournamentSession == null)
+                {
+                    var ex = new Exception($"ChargePlayer: Could not load player session {playerId} for tournmanet {tournamentId}");
+                    await suikaDbService.Log(ex, playerId);
+                    throw ex;
+                }
+
                 var dbTournament = suikaDbService.LeiaContext.Tournaments
-                    .Include(t => t.TournamentData)
-                        .ThenInclude(td => td.TournamentType)
                         .FirstOrDefault(t => t.TournamentSessionId == tournamentId);
 
                 if (dbTournament == null)
@@ -434,13 +420,13 @@ namespace Services
                     throw ex;
                 }
 
-                var currencyId = dbTournament?.TournamentData?.TournamentType?.CurrenciesId;
-                var fee = -dbTournament?.TournamentData?.TournamentType?.EntryFee;
+                var tournamentType = playerTournamentSession.TournamentType;
+
+                var currencyId = tournamentType.CurrenciesId;
+                var fee = -tournamentType.EntryFee;
 
                 var updatedBalance = await suikaDbService.UpdatePlayerBalance(playerId, currencyId, fee);
                 return updatedBalance;
-
-                
             }
         }
     }

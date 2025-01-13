@@ -101,20 +101,11 @@ namespace Services
             if (tournament is null) Trace.WriteLine($"In PostTournamentService.CloseTournament, tournament: {tournament?.TournamentSessionId}, was null");
 
             tournament.IsOpen = false;
-            var dbTournamentData = await _suikaDbService.LeiaContext.TournamentsData.FindAsync(tournament.TournamentDataId);
-            if (dbTournamentData == null)
-            {
-                Trace.WriteLine($"PostTournamentService.CloseTournament: Error got null tournament data from {tournament.TournamentSessionId}");
-                return;
-            }
-            dbTournamentData.TournamentEnd = DateTime.Now;
-            tournament.TournamentData = dbTournamentData;
+            tournament.Endtime = DateTime.UtcNow;
+            
             var newPlayerRatings = CalculatePlayersRatingFromTournament(tournament);
             try
             {
-                _suikaDbService.LeiaContext.Entry(dbTournamentData).State = EntityState.Modified;
-                var updatedPlayerTournamentData = _suikaDbService.LeiaContext.TournamentsData.Update(dbTournamentData);
-
                 _suikaDbService.LeiaContext.Entry(tournament).State = EntityState.Modified;
                 var updatedPlayerTournament = _suikaDbService.LeiaContext.Tournaments.Update(tournament);
 
@@ -188,7 +179,7 @@ namespace Services
                 return (-1, false, -1);
             }
 
-            var rewards = _suikaDbService.LeiaContext.TournamentTypes.Include(tt => tt.Reward).FirstOrDefault(tt => tt.TournamentTypeId == individualPlayerTournament.TournamentData.TournamentTypeId)?.Reward;
+            var rewards = _suikaDbService.LeiaContext.TournamentTypes.Include(tt => tt.Reward).FirstOrDefault(tt => tt.TournamentTypeId == individualPlayerTournament.TournamentTypeId)?.Reward;
 
             var playerPosition = playersByScore?.IndexOf(player) + 1; // +1 because the index is 0 based and positions are 1 based
             if (playerPosition != -1) //if player position was found

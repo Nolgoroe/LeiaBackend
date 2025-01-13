@@ -4,6 +4,7 @@ using DAL;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DAL.Migrations
 {
     [DbContext(typeof(LeiaContext))]
-    partial class LeiaContextModelSnapshot : ModelSnapshot
+    [Migration("20250113153247_mig20_tournamentSessionRefactor")]
+    partial class mig20_tournamentSessionRefactor
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -222,6 +225,9 @@ namespace DAL.Migrations
                     b.Property<int>("Position")
                         .HasColumnType("int");
 
+                    b.Property<int?>("SessionId")
+                        .HasColumnType("int");
+
                     b.Property<DateTime>("SubmitScoreTime")
                         .HasColumnType("datetime2");
 
@@ -232,6 +238,8 @@ namespace DAL.Migrations
                         .HasColumnType("int");
 
                     b.HasKey("PlayerId", "TournamentSessionId");
+
+                    b.HasIndex("SessionId");
 
                     b.HasIndex("TournamentSessionId");
 
@@ -471,6 +479,11 @@ namespace DAL.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("DataObjects.SessionData", "SessionData")
+                        .WithMany()
+                        .HasForeignKey("SessionId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
                     b.HasOne("DataObjects.TournamentSession", "TournamentSession")
                         .WithMany()
                         .HasForeignKey("TournamentSessionId")
@@ -486,6 +499,8 @@ namespace DAL.Migrations
                         .HasForeignKey("TournamentTypeId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("SessionData");
 
                     b.Navigation("TournamentSession");
 
