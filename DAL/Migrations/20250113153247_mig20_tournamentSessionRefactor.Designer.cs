@@ -485,7 +485,7 @@ namespace DAL.Migrations
                         .OnDelete(DeleteBehavior.NoAction);
 
                     b.HasOne("DataObjects.TournamentSession", "TournamentSession")
-                        .WithMany()
+                        .WithMany("PlayerTournamentSessions")
                         .HasForeignKey("TournamentSessionId")
                         .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();

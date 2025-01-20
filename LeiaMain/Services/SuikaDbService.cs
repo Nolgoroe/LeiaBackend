@@ -488,6 +488,8 @@ namespace Services
                     .ThenInclude(t => t.Reward)
                 .Include(s => s.TournamentSession)
                     .ThenInclude(s => s.Players)
+                .Include(s => s.TournamentSession)
+                    .ThenInclude(t => t.PlayerTournamentSessions)
                 .Where(s => s.PlayerId == playerId)
                 .OrderByDescending(tp => tp.JoinTime)
                 .Take(100)
