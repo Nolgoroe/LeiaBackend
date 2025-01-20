@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DAL.Migrations
 {
     [DbContext(typeof(LeiaContext))]
-    [Migration("20250113144923_mig19_tournamentSessionRefactor")]
-    partial class mig19_tournamentSessionRefactor
+    [Migration("20250119031208_mig22_RemoveDuplicateTournamentIdFromPlayerTournamentSession")]
+    partial class mig22_RemoveDuplicateTournamentIdFromPlayerTournamentSession
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -225,25 +225,15 @@ namespace DAL.Migrations
                     b.Property<int>("Position")
                         .HasColumnType("int");
 
-                    b.Property<int>("SessionId")
-                        .HasColumnType("int");
-
                     b.Property<DateTime>("SubmitScoreTime")
                         .HasColumnType("datetime2");
-
-                  /*  b.Property<int?>("TournamentSessionId1")
-                        .HasColumnType("int");*/
 
                     b.Property<int>("TournamentTypeId")
                         .HasColumnType("int");
 
                     b.HasKey("PlayerId", "TournamentSessionId");
 
-                    b.HasIndex("SessionId");
-
                     b.HasIndex("TournamentSessionId");
-
-                    //b.HasIndex("TournamentSessionId1");
 
                     b.HasIndex("TournamentTypeId");
 
@@ -473,27 +463,17 @@ namespace DAL.Migrations
 
             modelBuilder.Entity("DataObjects.PlayerTournamentSession", b =>
                 {
-                    b.HasOne("DataObjects.Player", null)
+                    b.HasOne("DataObjects.Player", "Player")
                         .WithMany("PlayerTournamentSessions")
                         .HasForeignKey("PlayerId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("DataObjects.SessionData", "SessionData")
-                        .WithMany()
-                        .HasForeignKey("SessionId")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired();
-
                     b.HasOne("DataObjects.TournamentSession", "TournamentSession")
-                        .WithMany()
+                        .WithMany("PlayerTournamentSessions")
                         .HasForeignKey("TournamentSessionId")
                         .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
-
-                  /*  b.HasOne("DataObjects.TournamentSession", null)
-                        .WithMany("PlayerTournamentSessions")
-                        .HasForeignKey("TournamentSessionId1");*/
 
                     b.HasOne("DataObjects.TournamentType", "TournamentType")
                         .WithMany()
@@ -501,7 +481,7 @@ namespace DAL.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("SessionData");
+                    b.Navigation("Player");
 
                     b.Navigation("TournamentSession");
 

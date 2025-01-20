@@ -172,7 +172,7 @@ namespace Services
                 return tournament?.Players.FirstOrDefault(p => p.PlayerId == pt.PlayerId);
             }).ToList();
 
-            var individualPlayerTournament = _suikaDbService.LeiaContext.PlayerTournamentSession.FirstOrDefault(pt => pt.TournamentSessionId == tournament.TournamentSessionId && pt.PlayerId == player.PlayerId);
+            var individualPlayerTournament = _suikaDbService.LeiaContext.PlayerTournamentSession.FirstOrDefault(pt => pt.TournamentSession.TournamentSessionId == tournament.TournamentSessionId && pt.PlayerId == player.PlayerId);
             if (individualPlayerTournament == null)
             {
                 await _suikaDbService.Log($"In PostTournamentService.GrantTournamentPrizes, the PlayerTournamentSession for: Player - {player?.PlayerId}, Tournament - {tournament?.TournamentSessionId}, is null", player.PlayerId);
@@ -227,7 +227,7 @@ namespace Services
             }
 
             // get the PlayerTournamentSession for the player and tournament form the DB
-            var dbPlayerTournament = await _suikaDbService.LeiaContext.PlayerTournamentSession.FirstOrDefaultAsync(pt => pt.TournamentSessionId == tournament.TournamentSessionId && pt.PlayerId == player.PlayerId);
+            var dbPlayerTournament = await _suikaDbService.LeiaContext.PlayerTournamentSession.FirstOrDefaultAsync(pt => pt.TournamentSession.TournamentSessionId == tournament.TournamentSessionId && pt.PlayerId == player.PlayerId);
 
             if (dbPlayerTournament != null) // if we find it, update that the player has claimed the prizes
             {
@@ -241,7 +241,7 @@ namespace Services
 
                     var saved = await _suikaDbService?.LeiaContext?.SaveChangesAsync();
 
-                    if (saved > 0) Trace.WriteLine($"In PostTournamentService.MarkTournamentAsClaimed, updated PlayerTournamentSession: Player - {savedPlayerTournament?.Entity?.PlayerId}, Tournament - {savedPlayerTournament?.Entity?.TournamentSessionId}, DidClaim - {savedPlayerTournament?.Entity?.DidClaim}");
+                    if (saved > 0) Trace.WriteLine($"In PostTournamentService.MarkTournamentAsClaimed, updated PlayerTournamentSession: Player - {savedPlayerTournament?.Entity?.PlayerId}, Tournament - {savedPlayerTournament?.Entity?.TournamentSession.TournamentSessionId}, DidClaim - {savedPlayerTournament?.Entity?.DidClaim}");
 
                     return savedPlayerTournament?.Entity?.DidClaim;
                 }

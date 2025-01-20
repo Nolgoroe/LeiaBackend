@@ -53,7 +53,7 @@ namespace Services
         public Task Log(string message);
 
         public Task Log(string message, Guid playerId);
-        
+
         public Task Log(Exception ex);
         public Task Log(Exception ex, Guid playerId);
 
@@ -125,7 +125,7 @@ namespace Services
         }
 
         public LeiaContext LeiaContext { get; set; }
-      
+
         public async Task<Player> AddNewPlayer(Player player)
         {
             if (player != null)
@@ -229,15 +229,15 @@ namespace Services
         public async Task<IEnumerable<MatchQueueEntry>> GetPlayersWaitingForMatch(int maxPlayers)
         {
             return await (from player in _leiaContext.Players
-                   join activeTournament in _leiaContext.PlayerActiveTournaments
-                   on player.PlayerId equals activeTournament.PlayerId
-                   where activeTournament.TournamentId == PlayerActiveTournament.MATCH_MAKING_TOURNAMENT_ID
-                   orderby activeTournament.JoinTournamentTime
-                   select new MatchQueueEntry
-                   {
-                       Player = player,
-                       QueueEntry = activeTournament,
-                   })
+                          join activeTournament in _leiaContext.PlayerActiveTournaments
+                          on player.PlayerId equals activeTournament.PlayerId
+                          where activeTournament.TournamentId == PlayerActiveTournament.MATCH_MAKING_TOURNAMENT_ID
+                          orderby activeTournament.JoinTournamentTime
+                          select new MatchQueueEntry
+                          {
+                              Player = player,
+                              QueueEntry = activeTournament,
+                          })
                    .Take(maxPlayers)
                    .ToListAsync();
         }
@@ -251,14 +251,14 @@ namespace Services
             }
             if (tournamentType.EntryFee > playerBalance)
             {
-                    throw new Exception($"Player has not enough balance for tournament type {tournamentTypeId}, need {tournamentType.EntryFee}, has {playerBalance}");
+                throw new Exception($"Player has not enough balance for tournament type {tournamentTypeId}, need {tournamentType.EntryFee}, has {playerBalance}");
             }
             return await _leiaContext.Tournaments
                 .Where(
                     t => Math.Abs(t.Rating - playerRating) < maxRatingDrift &&         // Rating is in range
-                   // t.TournamentData.TournamentTypeId == tournamentTypeId &&
+                                                                                       // t.TournamentData.TournamentTypeId == tournamentTypeId &&
                     t.IsOpen &&                                                        // Tournament is open
-                   // t.TournamentData.EntryFeeCurrencyId == currencyId &&               // The currency Id is matching
+                                                                                       // t.TournamentData.EntryFeeCurrencyId == currencyId &&               // The currency Id is matching
                     t.Players.Count < tournamentType.NumberOfPlayers &&
                     !t.Players.Select(p => p.PlayerId).Contains(playerId)
                     ) // Tournament is not full
@@ -313,7 +313,7 @@ namespace Services
                     }
                     catch (Exception ex)
                     {
-                        await Log(ex,playerId.Value);
+                        await Log(ex, playerId.Value);
                         Trace.WriteLine(ex.Message + "\n" + ex.InnerException?.Message);
                         throw;
                     }
@@ -393,7 +393,7 @@ namespace Services
                 await Log(message, playerId);
                 return true;
             }
-            catch (DbUpdateException ex) 
+            catch (DbUpdateException ex)
             {
                 var message = $"Could not mark player as matchmaking, player {playerId} is either already matchmaking or in a tournament";
                 await Log(message, playerId);
@@ -481,19 +481,25 @@ namespace Services
 
         public async Task<List<PlayerTournamentSession>?> GetPlayerTournaments(Guid playerId)
         {
-            var tournaments = _leiaContext.PlayerTournamentSession.Where(s => s.PlayerId == playerId)
-                .Include(s => s.TournamentType).ThenInclude(t => t.Currencies)
-                .Include(s => s.TournamentType).ThenInclude(t => t.Reward)
-                .Include(s => s.TournamentSession).ThenInclude(s => s.Players)
+            var tournaments = _leiaContext.PlayerTournamentSession
+                .Include(s => s.TournamentType)
+                    .ThenInclude(t => t.Currencies)
+                .Include(s => s.TournamentType)
+                    .ThenInclude(t => t.Reward)
+                .Include(s => s.TournamentSession)
+                    .ThenInclude(s => s.Players)
+                .Where(s => s.PlayerId == playerId)
+                .OrderByDescending(tp => tp.JoinTime)
                 .Take(100)
-                .ToList();
+               .ToList();
+
             return tournaments;
         }
 
-        public async  Task<League?> GetLeagueById(int leagueId)
+        public async Task<League?> GetLeagueById(int leagueId)
         {
             var league = await _leiaContext.League.Include(l => l.Players)
-                .FirstOrDefaultAsync( l => l.LeagueId == leagueId);
+                .FirstOrDefaultAsync(l => l.LeagueId == leagueId);
             return league;
         }
     }

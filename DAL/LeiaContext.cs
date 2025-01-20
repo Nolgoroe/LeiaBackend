@@ -23,7 +23,7 @@ namespace DAL
         public DbSet<BackendLog> BackendLogs { get; set; }
         public DbSet<League> League { get; set; }
 
-        public LeiaContext(DbContextOptions<LeiaContext> options) : base(options) {}
+        public LeiaContext(DbContextOptions<LeiaContext> options) : base(options) { }
         public LeiaContext(/* string? connectionString*/)
         {
             //_connectionString = connectionString;
@@ -55,14 +55,31 @@ namespace DAL
             modelBuilder.Entity<Player>() // this is needed to configure a MtM connection type with a payload (like we made in the PlayerTournamentSession class. With out this we get an error)
                 .HasMany(p => p.TournamentSessions)
                 .WithMany(t => t.Players)
-                .UsingEntity<PlayerTournamentSession>(e =>
-                    e.Property(pt => pt.PlayerScore));
 
-            modelBuilder.Entity<Player>()
-              .HasMany(p => p.TournamentSessions)
-              .WithMany(t => t.Players)
-              .UsingEntity<PlayerTournamentSession>(e =>
-                  e.Property(pt => pt.DidClaim));
+                .UsingEntity<PlayerTournamentSession>
+                (
+                    configureJoinEntityType: configurePlayerTournamentSession =>
+                    {
+                        configurePlayerTournamentSession.Property(pt => pt.PlayerScore);
+                        configurePlayerTournamentSession.Property(pt => pt.DidClaim);
+                        configurePlayerTournamentSession.Property(pt => pt.Position);
+                        configurePlayerTournamentSession.Property(pt => pt.JoinTime);
+                        configurePlayerTournamentSession.Property(pt => pt.SubmitScoreTime);
+                    },
+                    configureRight: configureTournaments => configureTournaments
+                        .HasOne(pt => pt.TournamentSession)
+                        .WithMany(t => t.PlayerTournamentSessions)
+                        .HasForeignKey(pt => pt.TournamentSessionId)
+                        .OnDelete(DeleteBehavior.NoAction),
+
+                    configureLeft: configurePlayers => configurePlayers
+                        .HasOne(pt => pt.Player)
+                        .WithMany(p => p.PlayerTournamentSessions)
+                        .HasForeignKey(pt => pt.PlayerId)
+
+                );
+
+                    
 
             #region Configure PlayerActiveTournament and BackendLog
 
@@ -100,12 +117,6 @@ namespace DAL
                 .WithMany(c => c.PlayerCurrencies)
                 .HasForeignKey(pc => pc.CurrenciesId);
             #endregion
-            modelBuilder.Entity<PlayerTournamentSession>()
-                .HasOne (pc => pc.TournamentSession)
-                .WithMany()
-                .HasForeignKey(pc => pc.TournamentSessionId)
-                .OnDelete(DeleteBehavior.NoAction);
-
         }
     }
 }

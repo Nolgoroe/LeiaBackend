@@ -21,6 +21,7 @@ namespace CustomMatching.Controllers
         {
             public int? ActiveTournamentSeed { get; set; }
             public int? ActiveTournamentId { get; set; }
+            public TournamentType? ActiveTournamentType { get; set; }
             public DateTime? ActiveTournamentEntryTime { get; set; }
 
             public LoginResponse(Player player)
@@ -56,7 +57,7 @@ namespace CustomMatching.Controllers
             catch (Exception ex) 
             {
                 await _suikaDbService.Log(ex, playerId);
-                return StatusCode(500);
+                return StatusCode(500, ex.Message + "\n" + ex.InnerException?.Message);
             }
         }
 
@@ -86,11 +87,15 @@ namespace CustomMatching.Controllers
                 {
                     activeMatchMakeRecord = null;
                 }
+
+                var activeTournamentType = await _suikaDbService.LeiaContext.TournamentTypes.FindAsync(activeMatchMakeRecord?.TournamentTypeId);
+
                 var loginResponse = new LoginResponse(player)
                 {
                     ActiveTournamentEntryTime = activeMatchMakeRecord?.JoinTournamentTime,
                     ActiveTournamentId = activeMatchMakeRecord?.TournamentId,
-                    ActiveTournamentSeed = activeTournamentSeed
+                    ActiveTournamentSeed = activeTournamentSeed,
+                    ActiveTournamentType = activeTournamentType
                 };
                 await _suikaDbService.Log($"Player login {player.Name} id={player.PlayerId}, activeTournament?={activeMatchMakeRecord?.TournamentId}", player.PlayerId);
                 return Ok(loginResponse);
@@ -133,7 +138,7 @@ namespace CustomMatching.Controllers
                 var newPlayer = await _suikaDbService.AddNewPlayer(player);
                 return Ok(newPlayer);
             }
-            else return BadRequest("A league with this id already exists");
+            else return BadRequest("A player with this id already exists");
         }
 
         // PUT /Players/UpdatePlayerTournamentResult/1/2/3
@@ -147,7 +152,7 @@ namespace CustomMatching.Controllers
                 {
                     var message = $"UpdatePlayerTournamentResult: Player {playerId} was not active in tournament {tournamentId}";
                     await _suikaDbService.Log(message, playerId);
-                    return BadRequest("Could not submit result, league not in active tournament");
+                    return BadRequest("Could not submit result, player not in active tournament");
                 }
                 var tournament = _suikaDbService?.LeiaContext?.Tournaments.FirstOrDefault(t => t.TournamentSessionId == tournamentId && t.IsOpen == true);
                 if (tournament == null)
@@ -156,7 +161,7 @@ namespace CustomMatching.Controllers
                     return BadRequest("Could not submit result, tournament is closed");
                 }
 
-                var playerTournament = _suikaDbService?.LeiaContext?.PlayerTournamentSession.FirstOrDefault(pt => pt.PlayerId == playerId && pt.TournamentSessionId == tournamentId);
+                var playerTournament = _suikaDbService?.LeiaContext?.PlayerTournamentSession.Include(pt => pt.TournamentType).FirstOrDefault(pt => pt.PlayerId == playerId && pt.TournamentSession.TournamentSessionId == tournamentId);
 
                 if (playerTournament != null)
                 {
@@ -169,7 +174,7 @@ namespace CustomMatching.Controllers
 
                     if (saved > 0)
                     {
-                        await _tournamentService.CheckTournamentStatus(_suikaDbService, updatedPlayerTournament.Entity.TournamentSessionId, playerTournament);
+                        await _tournamentService.CheckTournamentStatus(_suikaDbService, updatedPlayerTournament.Entity.TournamentSession.TournamentSessionId, playerTournament);
                     }
                     return Ok(updatedPlayerTournament.Entity);
                 }
@@ -192,11 +197,11 @@ namespace CustomMatching.Controllers
                 .Include(p => p.PlayerCurrencies)
                 .FirstOrDefault();
 
-            var playerTournamentSession = _suikaDbService.LeiaContext.PlayerTournamentSession.FirstOrDefault(p => p.PlayerId == playerId && p.TournamentSessionId == tournamentId);
+            var playerTournamentSession = _suikaDbService.LeiaContext.PlayerTournamentSession.FirstOrDefault(p => p.PlayerId == playerId && p.TournamentSession.TournamentSessionId == tournamentId);
 
             if (playerTournamentSession == null)
             {
-                return NotFound($"Player {playerId} was not in tournmanet {tournamentId}");
+                return NotFound($"Player {playerId} was not in tournament {tournamentId}");
             }
 
             var tournament = _suikaDbService?.LeiaContext?.Tournaments?.Where(t => t.TournamentSessionId == tournamentId)               
@@ -206,7 +211,7 @@ namespace CustomMatching.Controllers
                 .FirstOrDefault();
 
             if (player == null || tournament == null) return NotFound("Player or tournament were not found");
-            if (tournament.PlayerTournamentSessions.FirstOrDefault(pt => pt.PlayerId == playerId && pt.TournamentSessionId == tournamentId)?.DidClaim != null) return BadRequest("Player already claimed this prize");
+            if (tournament.PlayerTournamentSessions.FirstOrDefault(pt => pt.PlayerId == playerId && pt.TournamentSession.TournamentSessionId == tournamentId)?.DidClaim != null) return BadRequest("Player already claimed this prize");
 
            var (amountClaimed, wasTournamentClaimed, PTclaimed ) =  await _postTournamentService.GrantTournamentPrizes(tournament, player);
 

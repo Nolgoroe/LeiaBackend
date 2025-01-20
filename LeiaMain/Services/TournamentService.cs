@@ -152,7 +152,7 @@ namespace Services
             {
                 var tournament = await SaveNewTournament(dbService, matchedRequest.MatchFee, matchedRequest?.MatchFeeCurrency?.CurrencyId, matchedRequest?.TournamentType?.TournamentTypeId, matchedRequest?.Player?.PlayerId);
 
-                Trace.WriteLine($"Player: {matchedRequest?.Player?.PlayerId}, rating: {matchedRequest?.Player?.Rating}\n was added to tournament: {tournament.TournamentSessionId}.");
+                await dbService.Log($"Player: {matchedRequest?.Player?.PlayerId}, rating: {matchedRequest?.Player?.Rating}\n was added to tournament: {tournament.TournamentSessionId}.");
 
                 return tournament;
             }
@@ -166,7 +166,7 @@ namespace Services
         {
             if (matchingTournament?.Players?.Count >= request?.TournamentType?.NumberOfPlayers /*_maxNumPlayers*/) // if tournament has room in it, add the current request player
             {
-                dbService.Log($"AddToExistingTournament: Error: Tournament is full: {matchingTournament.TournamentSessionId}", request.Player.PlayerId);
+               await dbService.Log($"AddToExistingTournament: Error: Tournament is full: {matchingTournament.TournamentSessionId}", request.Player.PlayerId);
                 return null;
             }
             var dbTournament = dbService.LeiaContext.Tournaments.Find(matchingTournament?.TournamentSessionId);
@@ -207,13 +207,14 @@ namespace Services
                 var savedTournament = dbService?.LeiaContext?.Tournaments?.Update(dbTournament);
                 
 
-                Trace.WriteLine($"AddToExistingTournament: Player: {request?.Player?.Rating}, rating: {request?.Player?.Rating}, \n were added to tournament: {savedTournament?.Entity?.TournamentSessionId}.");
+               await dbService.Log($"AddToExistingTournament: Player: {request?.Player?.Rating}, rating: {request?.Player?.Rating}, \n were added to tournament: {savedTournament?.Entity?.TournamentSessionId}.", dbPlayer.PlayerId);
        
                 dbTournament?.Players.Add(request.Player);
                 dbTournament?.PlayerTournamentSessions?.Add(new PlayerTournamentSession
                 {
                     PlayerId = request.Player.PlayerId,
-                    TournamentSessionId = matchingTournament.TournamentSessionId,
+                    //TournamentSessionId = matchingTournament.TournamentSessionId,
+                    TournamentSession = matchingTournament,
                     JoinTime = DateTime.UtcNow,
                     DidClaim = false,
                     Position = 0,
@@ -223,7 +224,7 @@ namespace Services
                 );
                 // deprecate the old seed sending 
                 // SendPlayerAndSeed(savedTournament?.Entity?.TournamentSeed, savedTournament?.Entity?.TournamentSessionId, request?.Player?.PlayerId);
-                dbService.LeiaContext.Update(dbTournament);
+                 dbService.LeiaContext.Update(dbTournament);
                 var message = $"AddToExistingTournament: Player {dbPlayer.PlayerId} joined tournament {dbTournament.TournamentSessionId}";
                 await dbService.Log(message, dbPlayer.PlayerId);
                 var saved = await dbService?.LeiaContext?.SaveChangesAsync();
@@ -368,7 +369,7 @@ namespace Services
                     .FirstOrDefault(t => t.TournamentSessionId == tournamentId);
                 if (tournament != null)
                 {
-                    var scores = context.PlayerTournamentSession.Where(pt => pt.TournamentSessionId == tournamentId).Select(pt => pt.PlayerScore).ToList();
+                    var scores = context.PlayerTournamentSession.Where(pt => pt.TournamentSession.TournamentSessionId == tournamentId).Select(pt => pt.PlayerScore).ToList();
                     if (scores.All(s => s != null) && scores.Count >= playerTournamentSession.TournamentType.NumberOfPlayers) await _postTournamentService.CloseTournament(tournament); // close tournament
 
                 }
@@ -402,10 +403,11 @@ namespace Services
                 }
 
                 var playerTournamentSession = await suikaDbService.LeiaContext.PlayerTournamentSession
-                    .FirstOrDefaultAsync(s => s.PlayerId == playerId && s.TournamentSessionId == tournamentId);
+                    .Include(pt => pt.TournamentType)
+                    .FirstOrDefaultAsync(s => s.PlayerId == playerId && s.TournamentSession.TournamentSessionId == tournamentId);
                 if (playerTournamentSession == null)
                 {
-                    var ex = new Exception($"ChargePlayer: Could not load player session {playerId} for tournmanet {tournamentId}");
+                    var ex = new Exception($"ChargePlayer: Could not load player session {playerId} for tournament {tournamentId}");
                     await suikaDbService.Log(ex, playerId);
                     throw ex;
                 }

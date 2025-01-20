@@ -228,8 +228,8 @@ namespace DAL.Migrations
                     b.Property<DateTime>("SubmitScoreTime")
                         .HasColumnType("datetime2");
 
-                    b.Property<int?>("TournamentSessionId1")
-                        .HasColumnType("int");
+               /*     b.Property<int?>("TournamentSessionId1")
+                        .HasColumnType("int");*/
 
                     b.Property<int>("TournamentTypeId")
                         .HasColumnType("int");
@@ -238,7 +238,7 @@ namespace DAL.Migrations
 
                     b.HasIndex("TournamentSessionId");
 
-                    b.HasIndex("TournamentSessionId1");
+                    //b.HasIndex("TournamentSessionId1");
 
                     b.HasIndex("TournamentTypeId");
 
@@ -475,14 +475,10 @@ namespace DAL.Migrations
                         .IsRequired();
 
                     b.HasOne("DataObjects.TournamentSession", "TournamentSession")
-                        .WithMany()
+                        .WithMany("PlayerTournamentSessions")
                         .HasForeignKey("TournamentSessionId")
                         .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
-
-                    b.HasOne("DataObjects.TournamentSession", null)
-                        .WithMany("PlayerTournamentSessions")
-                        .HasForeignKey("TournamentSessionId1");
 
                     b.HasOne("DataObjects.TournamentType", "TournamentType")
                         .WithMany()

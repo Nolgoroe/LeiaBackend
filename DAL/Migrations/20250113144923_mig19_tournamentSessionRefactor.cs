@@ -51,7 +51,7 @@ namespace DAL.Migrations
                 table: "Tournaments",
                 newName: "IX_Tournaments_SessionDataSessionId");
 
-            migrationBuilder.RenameColumn(
+           /* migrationBuilder.RenameColumn(
                 name: "TournamentDataId",
                 table: "PlayerTournamentSession",
                 newName: "TournamentSessionId1");
@@ -59,7 +59,7 @@ namespace DAL.Migrations
             migrationBuilder.RenameIndex(
                 name: "IX_PlayerTournamentSession_TournamentDataId",
                 table: "PlayerTournamentSession",
-                newName: "IX_PlayerTournamentSession_TournamentSessionId1");
+                newName: "IX_PlayerTournamentSession_TournamentSessionId1");*/
 
             migrationBuilder.AddColumn<DateTime>(
                 name: "Endtime",
@@ -152,12 +152,13 @@ namespace DAL.Migrations
                 principalTable: "Tournaments",
                 principalColumn: "TournamentSessionId");
 
-            migrationBuilder.AddForeignKey(
+          /* migrationBuilder.AddForeignKey(
                 name: "FK_PlayerTournamentSession_Tournaments_TournamentSessionId1",
                 table: "PlayerTournamentSession",
                 column: "TournamentSessionId1",
                 principalTable: "Tournaments",
                 principalColumn: "TournamentSessionId");
+          */
 
             migrationBuilder.AddForeignKey(
                 name: "FK_Tournaments_Sessions_SessionDataSessionId",
@@ -182,9 +183,9 @@ namespace DAL.Migrations
                 name: "FK_PlayerTournamentSession_Tournaments_TournamentSessionId",
                 table: "PlayerTournamentSession");
 
-            migrationBuilder.DropForeignKey(
+           /* migrationBuilder.DropForeignKey(
                 name: "FK_PlayerTournamentSession_Tournaments_TournamentSessionId1",
-                table: "PlayerTournamentSession");
+                table: "PlayerTournamentSession");*/
 
             migrationBuilder.DropForeignKey(
                 name: "FK_Tournaments_Sessions_SessionDataSessionId",
@@ -236,7 +237,7 @@ namespace DAL.Migrations
                 table: "Tournaments",
                 newName: "IX_Tournaments_ParentTournamentId");
 
-            migrationBuilder.RenameColumn(
+            /*migrationBuilder.RenameColumn(
                 name: "TournamentSessionId1",
                 table: "PlayerTournamentSession",
                 newName: "TournamentDataId");
@@ -244,7 +245,7 @@ namespace DAL.Migrations
             migrationBuilder.RenameIndex(
                 name: "IX_PlayerTournamentSession_TournamentSessionId1",
                 table: "PlayerTournamentSession",
-                newName: "IX_PlayerTournamentSession_TournamentDataId");
+                newName: "IX_PlayerTournamentSession_TournamentDataId");*/
 
             migrationBuilder.AddColumn<int>(
                 name: "TournamentDataId",
