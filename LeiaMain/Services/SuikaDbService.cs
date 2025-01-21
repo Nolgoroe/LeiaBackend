@@ -1,5 +1,6 @@
 ﻿using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Linq.Expressions;
 using System.Numerics;
 
 using DAL;
@@ -45,7 +46,7 @@ namespace Services
         public Task<Player>? UpdatePlayer(Player player);
         public Task<Player?> GetPlayerById(Guid playerId);
         public Task<Player?> GetPlayerByName(string playerName);
-        public Task<List<PlayerTournamentSession>?> GetPlayerTournaments(Guid playerId);
+        public Task<List<dynamic?>?> GetPlayerTournaments(Guid playerId);
         public Task<double?> GetPlayerBalance(Guid? playerId, int? currencyId);
         public Task<List<PlayerCurrencies?>?> GetAllPlayerBalances(Guid playerId);
         public Task<PlayerCurrencies?> UpdatePlayerBalance(Guid? playerId, int? currencyId, double? amount);
@@ -479,8 +480,19 @@ namespace Services
             }
         }
 
-        public async Task<List<PlayerTournamentSession>?> GetPlayerTournaments(Guid playerId)
+        public async Task<List<dynamic?>?> GetPlayerTournaments(Guid playerId)
         {
+            // first type here (PlayerTournamentSession) is the parameter's type, the second type (dynamic) is the returned type of the Func
+            Func<PlayerTournamentSession, dynamic?> getDetailsDelegate =  playerTournamentSession =>
+            {
+                var othersPlayerTournamentSessions = _leiaContext.PlayerTournamentSession.Where(
+                    t => t.TournamentSessionId == playerTournamentSession.TournamentSessionId 
+                    && t.PlayerId != playerTournamentSession.PlayerId
+                    ).ToList();
+
+                return new { playerTournamentSession, othersPlayerTournamentSessions };
+            };
+
             var tournaments = _leiaContext.PlayerTournamentSession
                 .Include(s => s.TournamentType)
                     .ThenInclude(t => t.Currencies)
@@ -489,14 +501,18 @@ namespace Services
                 .Include(s => s.TournamentSession)
                     .ThenInclude(s => s.Players)
                 .Include(s => s.TournamentSession)
-                    .ThenInclude(t => t.PlayerTournamentSessions)
+                //   .ThenInclude(t => t.PlayerTournamentSessions)
                 .Where(s => s.PlayerId == playerId)
                 .OrderByDescending(tp => tp.JoinTime)
                 .Take(100)
+                //.Select( getDetailsDelegate)
                .ToList();
+            var tournamentsWithOtherPlayersTournaments = tournaments.Select(getDetailsDelegate).ToList();
 
-            return tournaments;
+            return tournamentsWithOtherPlayersTournaments;
         }
+
+     
 
         public async Task<League?> GetLeagueById(int leagueId)
         {
