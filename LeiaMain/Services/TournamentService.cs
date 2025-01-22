@@ -245,6 +245,10 @@ namespace Services
         public async Task<TournamentSession?> SaveNewTournament(ISuikaDbService dbService, double matchFee, int? currencyId, int? tournamentTypeId, params Guid?[]? playerIds)
         {
 
+            if (tournamentTypeId == null)
+            {
+                throw new Exception("SaveNewTournamentReceived null `tournamentTypeId`");
+            }
             Debug.WriteLine($"=====> Inside SaveNewTournament, with players: {string.Join(", ", playerIds)}");
             var currency = dbService.LeiaContext.Currencies.Find(currencyId);
 
@@ -276,8 +280,10 @@ namespace Services
                 return null;
             }
 
-            
 
+            dbService.LeiaContext.Entry(currency).State = EntityState.Detached;
+            
+            // Create the tournament
             var tournament = new TournamentSession
             {
                 TournamentSeed = TournamentSeedRandom.Next(),
@@ -285,11 +291,24 @@ namespace Services
                 StartTime = DateTime.UtcNow,
                 Rating = dbPlayers[0].Rating,
             };
-            tournament.Players?.AddRange(dbPlayers);
-            dbService.LeiaContext.Entry(currency).State = EntityState.Detached;
-
-  
             var savedTournament = dbService?.LeiaContext?.Tournaments?.Add(tournament);
+            
+            // Register players to the tournament
+            foreach (var player in dbPlayers) {
+                var playerTournamentSession = new PlayerTournamentSession
+                {
+                    TournamentSession = tournament,
+                    PlayerId = player.PlayerId,
+                    DidClaim = false,
+                    JoinTime = DateTime.UtcNow,
+                    PlayerScore = null,
+                    Position = 0,
+                    TournamentTypeId = tournamentTypeId.Value,
+                };
+                var savedPlayerTSession = dbService.LeiaContext.PlayerTournamentSession.Add(playerTournamentSession);
+            }
+            
+            
             await dbService.Log("SaveNewTournament: Going to create new tournament", dbPlayers[0].PlayerId);
             var saved = await dbService?.LeiaContext?.SaveChangesAsync();
 
