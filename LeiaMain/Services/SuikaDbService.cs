@@ -487,7 +487,7 @@ namespace Services
             {
                 var othersPlayerTournamentSessions = _leiaContext.PlayerTournamentSession.Where(
                     t => t.TournamentSessionId == playerTournamentSession.TournamentSessionId 
-                    && t.PlayerId != playerTournamentSession.PlayerId
+                    //&& t.PlayerId != playerTournamentSession.PlayerId
                     ).ToList();
 
                 return new { playerTournamentSession, othersPlayerTournamentSessions };
