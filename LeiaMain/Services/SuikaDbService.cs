@@ -490,7 +490,7 @@ namespace Services
                     //&& t.PlayerId != playerTournamentSession.PlayerId
                     ).ToList();
 
-                return new { playerTournamentSession, othersPlayerTournamentSessions };
+                return new { myTournamentSession = playerTournamentSession, allPlayersInTournament = othersPlayerTournamentSessions };
             };
 
             var tournaments = _leiaContext.PlayerTournamentSession
