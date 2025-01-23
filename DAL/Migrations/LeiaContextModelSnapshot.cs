@@ -59,6 +59,9 @@ namespace DAL.Migrations
                     b.Property<string>("AppVersion")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("BaseURL")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("ConfigName")
                         .HasColumnType("nvarchar(max)");
 

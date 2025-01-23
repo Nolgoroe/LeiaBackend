@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DAL.Migrations
 {
     [DbContext(typeof(LeiaContext))]
-    [Migration("20250123114331_mig23_AddConfigurationData")]
+    [Migration("20250123124319_mig23_AddConfigurationData")]
     partial class mig23_AddConfigurationData
     {
         /// <inheritdoc />
@@ -60,6 +60,9 @@ namespace DAL.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ConfigId"));
 
                     b.Property<string>("AppVersion")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("BaseURL")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("ConfigName")

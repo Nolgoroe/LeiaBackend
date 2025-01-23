@@ -20,6 +20,7 @@ namespace DataObjects
         public int ConfigId { get; set; }
         public string? ConfigName { get; set; }
         public string? AppVersion { get; set; }
+        public string? BaseURL { get; set; }
         
     }
 }
