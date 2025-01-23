@@ -22,6 +22,7 @@ namespace DAL
         public DbSet<PlayerActiveTournament> PlayerActiveTournaments { get; set; }
         public DbSet<BackendLog> BackendLogs { get; set; }
         public DbSet<League> League { get; set; }
+        public DbSet<ConfigurationData> ConfigurationsData { get; set; }
 
         public LeiaContext(DbContextOptions<LeiaContext> options) : base(options) { }
         public LeiaContext(/* string? connectionString*/)
