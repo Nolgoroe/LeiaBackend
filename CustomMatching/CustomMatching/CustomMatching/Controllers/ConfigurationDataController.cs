@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 using Services;
 
@@ -17,11 +18,11 @@ namespace CustomMatching.Controllers
             _suikaDbService = suikaDbService;
         }
 
-        // GET /GetConfigurationById/1
-        [HttpGet, Route("GetConfigurationById/{Id}")]
-        public async Task<IActionResult>  GetConfigurationById( int Id)
+        // GET /GetConfigurationByBuildNumber/1
+        [HttpGet, Route("GetConfigurationByBuildNumber/{buildNumber}")]
+        public async Task<IActionResult>  GetConfigurationByBuildNumber( string buildNumber)
         {
-            var configurations = await _suikaDbService.LeiaContext.ConfigurationsData.FindAsync(Id);
+            var configurations = await _suikaDbService.LeiaContext.ConfigurationsData.FirstOrDefaultAsync( c => c.AppVersion == buildNumber);
             if (configurations == null)return NotFound("Configuration not found");
             
             return Ok(configurations);
