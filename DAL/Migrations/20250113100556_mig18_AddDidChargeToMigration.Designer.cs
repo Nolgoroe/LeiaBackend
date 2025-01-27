@@ -218,13 +218,13 @@ namespace DAL.Migrations
 
                     b.Property<int?>("PlayerScore")
                         .HasColumnType("int");
-
+/*
                     b.Property<int?>("TournamentDataId")
-                        .HasColumnType("int");
+                        .HasColumnType("int");*/
 
                     b.HasKey("PlayerId", "TournamentSessionId");
 
-                    b.HasIndex("TournamentDataId");
+                    //b.HasIndex("TournamentDataId");
 
                     b.HasIndex("TournamentSessionId");
 
