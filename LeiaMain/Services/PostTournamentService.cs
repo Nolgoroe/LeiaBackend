@@ -241,7 +241,7 @@ namespace Services
 
                     var saved = await _suikaDbService?.LeiaContext?.SaveChangesAsync();
 
-                    if (saved > 0) Trace.WriteLine($"In PostTournamentService.MarkTournamentAsClaimed, updated PlayerTournamentSession: Player - {savedPlayerTournament?.Entity?.PlayerId}, Tournament - {savedPlayerTournament?.Entity?.TournamentSession.TournamentSessionId}, DidClaim - {savedPlayerTournament?.Entity?.DidClaim}");
+                    if (saved > 0) Trace.WriteLine($"In PostTournamentService.MarkTournamentAsClaimed, updated PlayerTournamentSession: Player - {savedPlayerTournament?.Entity?.PlayerId}, Tournament - {savedPlayerTournament?.Entity?.TournamentSession?.TournamentSessionId}, DidClaim - {savedPlayerTournament?.Entity?.DidClaim}");
 
                     return savedPlayerTournament?.Entity?.DidClaim;
                 }
