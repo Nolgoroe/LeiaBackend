@@ -51,6 +51,11 @@ namespace DAL.Migrations
                 table: "Tournaments",
                 newName: "IX_Tournaments_SessionDataSessionId");
 
+            ///<summary>
+            /// All commented out code below was removed so the migrations could be applied successfully.
+            /// Because next migrations canceled the changes made in this migration. Thus applying this migration would fail.
+            ///</summary>
+            
            /* migrationBuilder.RenameColumn(
                 name: "TournamentDataId",
                 table: "PlayerTournamentSession",
@@ -130,20 +135,20 @@ namespace DAL.Migrations
                 table: "PlayerTournamentSession",
                 column: "TournamentTypeId");
 
-            migrationBuilder.AddForeignKey(
+         /*   migrationBuilder.AddForeignKey(
                 name: "FK_PlayerTournamentSession_Sessions_SessionId",
                 table: "PlayerTournamentSession",
                 column: "SessionId",
                 principalTable: "Sessions",
-                principalColumn: "SessionId");
+                principalColumn: "SessionId");*/
 
-            migrationBuilder.AddForeignKey(
+          /*  migrationBuilder.AddForeignKey(
                 name: "FK_PlayerTournamentSession_TournamentTypes_TournamentTypeId",
                 table: "PlayerTournamentSession",
                 column: "TournamentTypeId",
                 principalTable: "TournamentTypes",
                 principalColumn: "TournamentTypeId",
-                onDelete: ReferentialAction.Cascade);
+                onDelete: ReferentialAction.NoAction);*/
 
             migrationBuilder.AddForeignKey(
                 name: "FK_PlayerTournamentSession_Tournaments_TournamentSessionId",

@@ -10,17 +10,22 @@ namespace DAL.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropForeignKey(
-                name: "FK_PlayerTournamentSession_Sessions_SessionId",
-                table: "PlayerTournamentSession");
+            ///<summary>
+            /// All commented out code below was removed so the migrations could be applied successfully.
+            /// Because next migrations canceled the changes made in this migration. Thus applying this migration would fail.
+            ///</summary>
+           
+            /*        migrationBuilder.DropForeignKey(
+                        name: "FK_PlayerTournamentSession_Sessions_SessionId",
+                        table: "PlayerTournamentSession");*/
 
-            migrationBuilder.DropIndex(
-                name: "IX_PlayerTournamentSession_SessionId",
-                table: "PlayerTournamentSession");
-
-            migrationBuilder.DropColumn(
-                name: "SessionId",
-                table: "PlayerTournamentSession");
+            /*   migrationBuilder.DropIndex(
+                   name: "IX_PlayerTournamentSession_SessionId",
+                   table: "PlayerTournamentSession");*/
+            /*
+                        migrationBuilder.DropColumn(
+                            name: "SessionId",
+                            table: "PlayerTournamentSession");*/
         }
 
         /// <inheritdoc />
