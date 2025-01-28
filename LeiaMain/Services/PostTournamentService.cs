@@ -118,20 +118,29 @@ namespace Services
             // Choose the highest ranking players from all other tournament types
             leaderboardEntries.AddRange(playerSessionsByTournamentType.Values.SelectMany(l => l).OrderByDescending(l => l.SubmitScoreTime).Take(additionalNeededEntryCount));
             leaderboardEntries.Sort();
+            leaderboardEntries.Reverse();
             return leaderboardEntries;
+        }
+
+
+        /// <summary>
+        /// Calculates the new ranks for players according to their tournament leaderboard
+        /// Uses the context to load data from the database
+        /// </summary>
+        public Dictionary<Guid, int> CalculatePlayersRatingFromTournament(LeiaContext context, TournamentSession tournament)
+        {
+            var allTournamentTypes = context.TournamentTypes.ToList();
+            return CalculatePlayersRatingFromTournament(tournament, allTournamentTypes);
         }
 
         /// <summary>
         /// Calculates the new ranks for players according to their tournament leaderboard
+        /// This function does not load data from the database - so it can be unit-tested
         /// </summary>
-        public Dictionary<Guid, int> CalculatePlayersRatingFromTournament(TournamentSession tournament)
+        public Dictionary<Guid, int> CalculatePlayersRatingFromTournament(TournamentSession tournament, IEnumerable<TournamentType> allTournamentTypes)
         {
             var result = new Dictionary<Guid, int>();
-            var context = _suikaDbService.LeiaContext;
-            // First we build the context
-            var playerEntries = new TournamentGlickoRatingCalculationEntry[tournament.Players.Count];
-
-            var allTournamentTypesById = context.TournamentTypes.ToList().ToDictionary(tt => tt.TournamentTypeId);
+            var allTournamentTypesById = allTournamentTypes.ToDictionary(tt => tt.TournamentTypeId);
             // Each session of a player has its own leaderboard according to the tournament type.
             // players in the same tournament type share the same leaderboard
             var leaderboardPerTournamentTypeId = new Dictionary<int, List<TournamentGlickoRatingCalculationEntry>>();
@@ -139,7 +148,7 @@ namespace Services
             var allPlayerSessionsSortedByScore = tournament.PlayerTournamentSessions.OrderByDescending(s => s.PlayerScore).ToList();
             // Cache players by GUID for quick access
             var allPlayerGuids = allPlayerSessionsSortedByScore.Select(s => s.PlayerId).ToHashSet();
-            var playerByGuid = context.Players.Where(p => allPlayerGuids.Contains(p.PlayerId)).ToDictionary(p => p.PlayerId);
+            var playerByGuid = tournament.Players.Where(p => allPlayerGuids.Contains(p.PlayerId)).ToDictionary(p => p.PlayerId);
             // Cache players as "Glicko players" for quick access
             var glickoPlayersByGuid = playerByGuid.Values.ToDictionary(p => p.PlayerId, p => ConvertPlayerToGlicko(p));
 
@@ -158,19 +167,30 @@ namespace Services
                             {
                                 score = s.PlayerScore.HasValue ? s.PlayerScore.Value : 0,
                                 player = playerByGuid[s.PlayerId],
-                                opponent = new GlickoOpponent(glickoPlayersByGuid[s.PlayerId], 0)
+                                opponent = new GlickoOpponent(glickoPlayersByGuid[s.PlayerId], s.PlayerScore.HasValue ? s.PlayerScore.Value : 0)
                             };
                         }).ToList();
                     leaderboardPerTournamentTypeId[playerSession.TournamentTypeId] = playerLeaderboard;
                 }
+                // Set up the player 'glicko result' which is either 0 or 1, where 0 is worse score than player, 1 is better score 
+                var isBetterThanCurrentPlayer = true;
+                foreach (var entry in playerLeaderboard)
+                {
+                    if (entry.player.PlayerId == playerSession.PlayerId)
+                    {
+                        isBetterThanCurrentPlayer = false;
+                    }
+                    entry.opponent.Result = isBetterThanCurrentPlayer ? 0 : 1;
+                }
                 // Take all opponents from the current leaderboard except the current player
                 var opponents = playerLeaderboard.Where(e => e.player.PlayerId != playerSession.PlayerId).Select(e => e.opponent).ToList();
+
                 // Take the current player's glicko-player
                 var glickoPlayer = glickoPlayersByGuid[playerSession.PlayerId];
                 // Calculate current player's new rank according to the suitable leaderboard of their tournament type
                 var glicko = GlickoCalculator.CalculateRanking(glickoPlayer, opponents);
                 // Add to results
-                result.Add(playerEntries[i].player.PlayerId, (int)Math.Round(glicko.Rating));
+                result.Add(playerSession.PlayerId, (int)Math.Round(glicko.Rating));
             }
             return result;
         }
@@ -184,7 +204,7 @@ namespace Services
             tournament.IsOpen = false;
             tournament.Endtime = DateTime.UtcNow;
             
-            var newPlayerRatings = CalculatePlayersRatingFromTournament(tournament);
+            var newPlayerRatings = CalculatePlayersRatingFromTournament(_suikaDbService.LeiaContext, tournament);
             try
             {
                 _suikaDbService.LeiaContext.Entry(tournament).State = EntityState.Modified;
