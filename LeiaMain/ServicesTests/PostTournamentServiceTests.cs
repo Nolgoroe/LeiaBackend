@@ -170,8 +170,7 @@ namespace ServiceTests
 
 
             var allSessions = new[] { player1Session, player2Session, player3Session, player4Session };
-            var tournamentService = new PostTournamentService();
-            var leaderboard = tournamentService.CalculateLeaderboardForPlayer(player1.PlayerId, allSessions, player1TournamentType, 1);
+            var leaderboard = PostTournamentService.CalculateLeaderboardForPlayer(player1.PlayerId, allSessions, player1TournamentType, 1);
             Assert.NotNull(leaderboard);
             Assert.Equal(4, leaderboard.Count);
             Assert.Equal(leaderboard[0].PlayerId, player3.PlayerId);
@@ -210,7 +209,7 @@ namespace ServiceTests
 
             var allSessions = new[] { player1Session, player2Session, player3Session, player4Session };
             var tournamentService = new PostTournamentService();
-            var leaderboardType2 = tournamentService.CalculateLeaderboardForPlayer(player1.PlayerId, allSessions, player1and2TournamentType, 1);
+            var leaderboardType2 = PostTournamentService.CalculateLeaderboardForPlayer(player1.PlayerId, allSessions, player1and2TournamentType, 1);
             Assert.NotNull(leaderboardType2);
             Assert.Equal(4, leaderboardType2.Count);
             Assert.Equal(leaderboardType2[0].PlayerId, player3.PlayerId);
@@ -222,7 +221,7 @@ namespace ServiceTests
             Assert.Equal(leaderboardType2[3].PlayerId, player4.PlayerId);
             Assert.Equal(leaderboardType2[3].PlayerScore, 50);
 
-            var leaderboardType1 = tournamentService.CalculateLeaderboardForPlayer(player3.PlayerId, allSessions, player3and4TournamentType, 1);
+            var leaderboardType1 = PostTournamentService.CalculateLeaderboardForPlayer(player3.PlayerId, allSessions, player3and4TournamentType, 1);
             Assert.NotNull(leaderboardType1);
             Assert.Equal(2, leaderboardType1.Count);
             Assert.Equal(leaderboardType1[0].PlayerId, player3.PlayerId);
