@@ -72,7 +72,7 @@ namespace Services
             return CalculateLeaderboardForPlayer(requestingPlayerGuid, allPlayerTournamentSessions, tournamentType, tournamentId);
         }
 
-        public List<PlayerTournamentSession> CalculateLeaderboardForPlayer(Guid requestingPlayerGuid, IEnumerable<PlayerTournamentSession> allPlayerTournamentSessions, TournamentType tournamentType, int tournamentId)
+        public static List<PlayerTournamentSession> CalculateLeaderboardForPlayer(Guid requestingPlayerGuid, IEnumerable<PlayerTournamentSession> allPlayerTournamentSessions, TournamentType tournamentType, int tournamentId)
         {
             int tournamentTypeId = -1;
             var playerSessionsByTournamentType = new Dictionary<int, List<PlayerTournamentSession>>();

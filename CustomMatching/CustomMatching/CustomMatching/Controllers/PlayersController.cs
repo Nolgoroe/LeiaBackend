@@ -51,7 +51,7 @@ namespace CustomMatching.Controllers
         {
             try
             {
-                var tournaments = await _suikaDbService.GetPlayerTournaments(playerId);
+                var tournaments = await _suikaDbService.GetPlayerTournaments(_suikaDbService.LeiaContext, playerId);
                 return Ok(tournaments);
             }
             catch (Exception ex) 
