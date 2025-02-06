@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DAL.Migrations
 {
     [DbContext(typeof(LeiaContext))]
-    [Migration("20250113100556_mig18_AddDidChargeToMigration")]
-    partial class mig18_AddDidChargeToMigration
+    [Migration("20250123124319_mig23_AddConfigurationData")]
+    partial class mig23_AddConfigurationData
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -49,6 +49,28 @@ namespace DAL.Migrations
                     b.HasIndex("Timestamp");
 
                     b.ToTable("BackendLogs");
+                });
+
+            modelBuilder.Entity("DataObjects.ConfigurationData", b =>
+                {
+                    b.Property<int>("ConfigId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ConfigId"));
+
+                    b.Property<string>("AppVersion")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("BaseURL")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ConfigName")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("ConfigId");
+
+                    b.ToTable("ConfigurationsData");
                 });
 
             modelBuilder.Entity("DataObjects.Currencies", b =>
@@ -216,17 +238,26 @@ namespace DAL.Migrations
                     b.Property<bool?>("DidClaim")
                         .HasColumnType("bit");
 
+                    b.Property<DateTime>("JoinTime")
+                        .HasColumnType("datetime2");
+
                     b.Property<int?>("PlayerScore")
                         .HasColumnType("int");
-/*
-                    b.Property<int?>("TournamentDataId")
-                        .HasColumnType("int");*/
+
+                    b.Property<int>("Position")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("SubmitScoreTime")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("TournamentTypeId")
+                        .HasColumnType("int");
 
                     b.HasKey("PlayerId", "TournamentSessionId");
 
-                    //b.HasIndex("TournamentDataId");
-
                     b.HasIndex("TournamentSessionId");
+
+                    b.HasIndex("TournamentTypeId");
 
                     b.ToTable("PlayerTournamentSession");
                 });
@@ -242,7 +273,7 @@ namespace DAL.Migrations
                     b.Property<int>("CurrenciesId")
                         .HasColumnType("int");
 
-                    b.Property<int?>("ForPosition")
+                    b.Property<int>("ForPosition")
                         .HasColumnType("int");
 
                     b.Property<int?>("LeagueId")
@@ -294,52 +325,6 @@ namespace DAL.Migrations
                     b.ToTable("Sessions");
                 });
 
-            modelBuilder.Entity("DataObjects.TournamentData", b =>
-                {
-                    b.Property<int>("TournamentDataId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("TournamentDataId"));
-
-                    b.Property<double>("Earning")
-                        .HasColumnType("float");
-
-                    b.Property<int>("EarningCurrencyId")
-                        .HasColumnType("int");
-
-                    b.Property<double>("EntryFee")
-                        .HasColumnType("float");
-
-                    b.Property<int>("EntryFeeCurrencyId")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("NumBoosterClicked")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("NumPowerUps")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("TournamentEnd")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime>("TournamentStart")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("TournamentTypeId")
-                        .HasColumnType("int");
-
-                    b.HasKey("TournamentDataId");
-
-                    b.HasIndex("EarningCurrencyId");
-
-                    b.HasIndex("EntryFeeCurrencyId");
-
-                    b.HasIndex("TournamentTypeId");
-
-                    b.ToTable("TournamentsData");
-                });
-
             modelBuilder.Entity("DataObjects.TournamentSession", b =>
                 {
                     b.Property<int>("TournamentSessionId")
@@ -348,26 +333,27 @@ namespace DAL.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("TournamentSessionId"));
 
+                    b.Property<DateTime>("Endtime")
+                        .HasColumnType("datetime2");
+
                     b.Property<bool>("IsOpen")
                         .HasColumnType("bit");
-
-                    b.Property<int?>("ParentTournamentId")
-                        .HasColumnType("int");
 
                     b.Property<int>("Rating")
                         .HasColumnType("int");
 
-                    b.Property<int>("TournamentDataId")
+                    b.Property<int?>("SessionDataSessionId")
                         .HasColumnType("int");
+
+                    b.Property<DateTime>("StartTime")
+                        .HasColumnType("datetime2");
 
                     b.Property<int>("TournamentSeed")
                         .HasColumnType("int");
 
                     b.HasKey("TournamentSessionId");
 
-                    b.HasIndex("ParentTournamentId");
-
-                    b.HasIndex("TournamentDataId");
+                    b.HasIndex("SessionDataSessionId");
 
                     b.ToTable("Tournaments");
                 });
@@ -469,21 +455,6 @@ namespace DAL.Migrations
                     b.ToTable("RewardTournamentType");
                 });
 
-            modelBuilder.Entity("SessionDataTournamentSession", b =>
-                {
-                    b.Property<int>("SessionsSessionId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("TournamentSessionId")
-                        .HasColumnType("int");
-
-                    b.HasKey("SessionsSessionId", "TournamentSessionId");
-
-                    b.HasIndex("TournamentSessionId");
-
-                    b.ToTable("SessionDataTournamentSession");
-                });
-
             modelBuilder.Entity("DataObjects.Player", b =>
                 {
                     b.HasOne("DataObjects.League", "League")
@@ -514,23 +485,29 @@ namespace DAL.Migrations
 
             modelBuilder.Entity("DataObjects.PlayerTournamentSession", b =>
                 {
-                    b.HasOne("DataObjects.Player", null)
+                    b.HasOne("DataObjects.Player", "Player")
                         .WithMany("PlayerTournamentSessions")
                         .HasForeignKey("PlayerId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("DataObjects.TournamentData", "TournamentData")
-                        .WithMany()
-                        .HasForeignKey("TournamentDataId");
-
-                    b.HasOne("DataObjects.TournamentSession", null)
+                    b.HasOne("DataObjects.TournamentSession", "TournamentSession")
                         .WithMany("PlayerTournamentSessions")
                         .HasForeignKey("TournamentSessionId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("DataObjects.TournamentType", "TournamentType")
+                        .WithMany()
+                        .HasForeignKey("TournamentTypeId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("TournamentData");
+                    b.Navigation("Player");
+
+                    b.Navigation("TournamentSession");
+
+                    b.Navigation("TournamentType");
                 });
 
             modelBuilder.Entity("DataObjects.Reward", b =>
@@ -559,48 +536,11 @@ namespace DAL.Migrations
                     b.Navigation("Player");
                 });
 
-            modelBuilder.Entity("DataObjects.TournamentData", b =>
-                {
-                    b.HasOne("DataObjects.Currencies", "EarningCurrency")
-                        .WithMany()
-                        .HasForeignKey("EarningCurrencyId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("DataObjects.Currencies", "EntryFeeCurrency")
-                        .WithMany()
-                        .HasForeignKey("EntryFeeCurrencyId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("DataObjects.TournamentType", "TournamentType")
-                        .WithMany()
-                        .HasForeignKey("TournamentTypeId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("EarningCurrency");
-
-                    b.Navigation("EntryFeeCurrency");
-
-                    b.Navigation("TournamentType");
-                });
-
             modelBuilder.Entity("DataObjects.TournamentSession", b =>
                 {
-                    b.HasOne("DataObjects.TournamentSession", "ParentTournament")
-                        .WithMany("ChildTournaments")
-                        .HasForeignKey("ParentTournamentId");
-
-                    b.HasOne("DataObjects.TournamentData", "TournamentData")
-                        .WithMany()
-                        .HasForeignKey("TournamentDataId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("ParentTournament");
-
-                    b.Navigation("TournamentData");
+                    b.HasOne("DataObjects.SessionData", null)
+                        .WithMany("Tournaments")
+                        .HasForeignKey("SessionDataSessionId");
                 });
 
             modelBuilder.Entity("DataObjects.TournamentType", b =>
@@ -656,21 +596,6 @@ namespace DAL.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("SessionDataTournamentSession", b =>
-                {
-                    b.HasOne("DataObjects.SessionData", null)
-                        .WithMany()
-                        .HasForeignKey("SessionsSessionId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("DataObjects.TournamentSession", null)
-                        .WithMany()
-                        .HasForeignKey("TournamentSessionId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
             modelBuilder.Entity("DataObjects.Currencies", b =>
                 {
                     b.Navigation("PlayerCurrencies");
@@ -692,10 +617,13 @@ namespace DAL.Migrations
                     b.Navigation("Sessions");
                 });
 
+            modelBuilder.Entity("DataObjects.SessionData", b =>
+                {
+                    b.Navigation("Tournaments");
+                });
+
             modelBuilder.Entity("DataObjects.TournamentSession", b =>
                 {
-                    b.Navigation("ChildTournaments");
-
                     b.Navigation("PlayerTournamentSessions");
                 });
 #pragma warning restore 612, 618

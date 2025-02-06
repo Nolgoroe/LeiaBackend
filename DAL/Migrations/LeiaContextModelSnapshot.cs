@@ -45,7 +45,29 @@ namespace DAL.Migrations
 
                     b.HasIndex("Timestamp");
 
-                    b.ToTable("BackendLogs", (string)null);
+                    b.ToTable("BackendLogs");
+                });
+
+            modelBuilder.Entity("DataObjects.ConfigurationData", b =>
+                {
+                    b.Property<int>("ConfigId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ConfigId"));
+
+                    b.Property<string>("AppVersion")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("BaseURL")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ConfigName")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("ConfigId");
+
+                    b.ToTable("ConfigurationsData");
                 });
 
             modelBuilder.Entity("DataObjects.Currencies", b =>
@@ -62,7 +84,7 @@ namespace DAL.Migrations
 
                     b.HasKey("CurrencyId");
 
-                    b.ToTable("Currencies", (string)null);
+                    b.ToTable("Currencies");
                 });
 
             modelBuilder.Entity("DataObjects.League", b =>
@@ -81,7 +103,7 @@ namespace DAL.Migrations
 
                     b.HasKey("LeagueId");
 
-                    b.ToTable("League", (string)null);
+                    b.ToTable("League");
                 });
 
             modelBuilder.Entity("DataObjects.Player", b =>
@@ -142,7 +164,7 @@ namespace DAL.Migrations
 
                     b.HasIndex("LeagueId");
 
-                    b.ToTable("Players", (string)null);
+                    b.ToTable("Players");
                 });
 
             modelBuilder.Entity("DataObjects.PlayerActiveTournament", b =>
@@ -181,7 +203,7 @@ namespace DAL.Migrations
 
                     b.HasIndex("TournamentId");
 
-                    b.ToTable("PlayerActiveTournaments", (string)null);
+                    b.ToTable("PlayerActiveTournaments");
                 });
 
             modelBuilder.Entity("DataObjects.PlayerCurrencies", b =>
@@ -199,7 +221,7 @@ namespace DAL.Migrations
 
                     b.HasIndex("PlayerId");
 
-                    b.ToTable("PlayerCurrencies", (string)null);
+                    b.ToTable("PlayerCurrencies");
                 });
 
             modelBuilder.Entity("DataObjects.PlayerTournamentSession", b =>
@@ -234,7 +256,7 @@ namespace DAL.Migrations
 
                     b.HasIndex("TournamentTypeId");
 
-                    b.ToTable("PlayerTournamentSession", (string)null);
+                    b.ToTable("PlayerTournamentSession");
                 });
 
             modelBuilder.Entity("DataObjects.Reward", b =>
@@ -267,7 +289,7 @@ namespace DAL.Migrations
 
                     b.HasIndex("LeagueId");
 
-                    b.ToTable("Rewards", (string)null);
+                    b.ToTable("Rewards");
                 });
 
             modelBuilder.Entity("DataObjects.SessionData", b =>
@@ -297,7 +319,7 @@ namespace DAL.Migrations
 
                     b.HasIndex("PlayerId");
 
-                    b.ToTable("Sessions", (string)null);
+                    b.ToTable("Sessions");
                 });
 
             modelBuilder.Entity("DataObjects.TournamentSession", b =>
@@ -330,7 +352,7 @@ namespace DAL.Migrations
 
                     b.HasIndex("SessionDataSessionId");
 
-                    b.ToTable("Tournaments", (string)null);
+                    b.ToTable("Tournaments");
                 });
 
             modelBuilder.Entity("DataObjects.TournamentType", b =>
@@ -361,7 +383,7 @@ namespace DAL.Migrations
 
                     b.HasIndex("CurrenciesId");
 
-                    b.ToTable("TournamentTypes", (string)null);
+                    b.ToTable("TournamentTypes");
                 });
 
             modelBuilder.Entity("DataObjects.TransactionType", b =>
@@ -378,7 +400,7 @@ namespace DAL.Migrations
 
                     b.HasKey("TransactionTypeId");
 
-                    b.ToTable("TransactionTypes", (string)null);
+                    b.ToTable("TransactionTypes");
                 });
 
             modelBuilder.Entity("DataObjects.Transactions", b =>
@@ -412,7 +434,7 @@ namespace DAL.Migrations
 
                     b.HasIndex("TransactionTypeId");
 
-                    b.ToTable("Transactions", (string)null);
+                    b.ToTable("Transactions");
                 });
 
             modelBuilder.Entity("RewardTournamentType", b =>
@@ -427,7 +449,7 @@ namespace DAL.Migrations
 
                     b.HasIndex("TournamentTypeId");
 
-                    b.ToTable("RewardTournamentType", (string)null);
+                    b.ToTable("RewardTournamentType");
                 });
 
             modelBuilder.Entity("DataObjects.Player", b =>

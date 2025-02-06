@@ -205,8 +205,9 @@ namespace CustomMatching.Controllers
             }
 
             var tournament = _suikaDbService?.LeiaContext?.Tournaments?.Where(t => t.TournamentSessionId == tournamentId)               
-                .Include(td => playerTournamentSession.TournamentType)
+                //.Include(td => playerTournamentSession)
                 .Include(t => t.PlayerTournamentSessions)
+                    .ThenInclude(pt => pt.TournamentType)
                 .Include(t => t.Players)
                 .FirstOrDefault();
 

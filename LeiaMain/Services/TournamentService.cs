@@ -216,7 +216,7 @@ namespace Services
                     //TournamentSessionId = matchingTournament.TournamentSessionId,
                     TournamentSession = matchingTournament,
                     JoinTime = DateTime.UtcNow,
-                    DidClaim = false,
+                    DidClaim = null,
                     Position = 0,
                     TournamentTypeId = request.TournamentType.TournamentTypeId,
                     PlayerScore = null,
@@ -299,7 +299,7 @@ namespace Services
                 {
                     TournamentSession = tournament,
                     PlayerId = player.PlayerId,
-                    DidClaim = false,
+                    DidClaim = null,
                     JoinTime = DateTime.UtcNow,
                     PlayerScore = null,
                     Position = 0,
