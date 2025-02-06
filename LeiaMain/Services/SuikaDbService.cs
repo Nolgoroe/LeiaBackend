@@ -46,7 +46,7 @@ namespace Services
         public Task<Player>? UpdatePlayer(Player player);
         public Task<Player?> GetPlayerById(Guid playerId);
         public Task<Player?> GetPlayerByName(string playerName);
-        public Task<List<dynamic?>?> GetPlayerTournaments(Guid playerId);
+        public Task<List<dynamic>> GetPlayerTournaments(LeiaContext context, Guid playerId);
         public Task<double?> GetPlayerBalance(Guid? playerId, int? currencyId);
         public Task<List<PlayerCurrencies?>?> GetAllPlayerBalances(Guid playerId);
         public Task<PlayerCurrencies?> UpdatePlayerBalance(Guid? playerId, int? currencyId, double? amount);
@@ -480,38 +480,37 @@ namespace Services
             }
         }
 
-        public async Task<List<dynamic?>?> GetPlayerTournaments(Guid playerId)
+        /// Helper function of `GetPlayerTournaments`
+        private dynamic GetPlayerTournamentsCalcLeaderboard(Guid playerId, IEnumerable<PlayerTournamentSession> allPlayerSessions, TournamentType tournamentType, int tournamentSessionId)
         {
-            // first type here (PlayerTournamentSession) is the parameter's type, the second type (dynamic) is the returned type of the Func
-            Func<PlayerTournamentSession, dynamic?> getDetailsDelegate =  playerTournamentSession =>
-            {
-                var othersPlayerTournamentSessions = _leiaContext.PlayerTournamentSession.Where(
-                    t => t.TournamentSessionId == playerTournamentSession.TournamentSessionId 
-                    //&& t.PlayerId != playerTournamentSession.PlayerId
-                    ).ToList();
-
-                return new { myTournamentSession = playerTournamentSession, allPlayersInTournament = othersPlayerTournamentSessions };
-            };
-
-            var tournaments = _leiaContext.PlayerTournamentSession
-                .Include(s => s.TournamentType)
-                    .ThenInclude(t => t.Currencies)
-                .Include(s => s.TournamentType)
-                    .ThenInclude(t => t.Reward)
-                .Include(s => s.TournamentSession)
-                    .ThenInclude(s => s.Players)
-                .Include(s => s.TournamentSession)
-                //   .ThenInclude(t => t.PlayerTournamentSessions)
-                .Where(s => s.PlayerId == playerId)
-                .OrderByDescending(tp => tp.JoinTime)
-                .Take(100)
-                //.Select( getDetailsDelegate)
-               .ToList();
-            var tournamentsWithOtherPlayersTournaments = tournaments.Select(getDetailsDelegate).ToList();
-
-            return tournamentsWithOtherPlayersTournaments;
+            var leaderBoard = PostTournamentService.CalculateLeaderboardForPlayer(playerId, allPlayerSessions, tournamentType, tournamentSessionId).ToList();
+            var myEntry = leaderBoard.First(s => s.PlayerId == playerId);
+            leaderBoard.Remove(myEntry);
+            return new { myEntry, leaderBoard };
         }
 
+        public async Task<List<dynamic>> GetPlayerTournaments(LeiaContext context, Guid playerId)
+        {
+            // We load all the tournament types and 100 of the most recent sessions of the current player
+            var allTournamentTypesByIdTask = context.TournamentTypes.ToDictionaryAsync(t => t.TournamentTypeId);
+            var allSessionsOfCurrentPlayer = context.PlayerTournamentSession
+                .Where(s => s.PlayerId == playerId)
+                .OrderByDescending(s => s.SubmitScoreTime)
+                .Take(100)
+                .ToList();
+            var allTournamentTypesById = await allTournamentTypesByIdTask;
+            // We load the rest of the sessions of other players in the 100 last tournaments of the current player
+            // We arrange these sessions into groups and save the groups to a dictionary with tournamentId as the key
+            var allOtherSessionsByTournamentId = context.PlayerTournamentSession.Where(s => s.PlayerId != playerId)
+                .GroupBy(s => s.TournamentSessionId)
+                .ToDictionary(group => group.Key, group => group.ToList());
+            // We convert and sort the sessions to leaderboards using the mixed-trounament leaderboard calculator
+            return allSessionsOfCurrentPlayer.Select(s =>
+            {
+                return GetPlayerTournamentsCalcLeaderboard(s.PlayerId, allOtherSessionsByTournamentId[s.TournamentSessionId], allTournamentTypesById[s.TournamentTypeId], s.TournamentSessionId);
+            }).ToList();
+
+        }
      
 
         public async Task<League?> GetLeagueById(int leagueId)
