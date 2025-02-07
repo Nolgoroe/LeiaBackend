@@ -492,13 +492,12 @@ namespace Services
         public async Task<List<dynamic>> GetPlayerTournaments(LeiaContext context, Guid playerId)
         {
             // We load all the tournament types and 100 of the most recent sessions of the current player
-            var allTournamentTypesByIdTask = context.TournamentTypes.ToDictionaryAsync(t => t.TournamentTypeId);
+            var allTournamentTypesById = context.TournamentTypes.ToDictionary(t => t.TournamentTypeId);
             var allSessionsOfCurrentPlayer = context.PlayerTournamentSession
                 .Where(s => s.PlayerId == playerId)
                 .OrderByDescending(s => s.SubmitScoreTime)
                 .Take(100)
                 .ToList();
-            var allTournamentTypesById = await allTournamentTypesByIdTask;
             // We load the rest of the sessions of other players in the 100 last tournaments of the current player
             // We arrange these sessions into groups and save the groups to a dictionary with tournamentId as the key
             var allOtherSessionsByTournamentId = context.PlayerTournamentSession.Where(s => s.PlayerId != playerId)
