@@ -74,17 +74,12 @@ namespace Services
 
         public static List<PlayerTournamentSession> CalculateLeaderboardForPlayer(Guid requestingPlayerGuid, IEnumerable<PlayerTournamentSession> allPlayerTournamentSessions, TournamentType tournamentType, int tournamentId)
         {
-            int tournamentTypeId = -1;
+            int tournamentTypeId = tournamentType.TournamentTypeId;
             var playerSessionsByTournamentType = new Dictionary<int, List<PlayerTournamentSession>>();
 
             foreach (var playerTournamentSession in allPlayerTournamentSessions)
             {
                 var currentTournamentTypeId = playerTournamentSession.TournamentTypeId;
-                // If the player of this session is the reference player, then we build a leaderboard for this tournamentTypeId
-                if (playerTournamentSession.PlayerId == requestingPlayerGuid)
-                {
-                    tournamentTypeId = currentTournamentTypeId;
-                }
                 // Get or create the list containing all the player sessions for this type
                 if (!playerSessionsByTournamentType.TryGetValue(currentTournamentTypeId, out var allPlayerSessionsOfTournamentType))
                 {
@@ -93,10 +88,6 @@ namespace Services
                 }
                 // Register this player session to the correct type
                 allPlayerSessionsOfTournamentType.Add(playerTournamentSession);
-            }
-            if (tournamentTypeId < 0)
-            {
-                throw new Exception($"Could not find any player session for player {requestingPlayerGuid} in tournament {tournamentId}");
             }
             // Sort the player-sessions by player score for each tournament type
             foreach (var playerSessions in playerSessionsByTournamentType.Values)
