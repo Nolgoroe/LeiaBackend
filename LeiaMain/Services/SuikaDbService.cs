@@ -484,12 +484,15 @@ namespace Services
         private dynamic GetPlayerTournamentsCalcLeaderboard(Guid playerId, IEnumerable<PlayerTournamentSession> allPlayerSessions, TournamentType tournamentType, int tournamentSessionId)
         {
             var leaderBoard = PostTournamentService.CalculateLeaderboardForPlayer(playerId, allPlayerSessions, tournamentType, tournamentSessionId).ToList();
+            var randomSessionOfTournament = leaderBoard[0];
             var exposedLeaderboard = leaderBoard.Select(s =>
                 new
                 {
                     name = s.Player?.Name,
                     id = s.PlayerId,
-                    score = s.PlayerScore
+                    score = s.PlayerScore,
+                    didClaim = s.DidClaim,
+                    joinTime = s.JoinTime,
                 }
             );
             return new { players = exposedLeaderboard, tournamentId = tournamentSessionId, 
@@ -497,13 +500,17 @@ namespace Services
                 tournamentTypeMaxPlayers = tournamentType.NumberOfPlayers,
                 currencyId = tournamentType.CurrenciesId,
                 entryFee = tournamentType.EntryFee,
+                isOpen = randomSessionOfTournament.TournamentSession.IsOpen,
+                rewards = tournamentType.Reward,
             };
         }
 
         public async Task<List<dynamic>> GetPlayerTournaments(LeiaContext context, Guid playerId)
         {
             // We load all the tournament types and 100 of the most recent sessions of the current player
-            var allTournamentTypesById = context.TournamentTypes.ToDictionary(t => t.TournamentTypeId);
+            var allTournamentTypesById = context.TournamentTypes
+                .Include(t => t.Reward)
+                .ToDictionary(t => t.TournamentTypeId);
             var allSessionsOfCurrentPlayer = context.PlayerTournamentSession
                 .Include(s => s.Player)
                 .OrderByDescending(s => s.SubmitScoreTime)
@@ -513,6 +520,7 @@ namespace Services
             // We arrange these sessions into groups and save the groups to a dictionary with tournamentId as the key
             var allOtherSessionsByTournamentId = context.PlayerTournamentSession
                 .Include(s => s.Player)
+                .Include(s => s.TournamentSession)
                 .GroupBy(s => s.TournamentSessionId)
                 .ToDictionary(group => group.Key, group => group.ToList());
             // We convert and sort the sessions to leaderboards using the mixed-trounament leaderboard calculator
