@@ -512,13 +512,16 @@ namespace Services
                 .Include(t => t.Reward)
                 .ToDictionary(t => t.TournamentTypeId);
             var allSessionsOfCurrentPlayer = context.PlayerTournamentSession
+                .Where(s => s.PlayerId == playerId)
                 .Include(s => s.Player)
                 .OrderByDescending(s => s.SubmitScoreTime)
                 .Take(100)
                 .ToList();
+            var allTournamentIds = allSessionsOfCurrentPlayer.Select(a => a.TournamentSessionId);
             // We load the rest of the sessions of other players in the 100 last tournaments of the current player
             // We arrange these sessions into groups and save the groups to a dictionary with tournamentId as the key
             var allOtherSessionsByTournamentId = context.PlayerTournamentSession
+                .Where(s => allTournamentIds.Contains(s.TournamentSessionId))
                 .Include(s => s.Player)
                 .Include(s => s.TournamentSession)
                 .GroupBy(s => s.TournamentSessionId)
