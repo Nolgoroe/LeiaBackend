@@ -500,7 +500,7 @@ namespace Services
                 .ToList();
             // We load the rest of the sessions of other players in the 100 last tournaments of the current player
             // We arrange these sessions into groups and save the groups to a dictionary with tournamentId as the key
-            var allOtherSessionsByTournamentId = context.PlayerTournamentSession.Where(s => s.PlayerId != playerId)
+            var allOtherSessionsByTournamentId = context.PlayerTournamentSession
                 .GroupBy(s => s.TournamentSessionId)
                 .ToDictionary(group => group.Key, group => group.ToList());
             // We convert and sort the sessions to leaderboards using the mixed-trounament leaderboard calculator
