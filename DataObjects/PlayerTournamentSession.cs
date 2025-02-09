@@ -11,9 +11,11 @@ namespace DataObjects
     // the name of the  class should be a combination of the names of both the classes that are being combined. Where the first name should be name of the class who's Id prop appears first. e.g in this combination, the Player is first in the props and thus first in  the name 
     public class PlayerTournamentSession : IComparable<PlayerTournamentSession>
     {
+        [ForeignKey(nameof(Player))]
         public Guid PlayerId { get; set; }
         [JsonIgnore]
-        public Player Player { get; set; } 
+        
+        public Player Player { get; set; }
         public int TournamentSessionId { get; set; }
         //[JsonIgnore]
         [ForeignKey(nameof(TournamentSessionId))]
