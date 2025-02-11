@@ -260,7 +260,7 @@ namespace Services
                                                                                        // t.TournamentData.TournamentTypeId == tournamentTypeId &&
                     t.IsOpen &&                                                        // Tournament is open
                                                                                        // t.TournamentData.EntryFeeCurrencyId == currencyId &&               // The currency Id is matching
-                    t.PlayerTournamentSessions.Where(s => s.TournamentTypeId == tournamentType.TournamentTypeId).Count() < tournamentType.NumberOfPlayers &&
+                    t.PlayerTournamentSessions.Count() < tournamentType.NumberOfPlayers &&
                     !t.Players.Select(p => p.PlayerId).Contains(playerId)
                     ) // Tournament is not full
                 .OrderBy(t => Math.Abs(t.Rating - playerRating))
