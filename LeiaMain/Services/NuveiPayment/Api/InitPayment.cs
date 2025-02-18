@@ -47,13 +47,6 @@ namespace Services.NuveiPayment.Api
         public string currency;
         public DeviceDetails deviceDetails;
 
-        public override string GetApiUrl(bool isSandbox)
-        {
-            return isSandbox ?
-                "https://ppp-test.nuvei.com/ppp/api/v1/initPayment.do" :
-                "https://secure.safecharge.com/ppp/api/v1/initPayment.do";
-        }
-
         protected override string CreateChecksumString(string merchantSecretKey)
         {
             return ""; // No checksum needed in the documentation

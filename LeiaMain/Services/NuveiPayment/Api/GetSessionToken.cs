@@ -12,13 +12,6 @@
         public string merchantSiteId;
         public string clientRequestId;
 
-        public override string GetApiUrl(bool isSandbox)
-        {
-            return isSandbox ?
-                "https://ppp-test.nuvei.com/ppp/api/v1/getSessionToken.do" :
-                "https://secure.safecharge.com/ppp/api/v1/getSessionToken.do";
-        }
-
         protected override string CreateChecksumString(string merchantSecretKey)
         {
             //checksum order by documentation: merchantId, merchantSiteId, clientRequestId, timeStamp, merchantSecretKey

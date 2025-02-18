@@ -27,8 +27,6 @@ namespace Services.NuveiPayment.Api
             checksum = NuveiUtils.HashSha256(CreateChecksumString(merchantSecretKey));
         }
 
-        public abstract string GetApiUrl(bool isSandbox);
-
         protected abstract string CreateChecksumString(string merchantSecretKey);
 
     }
