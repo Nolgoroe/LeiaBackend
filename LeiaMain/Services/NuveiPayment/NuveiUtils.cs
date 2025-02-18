@@ -1,5 +1,6 @@
 ﻿using System.Security.Cryptography;
 using System.Text;
+using Services.NuveiPayment.Api;
 
 namespace Services.NuveiPayment
 {
@@ -17,6 +18,14 @@ namespace Services.NuveiPayment
                 builder.Append(bytes[i].ToString("x2"));
             }
             return builder.ToString();
+        }
+
+        public static void AssertValidResponse(BaseNuveiApiResponse response)
+        {
+            if (response?.transactionStatus != "Approved")
+            {
+                throw new Exception($"Nuvei transactionStatus is not Approved; \"{response?.transactionStatus}\"");
+            }
         }
     }
 }

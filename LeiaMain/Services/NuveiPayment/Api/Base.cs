@@ -4,7 +4,9 @@ namespace Services.NuveiPayment.Api
     [Serializable]
     public abstract class BaseNuveiApiResponse
     {
-
+        public required string status;
+        public required string transactionStatus;
+        public required string internalRequestId;
     }
 
 
