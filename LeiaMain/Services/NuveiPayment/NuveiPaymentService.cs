@@ -80,13 +80,15 @@ namespace Services.NuveiPayment
                 currency = currency,
                 checksum = checksum,
                 timeStamp = timestamp,
-                billingAddress = new {
+                billingAddress = new
+                {
                     country = "IL",
                     email = "hello@leia.games",
                     firstName = "Leia",
                     lastName = "Games",
                 },
-                deviceDetails = new {
+                deviceDetails = new
+                {
                     ipAddress = "0.0.0.0",
                     deviceType = "SMARTPHONE",
                 },
@@ -107,7 +109,7 @@ namespace Services.NuveiPayment
             var content = new StringContent(json, Encoding.UTF8, "application/json");
 
             var response = await _httpClient.PostAsync(requestUri, content);
-                
+
             return await response.Content.ReadAsStringAsync();
         }
 

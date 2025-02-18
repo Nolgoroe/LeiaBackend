@@ -6,9 +6,7 @@ namespace Services.NuveiPayment
     public static class NuveiUtils
     {
 
-
         private static readonly SHA256 _sha256 = SHA256.Create();
-
 
         public static string HashSha256(string input)
         {
