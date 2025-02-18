@@ -1,4 +1,7 @@
 ﻿using System.Text;
+using System.Text.Json;
+using System.Text.Json.Nodes;
+using Microsoft.EntityFrameworkCore;
 using Services.NuveiPayment.Api;
 
 namespace Services.NuveiPayment
@@ -16,6 +19,7 @@ namespace Services.NuveiPayment
         private readonly string _merchantSiteId;
         private readonly string _secretKey;
         private readonly HttpClient _httpClient;
+        private const string NUVEI_TIMESTAMP_FORMAT = "yyyyMMddHHmmss";
 
         public NuveiPaymentService()
         {
@@ -39,31 +43,43 @@ namespace Services.NuveiPayment
 
         private async Task<T> PerformHttpPost<T>(BaseNuveiApiRequest<T> request, string endpoint) where T : BaseNuveiApiResponse
         {
-            request.PrepareAndChecksum(_secretKey);
-            var url = $"{_apiBaseUrl}/{endpoint}.do";
-            var jsonRequest = System.Text.Json.JsonSerializer.Serialize(request);
-            var content = new StringContent(jsonRequest, Encoding.UTF8, "application/json");
+            string clientRequestId = Guid.NewGuid().ToString();
+            string timestamp = DateTime.Now.ToString(NUVEI_TIMESTAMP_FORMAT);
+            string checksum = GetRequestChecksum(request, clientRequestId, timestamp);
 
+            var jsonObj = JsonNode.Parse(JsonSerializer.Serialize(request))!.AsObject();
+            jsonObj["timestamp"] = timestamp;
+            jsonObj["checksum"] = checksum;
+
+            var url = $"{_apiBaseUrl}/{endpoint}.do";
+            var content = new StringContent(jsonObj.ToJsonString(), Encoding.UTF8, "application/json");
             var httpResponse = await _httpClient.PostAsync(url, content);
 
             var jsonResponse = await httpResponse.Content.ReadAsStringAsync();
-            var response = System.Text.Json.JsonSerializer.Deserialize<T>(jsonResponse);
-            if (response == null)
+            var response = JsonSerializer.Deserialize<T>(jsonResponse);
+            if (response is null)
             {
                 throw new Exception($"Could not deserialize json response from {url}");
             }
+
             return response;
         }
 
         private async Task<GetSessionTokenResponse> GetSessionToken(string clientRequestId)
         {
-            var request = new GetSessionTokenRequest()
-            {
-                merchantId = _merchantId,
-                merchantSiteId = _merchantSiteId,
-                clientRequestId = clientRequestId,
-            };
+            var request = new GetSessionTokenRequest();
             return await PerformHttpPost(request, "getSessionToken");
+        }
+
+        /// <summary>
+        /// Many API requests demand a timeStamp and checksum parameters, each request hashes different params in different order
+        /// This is a helper that creates the checksum and timestamp, it must be called before sending the request
+        /// </summary>
+        /// <param name="merchantSecretKey"></param>
+        private string GetRequestChecksum<T>(BaseNuveiApiRequest<T> request, string clientRequestId, string timestamp) where T : BaseNuveiApiResponse
+        {
+            // TODO: Hash
+            return $"{_merchantId}{_merchantSiteId}{clientRequestId}{timestamp}{_secretKey}";
         }
 
 

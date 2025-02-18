@@ -8,14 +8,9 @@
     [Serializable]
     public class GetSessionTokenRequest : BaseNuveiApiRequest<GetSessionTokenResponse>
     {
-        public string merchantId;
-        public string merchantSiteId;
-        public string clientRequestId;
-
-        protected override string CreateChecksumString(string merchantSecretKey)
+        public override string[] GetChecksumProperties()
         {
-            //checksum order by documentation: merchantId, merchantSiteId, clientRequestId, timeStamp, merchantSecretKey
-            return $"{merchantId}{merchantSiteId}{clientRequestId}{timeStamp}{merchantSecretKey}";
+            return [];
         }
     }
 
@@ -25,14 +20,14 @@
     [Serializable]
     public class GetSessionTokenResponse : BaseNuveiApiResponse
     {
-        public string sessionToken;
-        public string internalRequestId;
-        public string status;
+        public required string sessionToken;
+        public required string internalRequestId;
+        public required string status;
         public int errCode;
-        public string reason;
-        public string merchantId;
-        public string merchantSiteId;
-        public string version;
-        public string clientRequestId;
+        public required string reason;
+        public required string merchantId;
+        public required string merchantSiteId;
+        public required string version;
+        public string? clientRequestId;
     }
 }

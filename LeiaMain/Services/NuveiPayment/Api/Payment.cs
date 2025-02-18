@@ -1,22 +1,19 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
 namespace Services.NuveiPayment.Api
 {
 	/// <summary>
-	/// http://docs.nuvei.com/api/main/indexMain_v1_0.html?json=#initPayment
+	/// http://docs.nuvei.com/api/main/indexMain_v1_0.html?json=#payment
 	/// </summary>
-	public class InitPaymentRequest : BaseNuveiApiRequest<InitPaymentResponse>
+	public class PaymentRequest : BaseNuveiApiRequest<PaymentResponse>
 	{
+		public string? relatedTransactionId;
 		public string? userTokenId;
 		public required string amount;
 		public required string currency;
+		public string? transactionType;
 		public required PaymentOptionRoot paymentOption;
 		public required DeviceDetails deviceDetails;
 		public required BillingAddressDetails billingAddress;
+		public DynamicDescriptor? dynamicDescriptor;
 
 		public override string[] GetChecksumProperties()
 		{
@@ -25,9 +22,9 @@ namespace Services.NuveiPayment.Api
 	}
 
 	/// <summary>
-	/// http://docs.nuvei.com/api/main/indexMain_v1_0.html?json=#initPayment
+	/// http://docs.nuvei.com/api/main/indexMain_v1_0.html?json=#payment
 	/// </summary>
-	public class InitPaymentResponse : BaseNuveiApiResponse
+	public class PaymentResponse : BaseNuveiApiResponse
 	{
 		public int errCode;
 		public required string reason;
@@ -37,12 +34,14 @@ namespace Services.NuveiPayment.Api
 		public string? clientRequestId;
 		public required string sessionToken;
 		public required string orderId;
-		public required string transactionId;
-		public required string transactionType;
+		public required PaymentOptionResponseRoot paymentOption;
 		public int gwErrorCode;
 		public int gwExtendedErrorCode;
-		public required PaymentOptionResponseRoot paymentOption;
+		public required string transactionType;
+		public required string transactionId;
+		public required string externalTransactionId;
 		public required string customData;
+		public required FraudDetailsResponse fraudDetails;
 		public string? clientUniqueId;
 		public string? userTokenId;
 	}
