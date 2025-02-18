@@ -45,8 +45,9 @@ namespace Services.NuveiPayment
         }
 
         /// <summary>
-        /// Many API requests demand a timeStamp and checksum parameters, each request hashes different params in different order
-        /// This is a helper that creates the checksum and timestamp, it must be called before sending the request
+        /// Nuvei API requests demand a checksum parameter. Each request hashes different params in different order.
+        /// This is a helper that creates the checksum. It must be called before sending the request.
+        /// https://docs.nuvei.com/documentation/features/authentication/#Hashing_Calculation_the_checksum_parameter
         /// </summary>
         private string GenerateRequestChecksum<T>(BaseNuveiApiRequest<T> request, string timeStamp) where T : BaseNuveiApiResponse
         {
