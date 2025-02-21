@@ -74,43 +74,21 @@ namespace Services
 
         public static List<PlayerTournamentSession> CalculateLeaderboardForPlayer(Guid requestingPlayerGuid, IEnumerable<PlayerTournamentSession> allPlayerTournamentSessions, TournamentType tournamentType, int tournamentId)
         {
-            int tournamentTypeId = tournamentType.TournamentTypeId;
-            var playerSessionsByTournamentType = new Dictionary<int, List<PlayerTournamentSession>>();
+            var playerTournamentSessionsByJoinTime = allPlayerTournamentSessions.OrderBy(s => s.JoinTime).ToList();
+            var requestingPlayerSession = playerTournamentSessionsByJoinTime.First(s => s.PlayerId == requestingPlayerGuid);
+            var indexOfRequestingPlayer = playerTournamentSessionsByJoinTime.IndexOf(requestingPlayerSession);
+            var leaderboardPlayerCount = tournamentType.NumberOfPlayers.Value;
 
-            foreach (var playerTournamentSession in allPlayerTournamentSessions)
-            {
-                var currentTournamentTypeId = playerTournamentSession.TournamentTypeId;
-                // Get or create the list containing all the player sessions for this type
-                if (!playerSessionsByTournamentType.TryGetValue(currentTournamentTypeId, out var allPlayerSessionsOfTournamentType))
-                {
-                    allPlayerSessionsOfTournamentType = new();
-                    playerSessionsByTournamentType[currentTournamentTypeId] = allPlayerSessionsOfTournamentType;
-                }
-                // Register this player session to the correct type
-                allPlayerSessionsOfTournamentType.Add(playerTournamentSession);
-            }
-            // Sort the player-sessions by player score for each tournament type
-            foreach (var playerSessions in playerSessionsByTournamentType.Values)
-            {
-                playerSessions.Sort();
-            }
-            if (tournamentType.NumberOfPlayers == null)
-            {
-                throw new Exception($"Tournament type {tournamentTypeId} has null `NumberOfPlayers`");
-            }
-            var maxLeaderboardPlayerCount = tournamentType.NumberOfPlayers.Value;
-            var leaderboardEntries = new List<PlayerTournamentSession>();
-            // First we add all the players of the same tournament type, there has to be at least one (requesting player)
-            leaderboardEntries.AddRange(playerSessionsByTournamentType[tournamentTypeId]);
-            // Calculate how many more players are needed for this leaderboard
-            var additionalNeededEntryCount = maxLeaderboardPlayerCount - leaderboardEntries.Count;
-            // Remove the player sessions we already added from our pool
-            playerSessionsByTournamentType.Remove(tournamentTypeId);
-            // Choose the highest ranking players from all other tournament types
-            leaderboardEntries.AddRange(playerSessionsByTournamentType.Values.SelectMany(l => l).OrderByDescending(l => l.SubmitScoreTime).Take(additionalNeededEntryCount));
-            leaderboardEntries.Sort();
-            leaderboardEntries.Reverse();
-            return leaderboardEntries;
+            var playersEarlierThanRequestingPlayer = Math.Min(indexOfRequestingPlayer, leaderboardPlayerCount - 1);
+            var playersLaterThanRequestingPlayer = Math.Min(playerTournamentSessionsByJoinTime.Count - indexOfRequestingPlayer - 1, leaderboardPlayerCount - 1 - playersEarlierThanRequestingPlayer);
+            var startIndex = indexOfRequestingPlayer - playersEarlierThanRequestingPlayer;
+            var endIndex = indexOfRequestingPlayer + playersLaterThanRequestingPlayer;
+
+
+            var leaderboard = playerTournamentSessionsByJoinTime.Skip(startIndex).Take(leaderboardPlayerCount).ToList();
+            leaderboard.Sort();
+            leaderboard.Reverse();
+            return leaderboard;
         }
 
 

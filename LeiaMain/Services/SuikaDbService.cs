@@ -260,7 +260,7 @@ namespace Services
                                                                                        // t.TournamentData.TournamentTypeId == tournamentTypeId &&
                     t.IsOpen &&                                                        // Tournament is open
                                                                                        // t.TournamentData.EntryFeeCurrencyId == currencyId &&               // The currency Id is matching
-                    t.PlayerTournamentSessions.Count() < tournamentType.NumberOfPlayers &&
+                    t.StartTime < DateTime.UtcNow.AddDays(-1) &&
                     !t.Players.Select(p => p.PlayerId).Contains(playerId)
                     ) // Tournament is not full
                 .OrderBy(t => Math.Abs(t.Rating - playerRating))
@@ -500,7 +500,7 @@ namespace Services
                 tournamentTypeMaxPlayers = tournamentType.NumberOfPlayers,
                 currencyId = tournamentType.CurrenciesId,
                 entryFee = tournamentType.EntryFee,
-                isOpen = randomSessionOfTournament.TournamentSession.IsOpen,
+                isOpen = exposedLeaderboard.Count() < tournamentType.NumberOfPlayers,
                 rewards = tournamentType.Reward,
             };
         }
