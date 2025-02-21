@@ -500,7 +500,7 @@ namespace Services
                 tournamentTypeMaxPlayers = tournamentType.NumberOfPlayers,
                 currencyId = tournamentType.CurrenciesId,
                 entryFee = tournamentType.EntryFee,
-                isOpen = exposedLeaderboard.Count() < tournamentType.NumberOfPlayers,
+                isOpen = exposedLeaderboard.Count() < tournamentType.NumberOfPlayers || exposedLeaderboard.Any(s => s.score == null),
                 rewards = tournamentType.Reward,
             };
         }
