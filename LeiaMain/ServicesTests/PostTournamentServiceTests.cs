@@ -137,7 +137,7 @@ namespace ServiceTests
 
         private Player GeneratePlayer() => new Player() {  PlayerId = Guid.NewGuid(), Rating = 1000 };
 
-        private PlayerTournamentSession GeneratePlayerTournamentSession(Player player, int tournamentId, int tournamentTypeId, int? score)
+        private PlayerTournamentSession GeneratePlayerTournamentSession(Player player, int tournamentId, int tournamentTypeId, int? score, DateTime joinTime)
         {
             return new PlayerTournamentSession()
             {
@@ -146,6 +146,7 @@ namespace ServiceTests
                 TournamentSessionId = tournamentId,
                 TournamentTypeId = tournamentTypeId,
                 PlayerScore = score,
+                JoinTime = joinTime,
             };
         }
 
@@ -163,10 +164,10 @@ namespace ServiceTests
                 NumberOfPlayers = 4,
             };
 
-            var player1Session = GeneratePlayerTournamentSession(player1, 1, player1TournamentType.TournamentTypeId, 1000);
-            var player2Session = GeneratePlayerTournamentSession(player2, 1, player1TournamentType.TournamentTypeId, 500);
-            var player3Session = GeneratePlayerTournamentSession(player3, 1, player1TournamentType.TournamentTypeId + 1, 1500);
-            var player4Session = GeneratePlayerTournamentSession(player4, 1, player1TournamentType.TournamentTypeId + 1, 50);
+            var player1Session = GeneratePlayerTournamentSession(player1, 1, player1TournamentType.TournamentTypeId, 1000, DateTime.UtcNow - TimeSpan.FromSeconds(5));
+            var player2Session = GeneratePlayerTournamentSession(player2, 1, player1TournamentType.TournamentTypeId, 500, DateTime.UtcNow - TimeSpan.FromSeconds(4));
+            var player3Session = GeneratePlayerTournamentSession(player3, 1, player1TournamentType.TournamentTypeId + 1, 1500, DateTime.UtcNow - TimeSpan.FromSeconds(3));
+            var player4Session = GeneratePlayerTournamentSession(player4, 1, player1TournamentType.TournamentTypeId + 1, 50, DateTime.UtcNow - TimeSpan.FromSeconds(2));
 
 
             var allSessions = new[] { player1Session, player2Session, player3Session, player4Session };
@@ -201,10 +202,10 @@ namespace ServiceTests
                 NumberOfPlayers = 2,
             };
 
-            var player3Session = GeneratePlayerTournamentSession(player3, 1, player3and4TournamentType.TournamentTypeId, 1500);
-            var player1Session = GeneratePlayerTournamentSession(player1, 1, player1and2TournamentType.TournamentTypeId, 1000);
-            var player2Session = GeneratePlayerTournamentSession(player2, 1, player1and2TournamentType.TournamentTypeId, 500);
-            var player4Session = GeneratePlayerTournamentSession(player4, 1, player3and4TournamentType.TournamentTypeId, 50);
+            var player3Session = GeneratePlayerTournamentSession(player3, 1, player3and4TournamentType.TournamentTypeId, 1500, DateTime.UtcNow - TimeSpan.FromSeconds(5));
+            var player1Session = GeneratePlayerTournamentSession(player1, 1, player1and2TournamentType.TournamentTypeId, 1000, DateTime.UtcNow - TimeSpan.FromSeconds(4));
+            var player2Session = GeneratePlayerTournamentSession(player2, 1, player1and2TournamentType.TournamentTypeId, 500, DateTime.UtcNow - TimeSpan.FromSeconds(3));
+            var player4Session = GeneratePlayerTournamentSession(player4, 1, player3and4TournamentType.TournamentTypeId, 50, DateTime.UtcNow - TimeSpan.FromSeconds(2));
 
 
             var allSessions = new[] { player1Session, player2Session, player3Session, player4Session };
@@ -226,8 +227,8 @@ namespace ServiceTests
             Assert.Equal(2, leaderboardType1.Count);
             Assert.Equal(leaderboardType1[0].PlayerId, player3.PlayerId);
             Assert.Equal(leaderboardType1[0].PlayerScore, 1500);
-            Assert.Equal(leaderboardType1[1].PlayerId, player4.PlayerId);
-            Assert.Equal(leaderboardType1[1].PlayerScore, 50);
+            Assert.Equal(leaderboardType1[1].PlayerId, player1.PlayerId);
+            Assert.Equal(leaderboardType1[1].PlayerScore, 1000);
         }
 
 
