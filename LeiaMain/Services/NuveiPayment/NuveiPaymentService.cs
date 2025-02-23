@@ -61,7 +61,7 @@ namespace Services.NuveiPayment
             string timeStamp = DateTime.Now.ToString(NUVEI_TIMESTAMP_FORMAT);
             string checksum = GenerateRequestChecksum(request, timeStamp);
 
-            var jsonObj = JsonNode.Parse(JsonSerializer.Serialize(request))!.AsObject();
+            var jsonObj = JsonNode.Parse(JsonSerializer.Serialize(request, request.GetType()))!.AsObject();
             jsonObj["merchantId"] = _merchantId;
             jsonObj["merchantSiteId"] = _merchantSiteId;
             jsonObj["timeStamp"] = timeStamp;
