@@ -20,14 +20,6 @@
     [Serializable]
     public class GetSessionTokenResponse : BaseNuveiApiResponse
     {
-        public required string sessionToken;
-        public required string internalRequestId;
-        public required string status;
-        public int errCode;
-        public required string reason;
-        public required string merchantId;
-        public required string merchantSiteId;
-        public required string version;
-        public string? clientRequestId;
+        public string? clientRequestId { get; set; }
     }
 }

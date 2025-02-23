@@ -11,12 +11,12 @@ namespace Services.NuveiPayment.Api
 	/// </summary>
 	public class PayoutRequest : BaseNuveiApiRequest<PayoutResponse>
 	{
-		public required string userTokenId;
-		public required string amount;
-		public required string currency;
-		public required DeviceDetails deviceDetails;
-		public required UserPaymentOption userPaymentOption;
-		public DynamicDescriptor? dynamicDescriptor;
+		public required string userTokenId { get; set; }
+		public required string amount { get; set; }
+		public required string currency { get; set; }
+		public required DeviceDetails deviceDetails { get; set; }
+		public required UserPaymentOption userPaymentOption { get; set; }
+		public DynamicDescriptor? dynamicDescriptor { get; set; }
 
 		public override string[] GetChecksumProperties()
 		{
@@ -29,18 +29,13 @@ namespace Services.NuveiPayment.Api
 	/// </summary>
 	public class PayoutResponse : BaseNuveiApiResponse
 	{
-		public required string merchantId;
-		public required string merchantSiteId;
-		public required string userTokenId;
-		public string? clientUniqueId;
-		public required string transactionId;
-		public required string externalTransactionId;
-		public required string userPaymentOptionId;
-		public int errCode;
-		public required string reason;
-		public int gwErrorCode;
-		public required string gwErrorReason;
-		public int gwExtendedErrorCode;
-		public required string version;
+		public required string userTokenId { get; set; }
+		public string? clientUniqueId { get; set; }
+		public required string transactionId { get; set; }
+		public required string externalTransactionId { get; set; }
+		public required string userPaymentOptionId { get; set; }
+		public int gwErrorCode { get; set; }
+		public required string gwErrorReason { get; set; }
+		public int gwExtendedErrorCode { get; set; }
 	}
 }

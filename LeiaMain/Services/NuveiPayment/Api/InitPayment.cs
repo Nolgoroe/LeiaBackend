@@ -11,12 +11,12 @@ namespace Services.NuveiPayment.Api
 	/// </summary>
 	public class InitPaymentRequest : BaseNuveiApiRequest<InitPaymentResponse>
 	{
-		public string? userTokenId;
-		public required string amount;
-		public required string currency;
-		public required PaymentOptionRoot paymentOption;
-		public required DeviceDetails deviceDetails;
-		public required BillingAddressDetails billingAddress;
+		public string? userTokenId { get; set; }
+		public required string amount { get; set; }
+		public required string currency { get; set; }
+		public required PaymentOptionRoot paymentOption { get; set; }
+		public required DeviceDetails deviceDetails { get; set; }
+		public required BillingAddressDetails billingAddress { get; set; }
 
 		public override string[] GetChecksumProperties()
 		{
@@ -29,21 +29,15 @@ namespace Services.NuveiPayment.Api
 	/// </summary>
 	public class InitPaymentResponse : BaseNuveiApiResponse
 	{
-		public int errCode;
-		public required string reason;
-		public required string merchantId;
-		public required string merchantSiteId;
-		public required string version;
-		public string? clientRequestId;
-		public required string sessionToken;
-		public required string orderId;
-		public required string transactionId;
-		public required string transactionType;
-		public int gwErrorCode;
-		public int gwExtendedErrorCode;
-		public required PaymentOptionResponseRoot paymentOption;
-		public required string customData;
-		public string? clientUniqueId;
-		public string? userTokenId;
+		public string? clientRequestId { get; set; }
+		public required string orderId { get; set; }
+		public required string transactionId { get; set; }
+		public required string transactionType { get; set; }
+		public int gwErrorCode { get; set; }
+		public int gwExtendedErrorCode { get; set; }
+		public required PaymentOptionResponseRoot paymentOption { get; set; }
+		public required string customData { get; set; }
+		public string? clientUniqueId { get; set; }
+		public string? userTokenId { get; set; }
 	}
 }
