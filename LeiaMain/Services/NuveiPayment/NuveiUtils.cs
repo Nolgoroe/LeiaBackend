@@ -22,7 +22,7 @@ namespace Services.NuveiPayment
 
         public static void AssertValidResponse(BaseNuveiApiResponse response)
         {
-            if (response?.transactionStatus != "Approved")
+            if (response?.transactionStatus != "APPROVED")
             {
                 throw new Exception($"Nuvei transactionStatus is not Approved; \"{response?.transactionStatus}\"");
             }
