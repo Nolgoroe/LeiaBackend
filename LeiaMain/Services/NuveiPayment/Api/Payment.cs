@@ -1,7 +1,7 @@
 namespace Services.NuveiPayment.Api
 {
 	/// <summary>
-	/// http://docs.nuvei.com/api/main/indexMain_v1_0.html?json=#payment
+	/// https://docs.nuvei.com/api/main/indexMain_v1_0.html?json=#payment
 	/// </summary>
 	public class PaymentRequest : BaseNuveiApiRequest<PaymentResponse>
 	{
@@ -22,7 +22,7 @@ namespace Services.NuveiPayment.Api
 	}
 
 	/// <summary>
-	/// http://docs.nuvei.com/api/main/indexMain_v1_0.html?json=#payment
+	/// https://docs.nuvei.com/api/main/indexMain_v1_0.html?json=#payment
 	/// </summary>
 	public class PaymentResponse : BaseNuveiApiResponse
 	{

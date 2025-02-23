@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 namespace Services.NuveiPayment.Api
 {
 	/// <summary>
-	/// http://docs.nuvei.com/api/main/indexMain_v1_0.html?json=#initPayment
+	/// https://docs.nuvei.com/api/main/indexMain_v1_0.html?json=#initPayment
 	/// </summary>
 	public class InitPaymentRequest : BaseNuveiApiRequest<InitPaymentResponse>
 	{
@@ -25,7 +25,7 @@ namespace Services.NuveiPayment.Api
 	}
 
 	/// <summary>
-	/// http://docs.nuvei.com/api/main/indexMain_v1_0.html?json=#initPayment
+	/// https://docs.nuvei.com/api/main/indexMain_v1_0.html?json=#initPayment
 	/// </summary>
 	public class InitPaymentResponse : BaseNuveiApiResponse
 	{

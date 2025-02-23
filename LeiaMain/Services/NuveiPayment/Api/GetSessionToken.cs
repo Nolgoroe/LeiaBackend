@@ -3,7 +3,7 @@
 
 
     /// <summary>
-    /// http://docs.nuvei.com/api/main/indexMain_v1_0.html?json=#getSessionToken
+    /// https://docs.nuvei.com/api/main/indexMain_v1_0.html?json=#getSessionToken
     /// </summary>
     [Serializable]
     public class GetSessionTokenRequest : BaseNuveiApiRequest<GetSessionTokenResponse>
@@ -15,7 +15,7 @@
     }
 
     /// <summary>
-    /// http://docs.nuvei.com/api/main/indexMain_v1_0.html?json=#getSessionToken
+    /// https://docs.nuvei.com/api/main/indexMain_v1_0.html?json=#getSessionToken
     /// </summary>
     [Serializable]
     public class GetSessionTokenResponse : BaseNuveiApiResponse

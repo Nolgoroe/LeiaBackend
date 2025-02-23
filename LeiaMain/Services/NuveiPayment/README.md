@@ -15,7 +15,7 @@ After making a payment, Nuvei's API returns an ID (`userPaymentOptionId`) which,
 ### Init Payment
 
 Nuvei requires an `initPayment` request to be performed before the `payment` call.  
-As part of the `initPayment` call, Nuvei [initializes the payment in the system](http://docs.nuvei.com/api/main/indexMain_v1_0.html?json#initPayment).  
+As part of the `initPayment` call, Nuvei [initializes the payment in the system](https://docs.nuvei.com/api/main/indexMain_v1_0.html?json#initPayment).  
 Some reasons for a payment decline can be found in the `initPayment` response, before the user is notified about an attempted payment.
 
 ### Adding currencies
@@ -39,4 +39,4 @@ There are 2 options to process a new currency:
 Nuvei refers to webhooks as [Direct Merchant Notifications (DMNs)](https://docs.nuvei.com/documentation/integration/webhooks/).  
 Most payment-related actions take time to settle (minutes to days) and in order to know when they completed, Nuvei provides webhook calls.  
 Some advanced flows (like 3DSecure payments) require the use of webhook as part of the flow.  
-There's also the option to use an API call "[getTransactionDetails](http://docs.nuvei.com/api/main/indexMain_v1_0.html?json#getTransactionDetails)" to pull information about a recent transaction.
+There's also the option to use an API call "[getTransactionDetails](https://docs.nuvei.com/api/main/indexMain_v1_0.html?json#getTransactionDetails)" to pull information about a recent transaction.
