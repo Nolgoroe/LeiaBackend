@@ -9,7 +9,7 @@ namespace Services.NuveiPayment
     public interface INuveiPaymentService
     {
         // Get signed URL for tokenizing the credit-card information
-        Task<string> ProcessPaymentWithCardDetailsAsync(decimal amount, string currency);
+        Task<string> ProcessPaymentWithCardDetailsAsync(decimal amount, string currency, Boolean? useInitPayment);
         Task<string> ProcessPaymentWithTokenAsync(string userId, string userPaymentOptionId, decimal amount, string currency);
         Task<string> ProcessRefundAsync(string nuveiPaymentId, decimal amount, string currency);
         Task<string> ProcessPayoutAsync(string userId, string userPaymentOptionId, decimal amount, string currency);
@@ -112,7 +112,7 @@ namespace Services.NuveiPayment
             return await PerformHttpPost(request, "initPayment", sessionToken);
         }
 
-        private async Task<PaymentResponse> PaymentAsync(InitPaymentRequest initPaymentRequest, string relatedTransactionId, string sessionToken)
+        private async Task<PaymentResponse> PaymentAsync(InitPaymentRequest initPaymentRequest, string sessionToken, string relatedTransactionId)
         {
             var request = new PaymentRequest
             {
@@ -122,8 +122,12 @@ namespace Services.NuveiPayment
                 deviceDetails = initPaymentRequest.deviceDetails,
                 billingAddress = initPaymentRequest.billingAddress,
                 transactionType = "Sale",
-                relatedTransactionId = relatedTransactionId,
             };
+            if (relatedTransactionId != "")
+            {
+
+                request.relatedTransactionId = relatedTransactionId;
+            }
             if (initPaymentRequest.userTokenId is not null)
             {
                 request.userTokenId = initPaymentRequest.userTokenId;
@@ -162,7 +166,7 @@ namespace Services.NuveiPayment
             return await PerformHttpPost(request, "payout", sessionToken);
         }
 
-        public async Task<string> ProcessPaymentWithCardDetailsAsync(decimal amount, string currency)
+        public async Task<string> ProcessPaymentWithCardDetailsAsync(decimal amount, string currency, Boolean? useInitPayment)
         {
             var initPaymentRequest = new InitPaymentRequest()
             {
@@ -194,11 +198,16 @@ namespace Services.NuveiPayment
             };
 
             string sessionToken = await GetSessionToken();
-            var initPaymentResponse = await InitPaymentAsync(initPaymentRequest, sessionToken);
-            NuveiUtils.AssertValidResponse(initPaymentResponse);
+            string relatedTransactionId = "";
+            if (useInitPayment == true)
+            {
+                var initPaymentResponse = await InitPaymentAsync(initPaymentRequest, sessionToken);
+                NuveiUtils.AssertValidResponse(initPaymentResponse);
 
-            string relatedTransactionId = initPaymentResponse.transactionId;
-            var paymentResponse = await PaymentAsync(initPaymentRequest, relatedTransactionId, sessionToken);
+                relatedTransactionId = initPaymentResponse.transactionId;
+            }
+
+            var paymentResponse = await PaymentAsync(initPaymentRequest, sessionToken, relatedTransactionId);
             NuveiUtils.AssertValidResponse(paymentResponse);
 
             return paymentResponse.transactionId;

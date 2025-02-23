@@ -76,9 +76,9 @@ namespace CustomMatching.Controllers
         [HttpPost, Route("MakePayment/{playerId}")]
         public async Task<IActionResult> MakePayment(Guid playerId)
         {
-            // Either get the userTokenId as part of the request or, for a saved card, get it from the user's profile in the DB/context
-            string userTokenId = "userTokenId";
-            var resp = await _nuveiPaymentService.ProcessPaymentWithTokenAsync(playerId.ToString(), userTokenId, 10, "EUR");
+            _logger.LogInformation("Received MakePayment request for playerId \"{PlayerId}\"", playerId);
+            var resp = await _nuveiPaymentService.ProcessPaymentWithCardDetailsAsync(200, "USD", false);
+            _logger.LogInformation($"Nuvei payment response {resp.ToString()}");
             dynamic response = new System.Dynamic.ExpandoObject();
             response.Data = resp;
             return Ok(response);
