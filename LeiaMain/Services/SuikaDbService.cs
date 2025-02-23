@@ -260,7 +260,7 @@ namespace Services
                                                                                        // t.TournamentData.TournamentTypeId == tournamentTypeId &&
                     t.IsOpen &&                                                        // Tournament is open
                                                                                        // t.TournamentData.EntryFeeCurrencyId == currencyId &&               // The currency Id is matching
-                    t.StartTime < DateTime.UtcNow.AddDays(-1) &&
+                    t.StartTime > DateTime.UtcNow.AddDays(-1) &&
                     !t.Players.Select(p => p.PlayerId).Contains(playerId)
                     ) // Tournament is not full
                 .OrderBy(t => Math.Abs(t.Rating - playerRating))
