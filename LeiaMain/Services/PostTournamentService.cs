@@ -237,10 +237,17 @@ namespace Services
                 return (-1, false, -1);
             }
 
-            var playersByScore = tournament?.PlayerTournamentSessions.OrderByDescending(pt => pt.PlayerScore).Select(pt =>
+            
+            var playerSession = tournament.PlayerTournamentSessions.FirstOrDefault(p => p.PlayerId == player.PlayerId);
+            var tournamentType = playerSession.TournamentType;
+            var leaderboard = PostTournamentService.CalculateLeaderboardForPlayer(player.PlayerId, tournament.PlayerTournamentSessions, playerSession.TournamentType, tournament.TournamentSessionId);
+            var isTournamentClosed = leaderboard.Count >= tournamentType.NumberOfPlayers && leaderboard.All(s => s.PlayerScore != null);
+            if (!isTournamentClosed)
             {
-                return tournament?.Players.FirstOrDefault(p => p.PlayerId == pt.PlayerId);
-            }).ToList();
+                return (-1, false, -1);
+            }
+            var playersByScore = leaderboard.Select(s => s.Player).ToList();
+
 
             var individualPlayerTournament = _suikaDbService.LeiaContext.PlayerTournamentSession.FirstOrDefault(pt => pt.TournamentSession.TournamentSessionId == tournament.TournamentSessionId && pt.PlayerId == player.PlayerId);
             if (individualPlayerTournament == null)
