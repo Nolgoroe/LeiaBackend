@@ -260,7 +260,7 @@ namespace Services
                                                                                        // t.TournamentData.TournamentTypeId == tournamentTypeId &&
                     t.IsOpen &&                                                        // Tournament is open
                                                                                        // t.TournamentData.EntryFeeCurrencyId == currencyId &&               // The currency Id is matching
-                    t.StartTime > DateTime.UtcNow.AddDays(-1) &&
+                    t.Players.Count < tournamentType.NumberOfPlayers &&
                     !t.Players.Select(p => p.PlayerId).Contains(playerId)
                     ) // Tournament is not full
                 .OrderBy(t => Math.Abs(t.Rating - playerRating))
@@ -484,46 +484,24 @@ namespace Services
         private dynamic GetPlayerTournamentsCalcLeaderboard(Guid playerId, IEnumerable<PlayerTournamentSession> allPlayerSessions, TournamentType tournamentType, int tournamentSessionId)
         {
             var leaderBoard = PostTournamentService.CalculateLeaderboardForPlayer(playerId, allPlayerSessions, tournamentType, tournamentSessionId).ToList();
-            var randomSessionOfTournament = leaderBoard[0];
-            var exposedLeaderboard = leaderBoard.Select(s =>
-                new
-                {
-                    name = s.Player?.Name,
-                    id = s.PlayerId,
-                    score = s.PlayerScore,
-                    didClaim = s.DidClaim,
-                    joinTime = s.JoinTime,
-                }
-            );
-            return new { players = exposedLeaderboard, tournamentId = tournamentSessionId, 
-                tournamentTypeId = tournamentType.TournamentTypeId,
-                tournamentTypeMaxPlayers = tournamentType.NumberOfPlayers,
-                currencyId = tournamentType.CurrenciesId,
-                entryFee = tournamentType.EntryFee,
-                isOpen = exposedLeaderboard.Count() < tournamentType.NumberOfPlayers || exposedLeaderboard.Any(s => s.score == null),
-                rewards = tournamentType.Reward,
-            };
+            var myEntry = leaderBoard.First(s => s.PlayerId == playerId);
+            leaderBoard.Remove(myEntry);
+            return new { myEntry, leaderBoard };
         }
 
         public async Task<List<dynamic>> GetPlayerTournaments(LeiaContext context, Guid playerId)
         {
             // We load all the tournament types and 100 of the most recent sessions of the current player
-            var allTournamentTypesById = context.TournamentTypes
-                .Include(t => t.Reward)
-                .ToDictionary(t => t.TournamentTypeId);
+            var allTournamentTypesByIdTask = context.TournamentTypes.ToDictionaryAsync(t => t.TournamentTypeId);
             var allSessionsOfCurrentPlayer = context.PlayerTournamentSession
                 .Where(s => s.PlayerId == playerId)
-                .Include(s => s.Player)
                 .OrderByDescending(s => s.SubmitScoreTime)
                 .Take(100)
                 .ToList();
-            var allTournamentIds = allSessionsOfCurrentPlayer.Select(a => a.TournamentSessionId);
+            var allTournamentTypesById = await allTournamentTypesByIdTask;
             // We load the rest of the sessions of other players in the 100 last tournaments of the current player
             // We arrange these sessions into groups and save the groups to a dictionary with tournamentId as the key
-            var allOtherSessionsByTournamentId = context.PlayerTournamentSession
-                .Where(s => allTournamentIds.Contains(s.TournamentSessionId))
-                .Include(s => s.Player)
-                .Include(s => s.TournamentSession)
+            var allOtherSessionsByTournamentId = context.PlayerTournamentSession.Where(s => s.PlayerId != playerId)
                 .GroupBy(s => s.TournamentSessionId)
                 .ToDictionary(group => group.Key, group => group.ToList());
             // We convert and sort the sessions to leaderboards using the mixed-trounament leaderboard calculator

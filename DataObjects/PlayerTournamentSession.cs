@@ -35,7 +35,7 @@ namespace DataObjects
         public int CompareTo(PlayerTournamentSession? other)
         {
             if (other == null) return 1;
-            if (other.PlayerScore == null) return 1;
+            if (other.PlayerScore == null) return -1;
             if (PlayerScore == null) return -1;
             return PlayerScore.Value - other.PlayerScore.Value;
         }
