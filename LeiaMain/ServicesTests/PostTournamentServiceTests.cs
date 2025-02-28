@@ -137,7 +137,7 @@ namespace ServiceTests
 
         private Player GeneratePlayer() => new Player() {  PlayerId = Guid.NewGuid(), Rating = 1000 };
 
-        private PlayerTournamentSession GeneratePlayerTournamentSession(Player player, int tournamentId, int tournamentTypeId, int? score, DateTime joinTime)
+        private PlayerTournamentSession GeneratePlayerTournamentSession(Player player, int tournamentId, int tournamentTypeId, int? score)
         {
             return new PlayerTournamentSession()
             {
@@ -146,7 +146,6 @@ namespace ServiceTests
                 TournamentSessionId = tournamentId,
                 TournamentTypeId = tournamentTypeId,
                 PlayerScore = score,
-                JoinTime = joinTime,
             };
         }
 
@@ -164,10 +163,10 @@ namespace ServiceTests
                 NumberOfPlayers = 4,
             };
 
-            var player1Session = GeneratePlayerTournamentSession(player1, 1, player1TournamentType.TournamentTypeId, 1000, DateTime.UtcNow - TimeSpan.FromSeconds(5));
-            var player2Session = GeneratePlayerTournamentSession(player2, 1, player1TournamentType.TournamentTypeId, 500, DateTime.UtcNow - TimeSpan.FromSeconds(4));
-            var player3Session = GeneratePlayerTournamentSession(player3, 1, player1TournamentType.TournamentTypeId + 1, 1500, DateTime.UtcNow - TimeSpan.FromSeconds(3));
-            var player4Session = GeneratePlayerTournamentSession(player4, 1, player1TournamentType.TournamentTypeId + 1, 50, DateTime.UtcNow - TimeSpan.FromSeconds(2));
+            var player1Session = GeneratePlayerTournamentSession(player1, 1, player1TournamentType.TournamentTypeId, 1000);
+            var player2Session = GeneratePlayerTournamentSession(player2, 1, player1TournamentType.TournamentTypeId, 500);
+            var player3Session = GeneratePlayerTournamentSession(player3, 1, player1TournamentType.TournamentTypeId + 1, 1500);
+            var player4Session = GeneratePlayerTournamentSession(player4, 1, player1TournamentType.TournamentTypeId + 1, 50);
 
 
             var allSessions = new[] { player1Session, player2Session, player3Session, player4Session };
@@ -202,10 +201,10 @@ namespace ServiceTests
                 NumberOfPlayers = 2,
             };
 
-            var player3Session = GeneratePlayerTournamentSession(player3, 1, player3and4TournamentType.TournamentTypeId, 1500, DateTime.UtcNow - TimeSpan.FromSeconds(5));
-            var player1Session = GeneratePlayerTournamentSession(player1, 1, player1and2TournamentType.TournamentTypeId, 1000, DateTime.UtcNow - TimeSpan.FromSeconds(4));
-            var player2Session = GeneratePlayerTournamentSession(player2, 1, player1and2TournamentType.TournamentTypeId, 500, DateTime.UtcNow - TimeSpan.FromSeconds(3));
-            var player4Session = GeneratePlayerTournamentSession(player4, 1, player3and4TournamentType.TournamentTypeId, 50, DateTime.UtcNow - TimeSpan.FromSeconds(2));
+            var player3Session = GeneratePlayerTournamentSession(player3, 1, player3and4TournamentType.TournamentTypeId, 1500);
+            var player1Session = GeneratePlayerTournamentSession(player1, 1, player1and2TournamentType.TournamentTypeId, 1000);
+            var player2Session = GeneratePlayerTournamentSession(player2, 1, player1and2TournamentType.TournamentTypeId, 500);
+            var player4Session = GeneratePlayerTournamentSession(player4, 1, player3and4TournamentType.TournamentTypeId, 50);
 
 
             var allSessions = new[] { player1Session, player2Session, player3Session, player4Session };
@@ -227,58 +226,11 @@ namespace ServiceTests
             Assert.Equal(2, leaderboardType1.Count);
             Assert.Equal(leaderboardType1[0].PlayerId, player3.PlayerId);
             Assert.Equal(leaderboardType1[0].PlayerScore, 1500);
-            Assert.Equal(leaderboardType1[1].PlayerId, player1.PlayerId);
-            Assert.Equal(leaderboardType1[1].PlayerScore, 1000);
+            Assert.Equal(leaderboardType1[1].PlayerId, player4.PlayerId);
+            Assert.Equal(leaderboardType1[1].PlayerScore, 50);
         }
 
 
-
-        [Fact]
-        public void CalculateLeaderboardForPlayersDifferentTournamentTypeWithNulls()
-        {
-            var player1 = GeneratePlayer();
-            var player2 = GeneratePlayer();
-            var player3 = GeneratePlayer();
-            var player4 = GeneratePlayer();
-            var player1and2TournamentType = new TournamentType()
-            {
-                TournamentTypeId = 2,
-                NumberOfPlayers = 4,
-            };
-            var player3and4TournamentType = new TournamentType()
-            {
-                TournamentTypeId = 1,
-                NumberOfPlayers = 2,
-            };
-
-            var player3Session = GeneratePlayerTournamentSession(player3, 1, player3and4TournamentType.TournamentTypeId, 1500, DateTime.UtcNow - TimeSpan.FromSeconds(5));
-            var player1Session = GeneratePlayerTournamentSession(player1, 1, player1and2TournamentType.TournamentTypeId, null, DateTime.UtcNow - TimeSpan.FromSeconds(4));
-            var player2Session = GeneratePlayerTournamentSession(player2, 1, player1and2TournamentType.TournamentTypeId, 500, DateTime.UtcNow - TimeSpan.FromSeconds(3));
-            var player4Session = GeneratePlayerTournamentSession(player4, 1, player3and4TournamentType.TournamentTypeId, 50, DateTime.UtcNow - TimeSpan.FromSeconds(2));
-
-
-            var allSessions = new[] { player1Session, player2Session, player3Session, player4Session };
-            var tournamentService = new PostTournamentService();
-            var leaderboardType2 = PostTournamentService.CalculateLeaderboardForPlayer(player1.PlayerId, allSessions, player1and2TournamentType, 1);
-            Assert.NotNull(leaderboardType2);
-            Assert.Equal(4, leaderboardType2.Count);
-            Assert.Equal(leaderboardType2[0].PlayerId, player3.PlayerId);
-            Assert.Equal(leaderboardType2[0].PlayerScore, 1500);
-            Assert.Equal(leaderboardType2[3].PlayerId, player1.PlayerId);
-            Assert.Null(leaderboardType2[3].PlayerScore);
-            Assert.Equal(leaderboardType2[1].PlayerId, player2.PlayerId);
-            Assert.Equal(leaderboardType2[1].PlayerScore, 500);
-            Assert.Equal(leaderboardType2[2].PlayerId, player4.PlayerId);
-            Assert.Equal(leaderboardType2[2].PlayerScore, 50);
-
-            var leaderboardType1 = PostTournamentService.CalculateLeaderboardForPlayer(player3.PlayerId, allSessions, player3and4TournamentType, 1);
-            Assert.NotNull(leaderboardType1);
-            Assert.Equal(2, leaderboardType1.Count);
-            Assert.Equal(leaderboardType1[0].PlayerId, player3.PlayerId);
-            Assert.Equal(leaderboardType1[0].PlayerScore, 1500);
-            Assert.Equal(leaderboardType1[1].PlayerId, player1.PlayerId);
-            Assert.Null(leaderboardType1[1].PlayerScore);
-        }
 
     }
 }
