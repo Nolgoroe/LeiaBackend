@@ -8,8 +8,8 @@ namespace Services.NuveiPayment
 
     public interface INuveiPaymentService
     {
-        Task<string> ProcessPaymentWithCardDetailsAsync(decimal amount, string currency, Boolean? useInitPayment);
-        Task<string> ProcessPaymentWithTokenAsync(string userId, string userPaymentOptionId, decimal amount, string currency, Boolean? useInitPayment);
+        Task<string> ProcessPaymentWithCardDetailsAsync(double amount, string currency, Boolean? useInitPayment);
+        Task<string> ProcessPaymentWithTokenAsync(string userId, string userPaymentOptionId, double amount, string currency, Boolean? useInitPayment);
         Task<string> ProcessRefundAsync(string nuveiPaymentId, decimal amount, string currency);
         Task<string> ProcessPayoutAsync(string userId, string userPaymentOptionId, decimal amount, string currency);
     }
@@ -94,6 +94,11 @@ namespace Services.NuveiPayment
             return response;
         }
 
+        private string FormatPaymentAmount(double amount)
+        {
+            return Convert.ToInt32(Math.Floor(amount * 100)).ToString();
+        }
+
         private async Task<string> GetSessionToken()
         {
             var request = new GetSessionTokenRequest();
@@ -165,11 +170,11 @@ namespace Services.NuveiPayment
             return await PerformHttpPost(request, "payout", sessionToken);
         }
 
-        public async Task<string> ProcessPaymentWithCardDetailsAsync(decimal amount, string currency, Boolean? useInitPayment)
+        public async Task<string> ProcessPaymentWithCardDetailsAsync(double amount, string currency, Boolean? useInitPayment)
         {
             var initPaymentRequest = new InitPaymentRequest()
             {
-                amount = amount.ToString(),
+                amount = FormatPaymentAmount(amount),
                 currency = currency,
                 paymentOption = new PaymentOptionRoot
                 {
@@ -212,12 +217,12 @@ namespace Services.NuveiPayment
             return paymentResponse.transactionId;
         }
 
-        public async Task<string> ProcessPaymentWithTokenAsync(string userId, string userPaymentOptionId, decimal amount, string currency, Boolean? useInitPayment)
+        public async Task<string> ProcessPaymentWithTokenAsync(string userId, string userPaymentOptionId, double amount, string currency, Boolean? useInitPayment)
         {
             var initPaymentRequest = new InitPaymentRequest()
             {
                 userTokenId = userId,
-                amount = amount.ToString(),
+                amount = FormatPaymentAmount(amount),
                 currency = currency,
                 paymentOption = new PaymentOptionRoot
                 {
