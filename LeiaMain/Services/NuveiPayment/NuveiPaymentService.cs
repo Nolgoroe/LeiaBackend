@@ -9,7 +9,7 @@ namespace Services.NuveiPayment
     public interface INuveiPaymentService
     {
         Task<string> ProcessPaymentWithCardDetailsAsync(decimal amount, string currency, Boolean? useInitPayment);
-        Task<string> ProcessPaymentWithTokenAsync(string userId, string userPaymentOptionId, decimal amount, string currency);
+        Task<string> ProcessPaymentWithTokenAsync(string userId, string userPaymentOptionId, decimal amount, string currency, Boolean? useInitPayment);
         Task<string> ProcessRefundAsync(string nuveiPaymentId, decimal amount, string currency);
         Task<string> ProcessPayoutAsync(string userId, string userPaymentOptionId, decimal amount, string currency);
     }
@@ -212,7 +212,7 @@ namespace Services.NuveiPayment
             return paymentResponse.transactionId;
         }
 
-        public async Task<string> ProcessPaymentWithTokenAsync(string userId, string userPaymentOptionId, decimal amount, string currency)
+        public async Task<string> ProcessPaymentWithTokenAsync(string userId, string userPaymentOptionId, decimal amount, string currency, Boolean? useInitPayment)
         {
             var initPaymentRequest = new InitPaymentRequest()
             {
@@ -238,8 +238,14 @@ namespace Services.NuveiPayment
             };
 
             string sessionToken = await GetSessionToken();
-            var initPaymentResponse = await InitPaymentAsync(initPaymentRequest, sessionToken);
-            string relatedTransactionId = initPaymentResponse.transactionId;
+            string relatedTransactionId = "";
+            if (useInitPayment == true)
+            {
+                var initPaymentResponse = await InitPaymentAsync(initPaymentRequest, sessionToken);
+                NuveiUtils.AssertValidResponse(initPaymentResponse);
+
+                relatedTransactionId = initPaymentResponse.transactionId;
+            }
 
             var paymentResponse = await PaymentAsync(initPaymentRequest, relatedTransactionId, sessionToken);
             return paymentResponse.transactionId;
