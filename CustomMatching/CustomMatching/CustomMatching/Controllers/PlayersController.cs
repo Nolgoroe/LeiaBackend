@@ -84,6 +84,27 @@ namespace CustomMatching.Controllers
             return Ok(response);
         }
 
+        [HttpPost, Route("MakePaymentWithSavedToken/{playerId}/{paymentOptionId}")]
+        public async Task<IActionResult> MakePaymentWithSavedToken(Guid playerId, string paymentOptionId)
+        {
+            _logger.LogInformation("Received MakePaymentWithSavedToken request for playerId \"{PlayerId}\"", playerId);
+            var playerData = await _suikaDbService.GetPlayerById(playerId);
+            if (playerData is null)
+            {
+                throw new Exception("");
+            }
+            if (playerData.SavedNuveiPaymentToken is null || playerData.SavedNuveiPaymentToken == "")
+            {
+                throw new Exception("");
+            }
+
+            var resp = await _nuveiPaymentService.ProcessPaymentWithTokenAsync(playerData.PlayerId.ToString(), playerData.SavedNuveiPaymentToken, 200, "USD", false);
+            _logger.LogInformation($"Nuvei saved-token payment response {resp}");
+            dynamic response = new System.Dynamic.ExpandoObject();
+            response.Data = resp;
+            return Ok(response);
+        }
+
         // GET /Players/GetPlayerByName/"test01"
         [HttpGet, Route("GetPlayerByName/{name}")]
         public async Task<IActionResult> GetPlayerByName(string name)
