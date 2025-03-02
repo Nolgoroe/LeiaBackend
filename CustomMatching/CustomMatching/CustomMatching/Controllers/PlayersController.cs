@@ -105,6 +105,63 @@ namespace CustomMatching.Controllers
             return Ok(response);
         }
 
+        [HttpPost, Route("MakeWithdraw/{playerId}/{currencyId}/{amount}")]
+        public async Task<IActionResult> MakeWithdraw(Guid playerId, int currencyId, double amount)
+        {
+            if (currencyId <= 0 || amount <= 0)
+            {
+                return BadRequest("Invalid currency or amount.");
+            }
+
+            var playerData = await _suikaDbService.GetPlayerById(playerId);
+            if (playerData is null)
+            {
+                throw new Exception("");
+            }
+            var playerBalance = await _suikaDbService.GetPlayerBalance(playerData.PlayerId, currencyId);
+            if (playerBalance is null || amount > playerBalance)
+            {
+                return BadRequest("Not enough money in the balance. Please try a lower amount.");
+            }
+
+            // TODO: Get latest withdrawal for user
+            var latestWithdrawal = new
+            {
+                Status = "",
+            };
+            string[] finalWithdrawalStatuses = { "Success", "Denied" };
+            if (latestWithdrawal?.Status is not null && !finalWithdrawalStatuses.Contains(latestWithdrawal.Status))
+            {
+                return BadRequest("Only one withdrawal can be processed at a time.");
+            }
+
+            // TODO: get user's latest deposits
+            // Verify at least one of them is successful
+            // Vs. count on the user?
+
+            // Create new withdrawal entry for user
+            WithdrawalDetails withdrawalDetails = new WithdrawalDetails
+            {
+                WithdrawalId = Guid.NewGuid(),
+                PlayerId = playerData.PlayerId,
+                MutationToken = Guid.NewGuid(),
+                CurrencyId = currencyId,
+                Amount = amount,
+                Status = "EmailNotSent",
+            };
+            // TODO: save to DB
+
+            await _suikaDbService.UpdatePlayerBalance(playerData.PlayerId, currencyId, -1 * amount);
+
+            // Send email
+
+            withdrawalDetails.Status = "PendingProcessing";
+            // TODO: save to DB
+
+            dynamic response = new System.Dynamic.ExpandoObject();
+            return Ok(response);
+        }
+
         // GET /Players/GetPlayerByName/"test01"
         [HttpGet, Route("GetPlayerByName/{name}")]
         public async Task<IActionResult> GetPlayerByName(string name)
