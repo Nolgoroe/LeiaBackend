@@ -8,7 +8,6 @@ namespace Services.NuveiPayment
 
     public interface INuveiPaymentService
     {
-        // Get signed URL for tokenizing the credit-card information
         Task<string> ProcessPaymentWithCardDetailsAsync(decimal amount, string currency, Boolean? useInitPayment);
         Task<string> ProcessPaymentWithTokenAsync(string userId, string userPaymentOptionId, decimal amount, string currency);
         Task<string> ProcessRefundAsync(string nuveiPaymentId, decimal amount, string currency);
