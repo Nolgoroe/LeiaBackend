@@ -1,7 +1,4 @@
-﻿using System;
-using System.Data;
-using System.Diagnostics;
-
+﻿using System.Data;
 using DataObjects;
 
 using Microsoft.AspNetCore.Mvc;
@@ -15,6 +12,8 @@ using static CustomMatching.Controllers.PlayersController;
 
 namespace CustomMatching.Controllers
 {
+
+
     [Route("[controller]")]
     [ApiController]
     public class PlayersController : ControllerBase
@@ -25,6 +24,8 @@ namespace CustomMatching.Controllers
             public int? ActiveTournamentId { get; set; }
             public TournamentType? ActiveTournamentType { get; set; }
             public DateTime? ActiveTournamentEntryTime { get; set; }
+
+            public string AuthToken { get; set; }
 
             public LoginResponse(Player player)
             {
@@ -50,9 +51,12 @@ namespace CustomMatching.Controllers
 
 
         // GET /GetPlayerTournamentHistory/5
-        [HttpGet, Route("GetPlayerTournamentHistory/{playerId}")]
-        public async Task<IActionResult> GetPlayerTournamentHistory(Guid playerId)
+        [HttpPost, Route("GetPlayerTournamentHistory/{playerId}")]
+        public async Task<IActionResult> GetPlayerTournamentHistory([FromBody] string authToken)
         {
+            var player = await _suikaDbService.LoadPlayerByAuthToken(authToken);
+            if (player == null) return NotFound("PlayerId was not provided");
+            var playerId = player.PlayerId;
             try
             {
                 var tournaments = await _suikaDbService.GetPlayerTournaments(_suikaDbService.LeiaContext, playerId);
@@ -84,13 +88,27 @@ namespace CustomMatching.Controllers
             return Ok(response);
         }
 
-        // GET /Players/GetPlayerByName/"test01"
-        [HttpGet, Route("GetPlayerByName/{name}")]
-        public async Task<IActionResult> GetPlayerByName(string name)
+        [HttpGet, Route("Login/{playerId}")]
+        public async Task<IActionResult> LoginPlayer(string guid)
         {
-            var player = await _suikaDbService.GetPlayerByName(name);
+            var playerId = Guid.Parse(guid);
+            var player = await _suikaDbService.LeiaContext.Players.FirstOrDefaultAsync(p => p.PlayerId == playerId);
             if (player != null)
             {
+                // Create new auth token
+                var newAuthTokenValue = Guid.NewGuid().ToString();
+                var authTokenItem = _suikaDbService.LeiaContext.PlayerAuthToken.Find(playerId);
+                if (authTokenItem != null)
+                {
+                    authTokenItem.Token = newAuthTokenValue;
+                }
+                else
+                {
+                    authTokenItem = new PlayerAuthToken { PlayerId = playerId, Token = newAuthTokenValue };
+                    _suikaDbService.LeiaContext.PlayerAuthToken.Update(authTokenItem);
+                }
+                _suikaDbService.LeiaContext.SaveChanges();
+
                 var activeMatchMakeRecord = await _suikaDbService.GetPlayerActiveMatchMakeRecord(player.PlayerId);
                 int? activeTournamentSeed = null;
                 if (activeMatchMakeRecord != null && !activeMatchMakeRecord.IsStillMatchmaking())
@@ -110,17 +128,19 @@ namespace CustomMatching.Controllers
                     ActiveTournamentEntryTime = activeMatchMakeRecord?.JoinTournamentTime,
                     ActiveTournamentId = activeMatchMakeRecord?.TournamentId,
                     ActiveTournamentSeed = activeTournamentSeed,
-                    ActiveTournamentType = activeTournamentType
+                    ActiveTournamentType = activeTournamentType,
+                    AuthToken = newAuthTokenValue,
                 };
                 await _suikaDbService.Log($"Player login {player.Name} id={player.PlayerId}, activeTournament?={activeMatchMakeRecord?.TournamentId}", player.PlayerId);
                 return Ok(loginResponse);
             }
             else
             {
-                return NotFound($"Player: {name}, was not found");
+                return NotFound($"Player: {playerId}, was not found");
             }
 
         }
+
 
         // GET /Players/GetLeagueById/5
         [HttpGet, Route("GetLeagueById/{id}")]
@@ -139,8 +159,7 @@ namespace CustomMatching.Controllers
         }
 
 
-
-
+        // TODO: Lital: Don't know what this is for, looks like its for debugging or someth...
         // POST /Players/AddPlayer
         [HttpPost, Route("AddPlayer")]
         public async Task<IActionResult> AddPlayer([FromBody] Player player)
@@ -205,18 +224,20 @@ namespace CustomMatching.Controllers
 
         // PUT /Players/ClaimTournamentPrize/1/3FA85F64-5717-4562-B3FC-1A762F63BFC8
         [HttpPut, Route("ClaimTournamentPrize/{tournamentId}/{playerId}")]
-        public async Task<IActionResult> ClaimTournamentPrize(int tournamentId, Guid playerId)
+        public async Task<IActionResult> ClaimTournamentPrize(int tournamentId, [FromBody] string authToken)
         {
+            var player = await _suikaDbService.LoadPlayerByAuthToken(authToken);
+            if (player == null) return NotFound("PlayerId was not provided");
 
-            var player = _suikaDbService?.LeiaContext?.Players?.Where(p => p.PlayerId == playerId)
+            player = _suikaDbService?.LeiaContext?.Players?.Where(p => p.PlayerId == player.PlayerId)
                 .Include(p => p.PlayerCurrencies)
                 .FirstOrDefault();
 
-            var playerTournamentSession = _suikaDbService.LeiaContext.PlayerTournamentSession.FirstOrDefault(p => p.PlayerId == playerId && p.TournamentSession.TournamentSessionId == tournamentId);
+            var playerTournamentSession = _suikaDbService.LeiaContext.PlayerTournamentSession.FirstOrDefault(p => p.PlayerId == player.PlayerId && p.TournamentSession.TournamentSessionId == tournamentId);
 
             if (playerTournamentSession == null)
             {
-                return NotFound($"Player {playerId} was not in tournament {tournamentId}");
+                return NotFound($"Player {player.PlayerId} was not in tournament {tournamentId}");
             }
 
             var tournament = _suikaDbService?.LeiaContext?.Tournaments?.Where(t => t.TournamentSessionId == tournamentId)               
@@ -227,7 +248,7 @@ namespace CustomMatching.Controllers
                 .FirstOrDefault();
 
             if (player == null || tournament == null) return NotFound("Player or tournament were not found");
-            if (tournament.PlayerTournamentSessions.FirstOrDefault(pt => pt.PlayerId == playerId && pt.TournamentSession.TournamentSessionId == tournamentId)?.DidClaim != null) return BadRequest("Player already claimed this prize");
+            if (tournament.PlayerTournamentSessions.FirstOrDefault(pt => pt.PlayerId == player.PlayerId && pt.TournamentSession.TournamentSessionId == tournamentId)?.DidClaim != null) return BadRequest("Player already claimed this prize");
 
            var (amountClaimed, wasTournamentClaimed, PTclaimed ) =  await _postTournamentService.GrantTournamentPrizes(tournament, player);
 
@@ -239,46 +260,55 @@ namespace CustomMatching.Controllers
 
         // POST/Players/GetAllPlayerBalances
         [HttpPost, Route("GetAllPlayerBalances")]
-        public async Task<IActionResult> GetPlayerBalances([FromBody] Guid playerId)
+        public async Task<IActionResult> GetPlayerBalances([FromBody] string authToken)
         {
-            if (playerId == null) return BadRequest("PlayerId was not provided");
+            var player = await _suikaDbService.LoadPlayerByAuthToken(authToken);
+            if (player == null) return NotFound("PlayerId was not provided");
            
-            var balances = await _suikaDbService.GetAllPlayerBalances(playerId); 
+            var balances = await _suikaDbService.GetAllPlayerBalances(player.PlayerId); 
             if (balances != null) return Ok(balances);
             
             else return NotFound("Player balances were not found");
         }
 
         // we use record instead of class for the deconstruction ability
-        public record UpdateBalancesParams(Guid playerId, int currencyId, double amount);
-        // PUT /Players/UpdatePlayerBalances
-        [HttpPut, Route("UpdatePlayerBalances")]
+        public record UpdateBalancesParams(string authToken, int currencyId, double amount);
+        
+
+        // Lital's TODO: Not sure about this EP looks like its for debug, seems super unsave to let the client update the balance freely, recommend removing completely
+        [HttpPost, Route("UpdatePlayerBalances")]
         public async Task<IActionResult> UpdatePlayerBalances([FromBody] UpdateBalancesParams updatedValues)
         {
+            var player = await _suikaDbService.LoadPlayerByAuthToken(updatedValues.authToken);
+            if (player == null) return NotFound("PlayerId was not provided");
             if (updatedValues == null) return BadRequest("Some values were not provided");
            
-            var (playerId, currencyId, amount) = updatedValues;
-
-            var balances = await _suikaDbService.UpdatePlayerBalance(playerId, currencyId, amount);
+            var balances = await _suikaDbService.UpdatePlayerBalance(player.PlayerId, updatedValues.currencyId, updatedValues.amount);
             if (balances != null) return Ok(balances);
 
             else return NotFound("Player balances were not found");
         }
 
 
+        public record UpdatePlayerInfoRequest(string authToken, Player player);
+
         // PUT /Players/UpdatePlayerDetails
-        [HttpPut, Route("UpdatePlayerDetails")]
-        public async Task<IActionResult> UpdatePlayerDetails([FromBody] Player player)
+        [HttpPost, Route("UpdatePlayerDetails")]
+        public async Task<IActionResult> UpdatePlayerDetails([FromBody] UpdatePlayerInfoRequest request)
         {
+            var existingPlayer = await _suikaDbService.LoadPlayerByAuthToken(request.authToken);
+            if (existingPlayer == null) return NotFound("PlayerId was not provided");
+            var player = request.player;
+            if (existingPlayer.PlayerId != player.PlayerId)
+            {
+                throw new Exception("Invalid player Id given");
+            }
+
             if(player == null) return BadRequest("Player was null");
             if (!VerifyPlayer(player)) return BadRequest("Player details are incomplete");
-            var dbPlayer = await _suikaDbService.GetPlayerById(player.PlayerId);
-            if (dbPlayer == null) return NotFound("Player was not found");
 
-
-
-            dbPlayer.UpdatePropertiesFrom(player);
-            var updatedPlayer = await _suikaDbService.UpdatePlayer(dbPlayer);
+            existingPlayer.UpdatePropertiesFrom(player);
+            var updatedPlayer = await _suikaDbService.UpdatePlayer(existingPlayer);
             if (updatedPlayer != null) return Ok(updatedPlayer);
             else return BadRequest("Failed to update league");
         }

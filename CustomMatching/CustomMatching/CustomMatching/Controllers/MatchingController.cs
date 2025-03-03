@@ -69,10 +69,18 @@ namespace CustomMatching.Controllers
         }
 
 
-        [HttpPost, Route("RequestMatch/{playerId}"/*/{matchFee}/{currency}"*/)]
-        public async Task<IActionResult> RequestMatch(Guid playerId,/* double matchFee, int currency,*/ [FromBody] TournamentType tournamentType)
+        public record MatchRequest (string authToken, TournamentType tournamentType);
 
+        [HttpPost, Route("RequestMatch/{playerId}"/*/{matchFee}/{currency}"*/)]
+        public async Task<IActionResult> RequestMatch([FromBody] MatchRequest request)
         {
+            var player = await _suikaDbService.LoadPlayerByAuthToken(request.authToken);
+            if (player == null)
+            {
+                return NotFound();
+            }
+            var tournamentType = request.tournamentType;
+            var playerId = player.PlayerId;
             // UNSUBSCRIBE FROM THE EVENT! without it, the Controller will be kept alive after it is done and closed. because the PlayerAddedToTournamentHandler is still connected to the event, and that keeps the Controller instance alive, and not garbage collected
             _tournamentService.PlayerAddedToTournament -= PlayerAddedToTournamentHandler;
             var isSuccess = false;
@@ -83,9 +91,6 @@ namespace CustomMatching.Controllers
 
                 var currencies = await _suikaDbService.LeiaContext.Currencies.FindAsync(tournamentType.CurrenciesId/*currency*/);
                 if (currencies == null) return NotFound("There is no such currency");
-
-                var player = await _suikaDbService.GetPlayerById(playerId);
-                if (player == null) return NotFound("There is no such id");
 
                 var dbTournamentType = await _suikaDbService.LeiaContext.TournamentTypes.FindAsync(tournamentType.TournamentTypeId);
                 if (dbTournamentType == null) return NotFound("There is no such Tournament Type");
@@ -107,7 +112,7 @@ namespace CustomMatching.Controllers
                     {
                         await _suikaDbService.Log("Removing player from tournament due to timeout so the player can matchmake", playerId);
                         await _suikaDbService.RemovePlayerFromActiveTournament(playerId, matchmakeRecord.TournamentId);
-                        return await RequestMatch(playerId, /*matchFee, currency,*/ tournamentType);
+                        return await RequestMatch(request);
                     }
                     return BadRequest("Player cannot match make");
                 }
@@ -142,9 +147,12 @@ namespace CustomMatching.Controllers
             return Ok(json);
         }
 
-        [HttpGet, Route("GetTournamentSeed/{playerId}")]
-        public async Task<IActionResult> GetTournamentSeed(Guid playerId)
+        [HttpPost, Route("GetTournamentSeed/{playerId}")]
+        public async Task<IActionResult> GetTournamentSeed([FromBody] string authToken)
         {
+            var player = await _suikaDbService.LoadPlayerByAuthToken(authToken);
+            if (player == null) return NotFound("Couldn't find player");
+            var playerId = player.PlayerId;
             try
             {
                 #region Active Tournaments Part
@@ -223,56 +231,6 @@ namespace CustomMatching.Controllers
             return Ok("Hello Unity");
         }
 
-        // dump endpoint for testing stuff. DO NOT USE! 
-        [HttpGet, Route("TestStuff/{tournamentId}/{playerId}")]
-        private async Task<IActionResult> TestStuff(int tournamentId, Guid playerId)
-        {
-            // await _tournamentService.CheckTournamentStatus(tournamentId);
-
-            var player = _suikaDbService?.LeiaContext?.Players?.Where(p => p.PlayerId == playerId)
-                .Include(p => p.PlayerCurrencies)
-                .FirstOrDefault();
-
-            //var tournament = null;
-
-            //if (player == null || tournament == null) return NotFound("Player or tournament were not found");
-            // await _postTournamentService.GrantTournamentPrizes(tournament, player);
-            return Ok();
-
-            /*var playerCurrency = await _suikaDbService.LeiaContext.PlayerCurrencies.FirstOrDefaultAsync(pc => pc.PlayerId == playerId && pc.CurrenciesId == currencyId);
-
-                        var currency = await _suikaDbService.LeiaContext.Currencies.FindAsync(currencyId);
-
-                        var player = await _suikaDbService.LeiaContext.Players.FindAsync(playerId);
-
-                        playerCurrency ??= new();
-
-                        var tournamentType = await _tournamentService.GetTournamentTypeByCurrency(currencyId);
-                        var tournament = new TournamentSession
-                        {
-                            TournamentData = new TournamentData
-                            {
-                                EntryFee = 10,
-                                EntryFeeCurrency = currency,
-                                EntryFeeCurrencyId = currency.CurrencyId,
-                                EarningCurrencyId = currency.CurrencyId,
-                                TournamentTypeId = (int)tournamentType
-                            }
-                        };
-                        tournament.Players?.Add(player);
-                        try
-                        {
-                            var savedTournament = _suikaDbService?.LeiaContext?.Tournaments?.Add(tournament);
-                            var saved = await _suikaDbService.LeiaContext.SaveChangesAsync();
-                            // var balance = _suikaDbService.LeiaContext.PlayerCurrencies.FirstOrDefault(p => p.PlayerId == playerId && p.CurrenciesId == currencyId);
-                            return Ok(*//*balance*//*);
-
-                        }
-                        catch (Exception ex)
-                        {
-                            return BadRequest(ex.Message + "\n" + ex.InnerException?.Message);
-                        }*/
-        }
 
         [HttpGet, Route("ResetLists")]
         public IActionResult ResetLists()

@@ -46,6 +46,7 @@ namespace Services
         public Task<Player>? UpdatePlayer(Player player);
         public Task<Player?> GetPlayerById(Guid playerId);
         public Task<Player?> GetPlayerByName(string playerName);
+        public Task<Player?> LoadPlayerByAuthToken(string token);
         public Task<List<dynamic>> GetPlayerTournaments(LeiaContext context, Guid playerId);
         public Task<double?> GetPlayerBalance(Guid? playerId, int? currencyId);
         public Task<List<PlayerCurrencies?>?> GetAllPlayerBalances(Guid playerId);
@@ -518,6 +519,14 @@ namespace Services
             var league = await _leiaContext.League.Include(l => l.Players)
                 .FirstOrDefaultAsync(l => l.LeagueId == leagueId);
             return league;
+        }
+
+        public Task<Player?> LoadPlayerByAuthToken(string authToken)
+        {
+            return _leiaContext.PlayerAuthToken
+                .Where(pat => pat.Token == authToken)
+                .Select(pat => pat.Player)
+                .FirstOrDefaultAsync();
         }
     }
 
