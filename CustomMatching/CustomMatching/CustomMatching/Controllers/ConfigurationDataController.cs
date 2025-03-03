@@ -20,11 +20,11 @@ namespace CustomMatching.Controllers
 
         // GET /GetConfigurationByBuildNumber/1
         [HttpGet, Route("GetConfigurationByBuildNumber/{buildNumber}")]
-        public async Task<IActionResult>  GetConfigurationByBuildNumber( string buildNumber)
+        public async Task<IActionResult> GetConfigurationByBuildNumber(string buildNumber)
         {
-            var configurations = await _suikaDbService.LeiaContext.ConfigurationsData.FirstOrDefaultAsync( c => c.AppVersion == buildNumber);
-            if (configurations == null)return NotFound("Configuration not found");
-            
+            var configurations = await _suikaDbService.LeiaContext.ConfigurationsData.FirstOrDefaultAsync(c => c.AppVersion == buildNumber);
+            if (configurations == null) return NotFound("Configuration not found");
+
             return Ok(configurations);
         }
 

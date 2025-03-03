@@ -8,12 +8,12 @@ using System.Reflection.Emit;
 using System.Text;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
- 
+
 namespace DataObjects
 {
     public class PlayerData
     {
-        [Key]  
+        [Key]
         public Guid PlayerId { get; set; }
         public string? UserType { get; set; }
         public string? Name { get; set; }
@@ -29,14 +29,15 @@ namespace DataObjects
         public string? InstallSource { get; set; }
         public DateTime? InstallDate { get; set; }
         public string? AttributionData { get; set; }
-        public int AvatarId  { get; set; }
-      //  [JsonIgnore]
+        public int AvatarId { get; set; }
+
+        //  [JsonIgnore]
         public List<SessionData> Sessions { get; set; }
         [JsonIgnore]
         public List<TournamentSession> TournamentSessions { get; } = [];
         [JsonIgnore]
         public List<PlayerTournamentSession> PlayerTournamentSessions { get; } = []; // a link to the MtM table
-        //! THIS IS IMPORTANT!! THE MTM WITH PAYLOAD LINKING TABLES PROPERTIES, MUST ONLY BE { get; } AND INITIALIZED WITH = []; OR ELSE THE MTM CONNECTION DOESN'T WORK RIGHT
+                                                                                     //! THIS IS IMPORTANT!! THE MTM WITH PAYLOAD LINKING TABLES PROPERTIES, MUST ONLY BE { get; } AND INITIALIZED WITH = []; OR ELSE THE MTM CONNECTION DOESN'T WORK RIGHT
         [JsonIgnore]
         public List<Currencies> Currencies { get; } = [];
         [JsonIgnore]

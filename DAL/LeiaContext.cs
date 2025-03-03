@@ -80,8 +80,6 @@ namespace DAL
 
                 );
 
-                    
-
             #region Configure PlayerActiveTournament and BackendLog
 
             modelBuilder.Entity<PlayerActiveTournament>()
