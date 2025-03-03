@@ -68,7 +68,7 @@ namespace Services
             {
                 throw new Exception($"No such tournament type {tournamentTypeId}");
             }
-            
+
             return CalculateLeaderboardForPlayer(requestingPlayerGuid, allPlayerTournamentSessions, tournamentType, tournamentId);
         }
 
@@ -160,7 +160,7 @@ namespace Services
                 // If the leaderboard for this tournament type is not cached, then cache it!
                 if (!leaderboardPerTournamentTypeId.TryGetValue(playerSession.TournamentTypeId, out var playerLeaderboard))
                 {
-                    playerLeaderboard = CalculateLeaderboardForPlayer(playerSession.PlayerId, allPlayerSessionsSortedByScore, 
+                    playerLeaderboard = CalculateLeaderboardForPlayer(playerSession.PlayerId, allPlayerSessionsSortedByScore,
                         allTournamentTypesById[playerSession.TournamentTypeId], playerSession.TournamentSessionId).Select(s =>
                         {
                             return new TournamentGlickoRatingCalculationEntry
@@ -203,7 +203,7 @@ namespace Services
 
             tournament.IsOpen = false;
             tournament.Endtime = DateTime.UtcNow;
-            
+
             var newPlayerRatings = CalculatePlayersRatingFromTournament(_suikaDbService.LeiaContext, tournament);
             try
             {

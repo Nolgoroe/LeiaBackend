@@ -219,7 +219,7 @@ namespace CustomMatching.Controllers
                 return NotFound($"Player {playerId} was not in tournament {tournamentId}");
             }
 
-            var tournament = _suikaDbService?.LeiaContext?.Tournaments?.Where(t => t.TournamentSessionId == tournamentId)               
+            var tournament = _suikaDbService?.LeiaContext?.Tournaments?.Where(t => t.TournamentSessionId == tournamentId)
                 //.Include(td => playerTournamentSession)
                 .Include(t => t.PlayerTournamentSessions)
                     .ThenInclude(pt => pt.TournamentType)
@@ -229,7 +229,7 @@ namespace CustomMatching.Controllers
             if (player == null || tournament == null) return NotFound("Player or tournament were not found");
             if (tournament.PlayerTournamentSessions.FirstOrDefault(pt => pt.PlayerId == playerId && pt.TournamentSession.TournamentSessionId == tournamentId)?.DidClaim != null) return BadRequest("Player already claimed this prize");
 
-           var (amountClaimed, wasTournamentClaimed, PTclaimed ) =  await _postTournamentService.GrantTournamentPrizes(tournament, player);
+            var (amountClaimed, wasTournamentClaimed, PTclaimed) = await _postTournamentService.GrantTournamentPrizes(tournament, player);
 
             if (amountClaimed == null || amountClaimed == -1) return StatusCode(500, $"Returned {amountClaimed}, Failed to claim prize");
             if (wasTournamentClaimed == null || wasTournamentClaimed == false) return StatusCode(500, $"Returned {wasTournamentClaimed}, Failed to claim tournament");
@@ -242,10 +242,10 @@ namespace CustomMatching.Controllers
         public async Task<IActionResult> GetPlayerBalances([FromBody] Guid playerId)
         {
             if (playerId == null) return BadRequest("PlayerId was not provided");
-           
-            var balances = await _suikaDbService.GetAllPlayerBalances(playerId); 
+
+            var balances = await _suikaDbService.GetAllPlayerBalances(playerId);
             if (balances != null) return Ok(balances);
-            
+
             else return NotFound("Player balances were not found");
         }
 
@@ -256,7 +256,7 @@ namespace CustomMatching.Controllers
         public async Task<IActionResult> UpdatePlayerBalances([FromBody] UpdateBalancesParams updatedValues)
         {
             if (updatedValues == null) return BadRequest("Some values were not provided");
-           
+
             var (playerId, currencyId, amount) = updatedValues;
 
             var balances = await _suikaDbService.UpdatePlayerBalance(playerId, currencyId, amount);
@@ -270,7 +270,7 @@ namespace CustomMatching.Controllers
         [HttpPut, Route("UpdatePlayerDetails")]
         public async Task<IActionResult> UpdatePlayerDetails([FromBody] Player player)
         {
-            if(player == null) return BadRequest("Player was null");
+            if (player == null) return BadRequest("Player was null");
             if (!VerifyPlayer(player)) return BadRequest("Player details are incomplete");
             var dbPlayer = await _suikaDbService.GetPlayerById(player.PlayerId);
             if (dbPlayer == null) return NotFound("Player was not found");
@@ -282,7 +282,7 @@ namespace CustomMatching.Controllers
             if (updatedPlayer != null) return Ok(updatedPlayer);
             else return BadRequest("Failed to update league");
         }
-       
+
         // DELETE api/<PlayersController>/5
         [HttpDelete("{id}")]
         private void Delete(int id)

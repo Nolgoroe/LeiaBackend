@@ -26,10 +26,10 @@ namespace Services
                 // a way to exclude updating particular properties by name 
                 if (propertiesToExclude.Contains(prop.Name) || !prop.CanWrite)
                     continue;
-                  
+
                 // Skip complex types and collections if necessary
-               // if (prop.PropertyType.IsClass && prop.PropertyType != typeof(string)) continue;
-                   
+                // if (prop.PropertyType.IsClass && prop.PropertyType != typeof(string)) continue;
+
                 var newValue = prop.GetValue(source, null);
                 prop.SetValue(destination, newValue, null);
             }

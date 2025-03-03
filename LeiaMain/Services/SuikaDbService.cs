@@ -511,7 +511,7 @@ namespace Services
             }).ToList();
 
         }
-     
+
 
         public async Task<League?> GetLeagueById(int leagueId)
         {

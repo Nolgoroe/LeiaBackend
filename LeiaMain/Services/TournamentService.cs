@@ -18,7 +18,7 @@ namespace Services
 
     public class TournamentService : ITournamentService
     {
-        private const int MAX_RATING_DRIFT = 5000; 
+        private const int MAX_RATING_DRIFT = 5000;
         private const int MATCH_MAKER_INTERVAL = 500; // get these numbers from tournament DB or config file
         private readonly IPostTournamentService _postTournamentService;
         private readonly IServiceScopeFactory _scopeFactory;
@@ -105,7 +105,7 @@ namespace Services
                 return null;
             }
 
-  
+
 
             try
             {
@@ -156,7 +156,8 @@ namespace Services
 
                 return tournament;
             }
-            else {
+            else
+            {
                 await dbService.Log("Got null match request");
                 return null;
             }
@@ -166,7 +167,7 @@ namespace Services
         {
             if (matchingTournament?.Players?.Count >= request?.TournamentType?.NumberOfPlayers /*_maxNumPlayers*/) // if tournament has room in it, add the current request player
             {
-               await dbService.Log($"AddToExistingTournament: Error: Tournament is full: {matchingTournament.TournamentSessionId}", request.Player.PlayerId);
+                await dbService.Log($"AddToExistingTournament: Error: Tournament is full: {matchingTournament.TournamentSessionId}", request.Player.PlayerId);
                 return null;
             }
             var dbTournament = dbService.LeiaContext.Tournaments.Find(matchingTournament?.TournamentSessionId);
@@ -189,12 +190,12 @@ namespace Services
                 return null; // Don't change anything
             }
             //dbTournament?.Players?.Add(dbPlayer);
-                
+
 
             var canJoinTournament = await dbService.SetPlayerActiveTournament(dbPlayer.PlayerId, dbTournament.TournamentSessionId);
             if (!canJoinTournament)
             {
-                var message = $"AddToExistingTournament: Player {dbPlayer.PlayerId} attempted to join tournament {dbTournament.TournamentSessionId}, but was not in matchmaking state!";                    
+                var message = $"AddToExistingTournament: Player {dbPlayer.PlayerId} attempted to join tournament {dbTournament.TournamentSessionId}, but was not in matchmaking state!";
                 await dbService.Log(message, dbPlayer.PlayerId);
                 return null;
             }
@@ -205,10 +206,10 @@ namespace Services
                 dbService.LeiaContext.Entry(dbTournament).State = EntityState.Detached;
 
                 var savedTournament = dbService?.LeiaContext?.Tournaments?.Update(dbTournament);
-                
 
-               await dbService.Log($"AddToExistingTournament: Player: {request?.Player?.Rating}, rating: {request?.Player?.Rating}, \n were added to tournament: {savedTournament?.Entity?.TournamentSessionId}.", dbPlayer.PlayerId);
-       
+
+                await dbService.Log($"AddToExistingTournament: Player: {request?.Player?.Rating}, rating: {request?.Player?.Rating}, \n were added to tournament: {savedTournament?.Entity?.TournamentSessionId}.", dbPlayer.PlayerId);
+
                 dbTournament?.Players.Add(request.Player);
                 dbTournament?.PlayerTournamentSessions?.Add(new PlayerTournamentSession
                 {
@@ -224,14 +225,14 @@ namespace Services
                 );
                 // deprecate the old seed sending 
                 // SendPlayerAndSeed(savedTournament?.Entity?.TournamentSeed, savedTournament?.Entity?.TournamentSessionId, request?.Player?.PlayerId);
-                 dbService.LeiaContext.Update(dbTournament);
+                dbService.LeiaContext.Update(dbTournament);
                 var message = $"AddToExistingTournament: Player {dbPlayer.PlayerId} joined tournament {dbTournament.TournamentSessionId}";
                 await dbService.Log(message, dbPlayer.PlayerId);
                 var saved = await dbService?.LeiaContext?.SaveChangesAsync();
                 return dbTournament;
-                
-               // throw new Exception($"AddToExistingTournament: Tournament {dbTournament.TournamentSessionId} was not saved to database!");
-                    
+
+                // throw new Exception($"AddToExistingTournament: Tournament {dbTournament.TournamentSessionId} was not saved to database!");
+
             }
             catch (Exception ex)
             {
@@ -239,7 +240,7 @@ namespace Services
                 await dbService.RemovePlayerFromActiveTournament(dbPlayer.PlayerId, dbTournament.TournamentSessionId);
             }
             return null;
-            
+
         }
 
         public async Task<TournamentSession?> SaveNewTournament(ISuikaDbService dbService, double matchFee, int? currencyId, int? tournamentTypeId, params Guid?[]? playerIds)
@@ -282,7 +283,7 @@ namespace Services
 
 
             dbService.LeiaContext.Entry(currency).State = EntityState.Detached;
-            
+
             // Create the tournament
             var tournament = new TournamentSession
             {
@@ -292,9 +293,10 @@ namespace Services
                 Rating = dbPlayers[0].Rating,
             };
             var savedTournament = dbService?.LeiaContext?.Tournaments?.Add(tournament);
-            
+
             // Register players to the tournament
-            foreach (var player in dbPlayers) {
+            foreach (var player in dbPlayers)
+            {
                 var playerTournamentSession = new PlayerTournamentSession
                 {
                     TournamentSession = tournament,
@@ -307,20 +309,21 @@ namespace Services
                 };
                 var savedPlayerTSession = dbService.LeiaContext.PlayerTournamentSession.Add(playerTournamentSession);
             }
-            
-            
+
+
             await dbService.Log("SaveNewTournament: Going to create new tournament", dbPlayers[0].PlayerId);
             var saved = await dbService?.LeiaContext?.SaveChangesAsync();
 
             var idsArray = dbPlayers?.Select(p => p?.PlayerId).ToArray();
-            if (saved > 0) {
+            if (saved > 0)
+            {
                 SendPlayerAndSeed(savedTournament?.Entity?.TournamentSeed, savedTournament?.Entity?.TournamentSessionId, idsArray);
                 var addedPlayerIds = new List<Guid>();
                 foreach (var playerId in idsArray)
                 {
-                    if (playerId == null) 
+                    if (playerId == null)
                     {
-                        continue; 
+                        continue;
                     }
                     await dbService.Log($"SaveNewTournament: Player {playerId} will create tournament {savedTournament.Entity.TournamentSessionId}", playerId.Value);
                     var canCreateTournament = await dbService.SetPlayerActiveTournament(playerId.Value, savedTournament.Entity.TournamentSessionId);
@@ -382,7 +385,7 @@ namespace Services
             try
             {
                 var tournament = context.Tournaments
-     
+
                     .Include(t => t.PlayerTournamentSessions)
                     .Include(t => t.Players)
                     .FirstOrDefault(t => t.TournamentSessionId == tournamentId);
@@ -402,14 +405,14 @@ namespace Services
 
         public async Task<PlayerCurrencies?> ChargePlayer(Guid playerId, int? tournamentId)
         { // this 👇🏻 gets the current scope of the services that are Scoped.
-            // through it, we can get the actual service instance that is assigned in the scope. for example the suikaDbService instance that
-            // is associated with current HTTP call in the controller . this prevents collisions between scopes. for example if suikaDbService is
-            // called from PlayersController, and from MatchingController - each creates a different instance of suikaDbService. each of them is
-            // also  injected into the TournamentService in each Controller. which may result in 2 different suikaDbServices being injected into 
-            // TournamentService, depending on the Controller that makes the call to TournamentService. this results in 2 different Contexts for
-            // the 2 Controllers. which of course creates problems when a method in TournamentService that was called from PlayersController and
-            // then another method was called from MatchingController, cause the 2 different instances of the Context to collide.
-            // 
+          // through it, we can get the actual service instance that is assigned in the scope. for example the suikaDbService instance that
+          // is associated with current HTTP call in the controller . this prevents collisions between scopes. for example if suikaDbService is
+          // called from PlayersController, and from MatchingController - each creates a different instance of suikaDbService. each of them is
+          // also  injected into the TournamentService in each Controller. which may result in 2 different suikaDbServices being injected into 
+          // TournamentService, depending on the Controller that makes the call to TournamentService. this results in 2 different Contexts for
+          // the 2 Controllers. which of course creates problems when a method in TournamentService that was called from PlayersController and
+          // then another method was called from MatchingController, cause the 2 different instances of the Context to collide.
+          // 
             using (var scope = _scopeFactory.CreateScope())
             {
                 var suikaDbService = scope.ServiceProvider.GetRequiredService<ISuikaDbService>();
@@ -436,7 +439,7 @@ namespace Services
 
                 if (dbTournament == null)
                 {
-                    var ex =  new Exception($"ChargePlayer: Could not charge player {playerId}, tournament '{tournamentId}' not found!");
+                    var ex = new Exception($"ChargePlayer: Could not charge player {playerId}, tournament '{tournamentId}' not found!");
                     await suikaDbService.Log(ex, playerId);
                     throw ex;
                 }
