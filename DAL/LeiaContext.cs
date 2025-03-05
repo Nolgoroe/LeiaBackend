@@ -23,6 +23,10 @@ namespace DAL
         public DbSet<BackendLog> BackendLogs { get; set; }
         public DbSet<League> League { get; set; }
         public DbSet<ConfigurationData> ConfigurationsData { get; set; }
+        public DbSet<PaymentDetails> PaymentDetails { get; set; }
+        public DbSet<WithdrawalDetails> WithdrawalDetails { get; set; }
+        public DbSet<RefundDetails> RefundDetails { get; set; }
+        public DbSet<PayoutDetails> PayoutDetails { get; set; }
 
         public LeiaContext(DbContextOptions<LeiaContext> options) : base(options) { }
         public LeiaContext(/* string? connectionString*/)

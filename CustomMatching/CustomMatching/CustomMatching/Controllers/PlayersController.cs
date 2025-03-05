@@ -85,16 +85,17 @@ namespace CustomMatching.Controllers
 
         private async Task CompleteDepositActions(Player playerData, int currencyId, double amount, PaymentResponse resp)
         {
-            PaymentTransaction paymentTransaction = new PaymentTransaction
+            PaymentDetails paymentDetails = new PaymentDetails
             {
                 PaymentId = Guid.NewGuid(),
                 PlayerId = playerData.PlayerId,
+                CreatedAt = DateTime.Now,
                 Amount = amount,
                 ProcessorTransactionId = resp.transactionId,
                 PaymentOptionId = "",
                 ResponseBody = JsonSerializer.Serialize(resp, resp.GetType())
             };
-            // Save the transaction record to the DB
+            await _suikaDbService.CreatePaymentDetails(paymentDetails);
 
             await _suikaDbService.UpdatePlayerBalance(playerData.PlayerId, currencyId, amount);
         }
@@ -134,17 +135,17 @@ namespace CustomMatching.Controllers
             };
             // TODO: payment option
             double amount = 2.00;
-            var resp = await _nuveiPaymentService.ProcessPaymentWithCardDetailsAsync(card, amount, currencyId, false);
+            PaymentResponse resp = await _nuveiPaymentService.ProcessPaymentWithCardDetailsAsync(card, amount, currencyId, false);
             _logger.LogInformation($"Nuvei payment response {resp.ToString()}");
 
             // TODO: pass payment option
             await CompleteDepositActions(playerData, currencyId, amount, resp);
 
-            playerData.SavedNuveiPaymentToken = resp.paymentOption?.userPaymentOptionId;
-            // TODO: save the player data
+            var nuveiPaymentToken = resp.paymentOption?.userPaymentOptionId;
+            await _suikaDbService.UpdatePlayerSavedNuveiPaymentToken(playerData.PlayerId, nuveiPaymentToken);
 
             dynamic response = new System.Dynamic.ExpandoObject();
-            response.Data = new { nuveiPaymentToken = playerData.SavedNuveiPaymentToken };
+            response.Data = new { nuveiPaymentToken = nuveiPaymentToken };
             return Ok(response);
         }
 
@@ -168,7 +169,7 @@ namespace CustomMatching.Controllers
             }
 
             double amount = 2.00;
-            var resp = await _nuveiPaymentService.ProcessPaymentWithTokenAsync(playerData.PlayerId, playerData.SavedNuveiPaymentToken, amount, currencyId, false);
+            PaymentResponse resp = await _nuveiPaymentService.ProcessPaymentWithTokenAsync(playerData.PlayerId, playerData.SavedNuveiPaymentToken, amount, currencyId, false);
             _logger.LogInformation($"Nuvei saved-token payment response {resp}");
             await CompleteDepositActions(playerData, currencyId, amount, resp);
 
@@ -195,39 +196,36 @@ namespace CustomMatching.Controllers
                 return BadRequest("Not enough money in the balance. Please try a lower amount.");
             }
 
-            // TODO: Get latest withdrawal for user
-            var latestWithdrawal = new
-            {
-                Status = "",
-            };
+            var latestWithdrawal = await _suikaDbService.GetLatestWithdrawalDetails(playerData.PlayerId);
             string[] finalWithdrawalStatuses = { "Success", "Denied" };
             if (latestWithdrawal?.Status is not null && !finalWithdrawalStatuses.Contains(latestWithdrawal.Status))
             {
                 return BadRequest("Only one withdrawal can be processed at a time.");
             }
 
-            // TODO: get user's latest deposits
-            // Verify at least one of them is successful
-            // Vs. count on the user?
+            if (!await _suikaDbService.DoesPlayerHaveSuccessfulPayment(playerData.PlayerId))
+            {
+                return BadRequest("Only players with a successful payment can make a withdrawal.");
+            }
 
-            // Create new withdrawal entry for user
             WithdrawalDetails withdrawalDetails = new WithdrawalDetails
             {
                 WithdrawalId = Guid.NewGuid(),
                 PlayerId = playerData.PlayerId,
+                CreatedAt = DateTime.Now,
                 MutationToken = Guid.NewGuid(),
                 CurrencyId = currencyId,
                 Amount = amount,
                 Status = "EmailNotSent",
             };
-            // TODO: save to DB
+            await _suikaDbService.CreateWithdrawalDetails(withdrawalDetails);
 
             await _suikaDbService.UpdatePlayerBalance(playerData.PlayerId, currencyId, -1 * amount);
 
             // Send email
 
             withdrawalDetails.Status = "PendingProcessing";
-            // TODO: save to DB
+            await _suikaDbService.UpdateWithdrawalDetails(withdrawalDetails);
 
             dynamic response = new System.Dynamic.ExpandoObject();
             return Ok(response);

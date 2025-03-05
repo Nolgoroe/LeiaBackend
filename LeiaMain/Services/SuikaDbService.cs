@@ -112,6 +112,33 @@ namespace Services
         /// <param name="maxResults"></param>
         /// <returns></returns>
         public Task<IEnumerable<TournamentSession>> FindSuitableTournamentForRating(Guid playerId, int playerRating, int maxRatingDrift, int tournamentTypeId, int currencyId, double playerBalance, int maxResults);
+        /// <summary>
+        /// Updates only the SavedNuveiPaymentToken property of a Player.
+        /// </summary>
+        /// <param name="playerId">The ID of the Player</param>
+        /// <param name="savedNuveiPaymentToken">The new Nuvei payment token to save</param>
+        /// <returns>The updated Player entity, or null if not found or update fails</returns>
+        public Task<Player?> UpdatePlayerSavedNuveiPaymentToken(Guid playerId, string? savedNuveiPaymentToken);
+        public Task<PaymentDetails> CreatePaymentDetails(PaymentDetails paymentDetails);
+        public Task<WithdrawalDetails> CreateWithdrawalDetails(WithdrawalDetails withdrawalDetails);
+        public Task<WithdrawalDetails?> GetWithdrawalById(Guid playerId);
+        /// <summary>
+        /// Updates an existing WithdrawalDetails entry.
+        /// </summary>
+        /// <param name="withdrawalDetails">The updated WithdrawalDetails entity.</param>
+        /// <returns>
+        /// The updated WithdrawalDetails entity, or null if the update did not persist any changes.
+        /// </returns>
+        public Task<WithdrawalDetails?> UpdateWithdrawalDetails(WithdrawalDetails withdrawalDetails);
+        /// <summary>
+        /// Retrieves the latest WithdrawalDetails entry for the specified player.
+        /// </summary>
+        /// <param name="playerId">The ID of the player.</param>
+        /// <returns>
+        /// The most recent WithdrawalDetails entry for the player, or null if none exists.
+        /// </returns>
+        public Task<WithdrawalDetails?> GetLatestWithdrawalDetails(Guid playerId);
+        public Task<bool> DoesPlayerHaveSuccessfulPayment(Guid playerId);
         public LeiaContext LeiaContext { get; set; }
     }
 
@@ -519,6 +546,171 @@ namespace Services
                 .FirstOrDefaultAsync(l => l.LeagueId == leagueId);
             return league;
         }
-    }
 
+        public async Task<Player?> UpdatePlayerSavedNuveiPaymentToken(Guid playerId, string? savedNuveiPaymentToken)
+        {
+            // Retrieve the player by Id
+            var player = await _leiaContext.Players.FindAsync(playerId);
+            if (player == null)
+            {
+                Trace.WriteLine($"Player with id {playerId} not found.");
+                return null;
+            }
+
+            // Update the SavedNuveiPaymentToken property
+            player.SavedNuveiPaymentToken = savedNuveiPaymentToken;
+
+            // Mark only the SavedNuveiPaymentToken property as modified
+            _leiaContext.Entry(player).Property(p => p.SavedNuveiPaymentToken).IsModified = true;
+
+            try
+            {
+                var savedChanges = await _leiaContext.SaveChangesAsync();
+                if (savedChanges > 0)
+                {
+                    Trace.WriteLine($"Player {player.Name} SavedNuveiPaymentToken updated successfully.");
+                    return player;
+                }
+                else
+                {
+                    Trace.WriteLine($"Player {player.Name} update did not result in any changes.");
+                    return null;
+                }
+            }
+            catch (Exception ex)
+            {
+                Trace.WriteLine(ex.Message + "\n" + ex.InnerException?.Message);
+                throw;
+            }
+        }
+
+        public async Task<PaymentDetails> CreatePaymentDetails(PaymentDetails paymentDetails)
+        {
+            if (paymentDetails == null)
+            {
+                throw new ArgumentNullException(nameof(paymentDetails));
+            }
+
+            try
+            {
+                var newPayment = _leiaContext.PaymentDetails.Add(paymentDetails);
+                await _leiaContext.SaveChangesAsync();
+
+                Trace.WriteLine($"Created PaymentDetails entry with ID: {newPayment.Entity.PaymentId}");
+                return newPayment.Entity;
+            }
+            catch (Exception ex)
+            {
+                Trace.WriteLine("Error creating PaymentDetails entry: " + ex.Message + "\n" + ex.InnerException?.Message);
+                throw;
+            }
+        }
+
+        public async Task<WithdrawalDetails> CreateWithdrawalDetails(WithdrawalDetails withdrawalDetails)
+        {
+            if (withdrawalDetails == null)
+            {
+                throw new ArgumentNullException(nameof(withdrawalDetails));
+            }
+
+            try
+            {
+                var newWithdrawal = _leiaContext.WithdrawalDetails.Add(withdrawalDetails);
+                await _leiaContext.SaveChangesAsync();
+
+                Trace.WriteLine($"Created WithdrawalDetails entry with ID: {newWithdrawal.Entity.WithdrawalId}");
+                return newWithdrawal.Entity;
+            }
+            catch (Exception ex)
+            {
+                Trace.WriteLine("Error creating WithdrawalDetails entry: " + ex.Message + "\n" + ex.InnerException?.Message);
+                throw;
+            }
+        }
+
+        public async Task<WithdrawalDetails?> GetWithdrawalById(Guid withdrawalId)
+        {
+            return await _leiaContext.WithdrawalDetails.FindAsync(withdrawalId);
+        }
+
+        public async Task<WithdrawalDetails?> UpdateWithdrawalDetails(WithdrawalDetails withdrawalDetails)
+        {
+            if (withdrawalDetails == null)
+            {
+                Trace.WriteLine("WithdrawalDetails is null. Update aborted.");
+                return null;
+            }
+
+            // Mark the entire entity as modified.
+            _leiaContext.Entry(withdrawalDetails).State = EntityState.Modified;
+
+            try
+            {
+                // Update the entry and save changes.
+                var updatedWithdrawal = _leiaContext.WithdrawalDetails.Update(withdrawalDetails);
+                var saved = await _leiaContext.SaveChangesAsync();
+
+                if (saved > 0)
+                {
+                    Trace.WriteLine($"WithdrawalDetails with id {withdrawalDetails.WithdrawalId} updated successfully.");
+                    return updatedWithdrawal.Entity;
+                }
+                else
+                {
+                    Trace.WriteLine($"WithdrawalDetails with id {withdrawalDetails.WithdrawalId} update did not result in any changes.");
+                    return null;
+                }
+            }
+            catch (Exception ex)
+            {
+                Trace.WriteLine("Error updating WithdrawalDetails: " + ex.Message + "\n" + ex.InnerException?.Message);
+                throw;
+            }
+        }
+
+        public async Task<WithdrawalDetails?> GetLatestWithdrawalDetails(Guid playerId)
+        {
+            try
+            {
+                var latestWithdrawal = await _leiaContext.WithdrawalDetails
+                    .Where(w => w.PlayerId == playerId)
+                    .OrderByDescending(w => w.CreatedAt)
+                    .FirstOrDefaultAsync();
+
+                if (latestWithdrawal != null)
+                {
+                    Trace.WriteLine($"Latest WithdrawalDetails entry found for player {playerId}: {latestWithdrawal.WithdrawalId}");
+                }
+                else
+                {
+                    Trace.WriteLine($"No WithdrawalDetails entry found for player {playerId}.");
+                }
+
+                return latestWithdrawal;
+            }
+            catch (Exception ex)
+            {
+                Trace.WriteLine("Error retrieving latest WithdrawalDetails: " + ex.Message + "\n" + ex.InnerException?.Message);
+                throw;
+            }
+        }
+
+        public async Task<bool> DoesPlayerHaveSuccessfulPayment(Guid playerId)
+        {
+            try
+            {
+                bool hasSuccessfulPayment = await _leiaContext.PaymentDetails
+                    .AnyAsync(p => p.PlayerId == playerId);
+
+                Trace.WriteLine($"Player {playerId} has successful payment: {hasSuccessfulPayment}");
+                return hasSuccessfulPayment;
+            }
+            catch (Exception ex)
+            {
+                Trace.WriteLine("Error checking for successful payment for player " + playerId + ": " +
+                    ex.Message + "\n" + ex.InnerException?.Message);
+                throw;
+            }
+        }
+    }
 }
