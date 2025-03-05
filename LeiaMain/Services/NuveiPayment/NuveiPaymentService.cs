@@ -23,24 +23,13 @@ namespace Services.NuveiPayment
         private readonly HttpClient _httpClient;
         private const string NUVEI_TIMESTAMP_FORMAT = "yyyyMMddHHmmss";
 
-        public NuveiPaymentService()
+        public NuveiPaymentService(string apiBaseUrl, string merchantId, string merchantSiteId, string secretKey)
         {
             _httpClient = new HttpClient();
-
-            _apiBaseUrl = GetRequiredEnvironmentVariable("NUVEI_API_BASE_URL");
-            _merchantId = GetRequiredEnvironmentVariable("NUVEI_MERCHANT_ID");
-            _merchantSiteId = GetRequiredEnvironmentVariable("NUVEI_MERCHANT_SITE_ID");
-            _secretKey = GetRequiredEnvironmentVariable("NUVEI_SECRET_KEY");
-        }
-
-        private static string GetRequiredEnvironmentVariable(string key)
-        {
-            var value = Environment.GetEnvironmentVariable(key);
-            if (string.IsNullOrWhiteSpace(value))
-            {
-                throw new InvalidOperationException($"Environment variable {key} is not set or is empty.");
-            }
-            return value;
+            _apiBaseUrl = apiBaseUrl;
+            _merchantId = merchantId;
+            _merchantSiteId = merchantSiteId;
+            _secretKey = secretKey;
         }
 
         /// <summary>
