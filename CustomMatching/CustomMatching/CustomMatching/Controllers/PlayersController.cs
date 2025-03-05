@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 using Services;
+using Services.Emailer;
 using Services.NuveiPayment;
 using Services.NuveiPayment.Api;
 using static CustomMatching.Controllers.PlayersController;
@@ -48,14 +49,16 @@ namespace CustomMatching.Controllers
         private readonly ISuikaDbService _suikaDbService;
         private readonly IPostTournamentService _postTournamentService;
         private readonly INuveiPaymentService _nuveiPaymentService;
+        private readonly IEmailService _emailService;
 
-        public PlayersController(ILogger<MatchingController> logger, INuveiPaymentService nuveiPaymentService, ITournamentService tournamentService, ISuikaDbService suikaDbService, IPostTournamentService postTournamentService)
+        public PlayersController(ILogger<MatchingController> logger, INuveiPaymentService nuveiPaymentService, ITournamentService tournamentService, ISuikaDbService suikaDbService, IPostTournamentService postTournamentService, IEmailService emailService)
         {
             _logger = logger;
             _tournamentService = tournamentService;
             _suikaDbService = suikaDbService;
             _postTournamentService = postTournamentService;
             _nuveiPaymentService = nuveiPaymentService;
+            _emailService = emailService;
         }
 
 
@@ -222,7 +225,12 @@ namespace CustomMatching.Controllers
 
             await _suikaDbService.UpdatePlayerBalance(playerData.PlayerId, currencyId, -1 * amount);
 
-            // Send email
+            string emailSubject = $"Withdrawal request from player \"{playerData.PlayerId}\"";
+            // TODO: What's the correct host?
+            string approveLink = $"https://api.leia.games/Backoffice/ApproveWithdrawal/{playerId}/{withdrawalDetails.WithdrawalId}/{withdrawalDetails.MutationToken}";
+            string declineLink = $"https://api.leia.games/Backoffice/DeclineWithdrawal/{playerId}/{withdrawalDetails.WithdrawalId}/{withdrawalDetails.MutationToken}";
+            string emailBody = $"Withdrawal request for {amount}<br /><br /><br />Approve: <a href=\"{approveLink}\">{approveLink}</a><br /><br />Decline: <a href=\"declineLink\">declineLink</a>";
+            _emailService.SendEmail("withdrawals@leia.games", emailSubject, emailBody);
 
             withdrawalDetails.Status = "PendingProcessing";
             await _suikaDbService.UpdateWithdrawalDetails(withdrawalDetails);
