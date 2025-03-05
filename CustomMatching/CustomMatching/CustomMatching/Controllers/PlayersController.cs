@@ -77,15 +77,15 @@ namespace CustomMatching.Controllers
         public async Task<IActionResult> MakePayment(Guid playerId)
         {
             _logger.LogInformation("Received MakePayment request for playerId \"{PlayerId}\"", playerId);
-            var resp = await _nuveiPaymentService.ProcessPaymentWithCardDetailsAsync(2.00, "USD", false);
+            var resp = await _nuveiPaymentService.ProcessPaymentWithCardDetailsAsync(2.00, currencyId, false);
             _logger.LogInformation($"Nuvei payment response {resp.ToString()}");
             dynamic response = new System.Dynamic.ExpandoObject();
             response.Data = resp;
             return Ok(response);
         }
 
-        [HttpPost, Route("MakePaymentWithSavedToken/{playerId}/{paymentOptionId}")]
-        public async Task<IActionResult> MakePaymentWithSavedToken(Guid playerId, string paymentOptionId)
+        [HttpPost, Route("MakePaymentWithSavedToken/{playerId}/{currencyId}/{paymentOptionId}")]
+        public async Task<IActionResult> MakePaymentWithSavedToken(Guid playerId, int currencyId, string paymentOptionId)
         {
             _logger.LogInformation("Received MakePaymentWithSavedToken request for playerId \"{PlayerId}\"", playerId);
             var playerData = await _suikaDbService.GetPlayerById(playerId);
@@ -98,7 +98,7 @@ namespace CustomMatching.Controllers
                 throw new Exception("");
             }
 
-            var resp = await _nuveiPaymentService.ProcessPaymentWithTokenAsync(playerData.PlayerId.ToString(), playerData.SavedNuveiPaymentToken, 2.00, "USD", false);
+            var resp = await _nuveiPaymentService.ProcessPaymentWithTokenAsync(playerData.PlayerId.ToString(), playerData.SavedNuveiPaymentToken, 2.00, currencyId, false);
             _logger.LogInformation($"Nuvei saved-token payment response {resp}");
             dynamic response = new System.Dynamic.ExpandoObject();
             response.Data = resp;
