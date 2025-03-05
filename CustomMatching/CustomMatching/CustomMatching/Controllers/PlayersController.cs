@@ -6,7 +6,6 @@ using Microsoft.EntityFrameworkCore;
 
 using Services;
 using Services.NuveiPayment;
-using static CustomMatching.Controllers.PlayersController;
 
 // For more information on enabling Web API for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
 
@@ -34,6 +33,16 @@ namespace CustomMatching.Controllers
 
         }
 
+        public class RegisterResponse : LoginResponse
+        {
+            public RegisterResponse(Player player, string secret) : base(player)
+            {
+                Secret = secret;
+            }
+
+            public string Secret { get; set; }
+        }
+
         private readonly ILogger<MatchingController> _logger;
         private readonly ITournamentService _tournamentService;
         private readonly ISuikaDbService _suikaDbService;
@@ -50,11 +59,10 @@ namespace CustomMatching.Controllers
         }
 
 
-        // GET /GetPlayerTournamentHistory/5
-        [HttpPost, Route("GetPlayerTournamentHistory/{playerId}")]
-        public async Task<IActionResult> GetPlayerTournamentHistory([FromBody] string authToken)
+        [HttpPost, Route("GetPlayerTournamentHistory/")]
+        public async Task<IActionResult> GetPlayerTournamentHistory([FromBody] BaseAccountRequest request)
         {
-            var player = await _suikaDbService.LoadPlayerByAuthToken(authToken);
+            var player = await _suikaDbService.LoadPlayerByAuthToken(request.authToken);
             if (player == null) return NotFound("PlayerId was not provided");
             var playerId = player.PlayerId;
             try
@@ -78,9 +86,11 @@ namespace CustomMatching.Controllers
         }
 
         [HttpPost, Route("MakePayment/{playerId}")]
-        public async Task<IActionResult> MakePayment(Guid playerId)
+        public async Task<IActionResult> MakePayment([FromBody] BaseAccountRequest request)
         {
-            _logger.LogInformation("Received MakePayment request for playerId \"{PlayerId}\"", playerId);
+            var player = await _suikaDbService.LoadPlayerByAuthToken(request.authToken);
+            if (player == null) return NotFound();
+            _logger.LogInformation("Received MakePayment request for playerId \"{PlayerId}\"", player.PlayerId);
             var resp = await _nuveiPaymentService.ProcessPaymentWithCardDetailsAsync(200, "USD", false);
             _logger.LogInformation($"Nuvei payment response {resp.ToString()}");
             dynamic response = new System.Dynamic.ExpandoObject();
@@ -88,10 +98,15 @@ namespace CustomMatching.Controllers
             return Ok(response);
         }
 
-        [HttpGet, Route("Login/{playerId}")]
-        public async Task<IActionResult> LoginPlayer(string guid)
+        /// <summary>
+        /// Logs in or creates a player. Receives an accountSecret. If its null or empty, then a new player is created and the secret is returned
+        /// </summary>
+        /// <param name="request"></param>
+        /// <returns></returns>
+        [HttpPost, Route("Login")]
+        public async Task<IActionResult> Login([FromBody] LoginRequest request)
         {
-            var playerId = Guid.Parse(guid);
+            var playerId = _suikaDbService.LeiaContext.PlayerAuthToken.First(s => s.Secret == request.accountSecret).PlayerId;
             var player = await _suikaDbService.LeiaContext.Players.FirstOrDefaultAsync(p => p.PlayerId == playerId);
             if (player != null)
             {
@@ -159,26 +174,35 @@ namespace CustomMatching.Controllers
         }
 
 
-        // TODO: Lital: Don't know what this is for, looks like its for debugging or someth...
-        // POST /Players/AddPlayer
-        [HttpPost, Route("AddPlayer")]
-        public async Task<IActionResult> AddPlayer([FromBody] Player player)
+        [HttpPost, Route("Register")]
+        public async Task<IActionResult> Register([FromBody] RegisterRequest request)
         {
+            var player = new Player()
+            {
+                PlayerId = Guid.NewGuid(),
+                Name = request.name,
+                Rating = 1500, // TODO: To const
+            };
             if (!VerifyPlayer(player)) return BadRequest("Player details are incomplete");
             // check if tournaments with this id already exists
-            var dbPlayer = await _suikaDbService.GetPlayerByName(player?.Name);
-            if (dbPlayer == null)
+            
+            var newPlayerResult = await _suikaDbService.CreateNewPlayer(player);
+
+            return Ok(new RegisterResponse(newPlayerResult.Item1, newPlayerResult.Item2.Secret)
             {
-                var newPlayer = await _suikaDbService.AddNewPlayer(player);
-                return Ok(newPlayer);
-            }
-            else return BadRequest("A player with this id already exists");
+                AuthToken = newPlayerResult.Item2.Token,
+            });
         }
 
-        // PUT /Players/UpdatePlayerTournamentResult/1/2/3
-        [HttpPut, Route("UpdatePlayerTournamentResult/{playerId}/{tournamentId}/{score}")]
-        public async Task<IActionResult> UpdatePlayerTournamentResult(Guid playerId, int tournamentId, int score)
+
+        [HttpPost, Route("SetScore")]
+        public async Task<IActionResult> SetScore([FromBody] SetScoreRequest request)
         {
+            var player = await _suikaDbService.LoadPlayerByAuthToken(request.authToken);
+            if (player == null) return NotFound();
+            var playerId = player.PlayerId;
+            var score = request.score;
+            var tournamentId = request.tournamentId;
             await _suikaDbService.Log($"Player {playerId} wants to set score {score} for tournament {tournamentId}", playerId);
             try
             {
@@ -222,17 +246,19 @@ namespace CustomMatching.Controllers
         }
 
 
+
         // PUT /Players/ClaimTournamentPrize/1/3FA85F64-5717-4562-B3FC-1A762F63BFC8
-        [HttpPut, Route("ClaimTournamentPrize/{tournamentId}/{playerId}")]
-        public async Task<IActionResult> ClaimTournamentPrize(int tournamentId, [FromBody] string authToken)
+        [HttpPost, Route("ClaimTournamentPrize")]
+        public async Task<IActionResult> ClaimTournamentPrize([FromBody] ClaimTournamentPrizeRequest request)
         {
-            var player = await _suikaDbService.LoadPlayerByAuthToken(authToken);
+            var player = await _suikaDbService.LoadPlayerByAuthToken(request.authToken);
+            
             if (player == null) return NotFound("PlayerId was not provided");
 
             player = _suikaDbService?.LeiaContext?.Players?.Where(p => p.PlayerId == player.PlayerId)
                 .Include(p => p.PlayerCurrencies)
                 .FirstOrDefault();
-
+            var tournamentId = request.tournamentId;
             var playerTournamentSession = _suikaDbService.LeiaContext.PlayerTournamentSession.FirstOrDefault(p => p.PlayerId == player.PlayerId && p.TournamentSession.TournamentSessionId == tournamentId);
 
             if (playerTournamentSession == null)
@@ -258,7 +284,6 @@ namespace CustomMatching.Controllers
             return Ok($"Prize claimed successfully: {amountClaimed}. Tournament claimed: {wasTournamentClaimed}. Purple Tokens claimed: {PTclaimed}");
         }
 
-        // POST/Players/GetAllPlayerBalances
         [HttpPost, Route("GetAllPlayerBalances")]
         public async Task<IActionResult> GetPlayerBalances([FromBody] string authToken)
         {
@@ -269,15 +294,11 @@ namespace CustomMatching.Controllers
             if (balances != null) return Ok(balances);
             
             else return NotFound("Player balances were not found");
-        }
+        }        
 
-        // we use record instead of class for the deconstruction ability
-        public record UpdateBalancesParams(string authToken, int currencyId, double amount);
-        
-
-        // Lital's TODO: Not sure about this EP looks like its for debug, seems super unsave to let the client update the balance freely, recommend removing completely
+        // Lital's TODO: This is super insecure. This should only be done from the backend side.
         [HttpPost, Route("UpdatePlayerBalances")]
-        public async Task<IActionResult> UpdatePlayerBalances([FromBody] UpdateBalancesParams updatedValues)
+        public async Task<IActionResult> UpdatePlayerBalances([FromBody] UpdateBalancesRequest updatedValues)
         {
             var player = await _suikaDbService.LoadPlayerByAuthToken(updatedValues.authToken);
             if (player == null) return NotFound("PlayerId was not provided");
@@ -289,35 +310,6 @@ namespace CustomMatching.Controllers
             else return NotFound("Player balances were not found");
         }
 
-
-        public record UpdatePlayerInfoRequest(string authToken, Player player);
-
-        // PUT /Players/UpdatePlayerDetails
-        [HttpPost, Route("UpdatePlayerDetails")]
-        public async Task<IActionResult> UpdatePlayerDetails([FromBody] UpdatePlayerInfoRequest request)
-        {
-            var existingPlayer = await _suikaDbService.LoadPlayerByAuthToken(request.authToken);
-            if (existingPlayer == null) return NotFound("PlayerId was not provided");
-            var player = request.player;
-            if (existingPlayer.PlayerId != player.PlayerId)
-            {
-                throw new Exception("Invalid player Id given");
-            }
-
-            if(player == null) return BadRequest("Player was null");
-            if (!VerifyPlayer(player)) return BadRequest("Player details are incomplete");
-
-            existingPlayer.UpdatePropertiesFrom(player);
-            var updatedPlayer = await _suikaDbService.UpdatePlayer(existingPlayer);
-            if (updatedPlayer != null) return Ok(updatedPlayer);
-            else return BadRequest("Failed to update league");
-        }
-       
-        // DELETE api/<PlayersController>/5
-        [HttpDelete("{id}")]
-        private void Delete(int id)
-        {
-        }
 
         private bool VerifyPlayer(Player player)
         {

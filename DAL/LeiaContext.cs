@@ -85,6 +85,8 @@ namespace DAL
             // Make sure auth tokens are unique
             modelBuilder.Entity<PlayerAuthToken>()
                 .HasIndex(p => p.Token).IsUnique();
+            modelBuilder.Entity<PlayerAuthToken>()
+                .HasIndex(p => p.Secret).IsUnique();
             #endregion
 
             #region Configure PlayerActiveTournament and BackendLog

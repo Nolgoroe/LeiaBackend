@@ -42,7 +42,7 @@ namespace Services
 
     public interface ISuikaDbService
     {
-        public Task<Player> AddNewPlayer(Player player);
+        public Task<(Player, PlayerAuthToken)> CreateNewPlayer(Player player);
         public Task<Player>? UpdatePlayer(Player player);
         public Task<Player?> GetPlayerById(Guid playerId);
         public Task<Player?> GetPlayerByName(string playerName);
@@ -128,7 +128,7 @@ namespace Services
 
         public LeiaContext LeiaContext { get; set; }
 
-        public async Task<Player> AddNewPlayer(Player player)
+        public async Task<(Player, PlayerAuthToken)> CreateNewPlayer(Player player)
         {
             if (player != null)
             {
@@ -161,9 +161,15 @@ namespace Services
                 try
                 {
                     var newPlayer = _leiaContext.Players.Add(player);
+                    var newPlayerSecrest = _leiaContext.PlayerAuthToken.Add(new PlayerAuthToken
+                    {
+                        Player = newPlayer.Entity,
+                        Secret = Guid.NewGuid().ToString(),
+                        Token = Guid.NewGuid().ToString()
+                    });
                     await _leiaContext.SaveChangesAsync();
 
-                    return newPlayer.Entity;
+                    return (newPlayer.Entity, newPlayerSecrest.Entity);
 
                 }
                 catch (Exception ex)

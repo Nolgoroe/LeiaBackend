@@ -18,6 +18,14 @@ namespace DataObjects
         [JsonIgnore]
         public Player Player { get; set; }
 
+        /// <summary>
+        /// This is generated on every login, and is needed to access the player API
+        /// </summary>
         public string Token { get; set; }
+
+        /// <summary>
+        /// This needs to be saved on the client side in order to log in
+        /// </summary>
+        public string Secret { get; set; }
     }
 }

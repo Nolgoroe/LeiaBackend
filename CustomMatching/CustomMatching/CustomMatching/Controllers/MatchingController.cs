@@ -28,61 +28,25 @@ namespace CustomMatching.Controllers
             _tournamentService = tournamentService;
             _suikaDbService = suikaDbService;
             _postTournamentService = postTournamentService;
-            //OngoingTournaments = new List<MatchSession>();
-
-            //_tournamentService.MatchTimer.Start();
-            _tournamentService.PlayerAddedToTournament += PlayerAddedToTournamentHandler;
-            // UNSUBSCRIBE FROM THE EVENT! In any endpoint we should unsubscribe from this event because it is subscribed in any call to the Controller. The only exception to that is the GetTournamentTypes(), which is called first and keeps 1 event listener alive so the PlayerAddedToTournamentHandler method will prompt every time the event is raised 
-        }
-
-        // the destructor is needed to unsubscribe from the event. without it, the Controller will be kept alive after it is done and closed. because the PlayerAddedToTournamentHandler is still connected to the event, and that keeps the Controller instance alive, and not garbage collected
-        ~MatchingController()
-        {
-            //_tournamentService.MatchTimer.Stop();
-            _tournamentService.PlayerAddedToTournament -= PlayerAddedToTournamentHandler;
         }
 
 
-        private void PlayerAddedToTournamentHandler(object? sender, EventArgs e)
-        { /// example how to use ValueTuple types 👇🏻
-          ///if (sender is ValueTuple<int?, int?, Guid?[]?>)
-            if (sender is SeedData)
-            {
-                ///var (seed, tournamentId, ids) = (ValueTuple<int?, int?, Guid[]>)sender;
-                var seedData = (SeedData)sender;
 
-                // Array.ForEach<Guid>(ids,id =>  _tournamentService?.PlayersSeeds?.Add(id, seed));
-
-                ///foreach (var id in ids)
-                foreach (var id in seedData?.Ids)
-                {
-
-                    if (id != null && _tournamentService?.PlayersSeeds?.ContainsKey(id) == false)
-                    {
-                        ///_tournamentService?.PlayersSeeds?.Add(id, [tournamentId, seed]);
-                        _tournamentService?.PlayersSeeds?.Add(id, [seedData?.TournamentId, seedData?.Seed]);
-
-                    }
-                }
-                Trace.WriteLine($"Players: {string.Join(", ", seedData?.Ids/*ids.Select(id => id.ToString())*/)}, in tournament No. {seedData.TournamentId/*tournamentId*/}, with seed No. {seedData?.Seed/*seed*/}, were added");
-            }
-        }
-
-
-        public record MatchRequest (string authToken, TournamentType tournamentType);
-
-        [HttpPost, Route("RequestMatch/{playerId}"/*/{matchFee}/{currency}"*/)]
+        [HttpPost, Route("RequestMatch")]
         public async Task<IActionResult> RequestMatch([FromBody] MatchRequest request)
         {
             var player = await _suikaDbService.LoadPlayerByAuthToken(request.authToken);
             if (player == null)
             {
-                return NotFound();
+                return NotFound($"Invalid auth token");
             }
-            var tournamentType = request.tournamentType;
+            var tournamentType = _suikaDbService.LeiaContext.TournamentTypes.Find(request.tournamentTypeId);
+            if (tournamentType == null)
+            {
+                return NotFound($"No such tournament type: {request.tournamentTypeId}");
+            }
             var playerId = player.PlayerId;
-            // UNSUBSCRIBE FROM THE EVENT! without it, the Controller will be kept alive after it is done and closed. because the PlayerAddedToTournamentHandler is still connected to the event, and that keeps the Controller instance alive, and not garbage collected
-            _tournamentService.PlayerAddedToTournament -= PlayerAddedToTournamentHandler;
+
             var isSuccess = false;
 
             try
@@ -135,22 +99,10 @@ namespace CustomMatching.Controllers
 
         }
 
-        [HttpGet, Route("GetPlayerSeeds")]
-        public IActionResult GetPlayerSeeds()
+        [HttpPost, Route("GetTournamentSeed/")]
+        public async Task<IActionResult> GetTournamentSeed([FromBody] BaseAccountRequest request)
         {
-            _tournamentService.PlayerAddedToTournament -= PlayerAddedToTournamentHandler;
-
-            // we use Newtonsoft.Json here because the default json converter cannot handle nullables    
-            var settings = new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore };
-            var json = JsonConvert.SerializeObject(_tournamentService?.PlayersSeeds, Formatting.Indented, settings);
-
-            return Ok(json);
-        }
-
-        [HttpPost, Route("GetTournamentSeed/{playerId}")]
-        public async Task<IActionResult> GetTournamentSeed([FromBody] string authToken)
-        {
-            var player = await _suikaDbService.LoadPlayerByAuthToken(authToken);
+            var player = await _suikaDbService.LoadPlayerByAuthToken(request.authToken);
             if (player == null) return NotFound("Couldn't find player");
             var playerId = player.PlayerId;
             try
@@ -221,31 +173,5 @@ namespace CustomMatching.Controllers
             //_tournamentService.PlayerAddedToTournament -= PlayerAddedToTournamentHandler;
             return Ok(tournamentTypes);
         }
-
-
-        // make private before deployment
-        [HttpGet, Route("GetTest")]
-        public IActionResult GetTest()
-        {
-
-            return Ok("Hello Unity");
-        }
-
-
-        [HttpGet, Route("ResetLists")]
-        public IActionResult ResetLists()
-        {
-            _tournamentService.PlayersSeeds.Clear();
-            return Ok();
-        }
-
-
-        [HttpGet, Route("ResetPlayersSeeds")]
-        public IActionResult ResetPlayersSeeds()
-        {
-            _tournamentService.PlayersSeeds.Clear();
-            return Ok($"PlayersSeeds count: {_tournamentService.PlayersSeeds.Count}");
-        }
-
     }
 }
