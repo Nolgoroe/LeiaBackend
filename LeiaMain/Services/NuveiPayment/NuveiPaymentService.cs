@@ -9,7 +9,7 @@ namespace Services.NuveiPayment
     public interface INuveiPaymentService
     {
         Task<string> ProcessPaymentWithCardDetailsAsync(double amount, int currencyId, Boolean? useInitPayment);
-        Task<string> ProcessPaymentWithTokenAsync(string userId, string userPaymentOptionId, double amount, int currencyId, Boolean? useInitPayment);
+        Task<string> ProcessPaymentWithTokenAsync(Guid userId, string userPaymentOptionId, double amount, int currencyId, Boolean? useInitPayment);
         Task<string> ProcessRefundAsync(string nuveiPaymentId, double amount, int currencyId);
         Task<string> ProcessPayoutAsync(string userId, string userPaymentOptionId, double amount, int currencyId);
     }
@@ -223,11 +223,11 @@ namespace Services.NuveiPayment
             return paymentResponse.transactionId;
         }
 
-        public async Task<string> ProcessPaymentWithTokenAsync(string userId, string userPaymentOptionId, double amount, int currencyId, Boolean? useInitPayment)
+        public async Task<string> ProcessPaymentWithTokenAsync(Guid userId, string userPaymentOptionId, double amount, int currencyId, Boolean? useInitPayment)
         {
             var initPaymentRequest = new InitPaymentRequest()
             {
-                userTokenId = userId,
+                userTokenId = userId.ToString(),
                 amount = FormatPaymentAmount(amount),
                 currency = GetCurrencyCodeFromCurrencyId(currencyId),
                 paymentOption = new PaymentOptionRoot

@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Data;
 using System.Diagnostics;
-
+using System.Runtime.CompilerServices;
 using DataObjects;
 
 using Microsoft.AspNetCore.Mvc;
@@ -73,13 +73,60 @@ namespace CustomMatching.Controllers
             return Ok(player);
         }
 
-        [HttpPost, Route("MakePayment/{playerId}")]
-        public async Task<IActionResult> MakePayment(Guid playerId)
+        private async Task CompleteDepositActions(Player playerData, int currencyId, double amount, string resp)
         {
-            _logger.LogInformation("Received MakePayment request for playerId \"{PlayerId}\"", playerId);
-            var resp = await _nuveiPaymentService.ProcessPaymentWithCardDetailsAsync(2.00, currencyId, false);
+            PaymentTransaction paymentTransaction = new PaymentTransaction
+            {
+                PaymentId = Guid.NewGuid(),
+                PlayerId = playerData.PlayerId,
+                Amount = amount,
+                ProcessorTransactionId = resp,
+                PaymentOptionId = "",
+            };
+            // Save the transaction record to the DB
+
+            await _suikaDbService.UpdatePlayerBalance(playerData.PlayerId, currencyId, amount);
+        }
+
+        [HttpPost, Route("MakePayment/{playerId}/{currencyId}/{paymentOptionId}")]
+        public async Task<IActionResult> MakePayment(Guid playerId, int currencyId, string paymentOptionId, [FromBody] string cardNumber, [FromBody] string cvv, [FromBody] string expMonthStr, [FromBody] string expYearStr)
+        {
+            if (currencyId < 0 || paymentOptionId is null)
+            {
+                // TODO: validations on the paymentOptionId
+                return BadRequest("Invalid currency or payment option.");
+            }
+            int expMonth;
+            Int32.TryParse(expMonthStr, out expMonth);
+            int expYear;
+            Int32.TryParse(expYearStr, out expYear);
+            if (cardNumber.Length != 16 || !(cvv.Length == 3 || cvv.Length == 4) || expMonth <= 0 || expMonth > 12 || expYear < 2025 || expYear > 2050)
+            {
+                return BadRequest("Invalid card information.");
+            }
+
+            var playerData = await _suikaDbService.GetPlayerById(playerId);
+            if (playerData is null)
+            {
+                throw new Exception("");
+            }
+
+            // TODO: After registration is available- verify that the user is registered + all of the relevant properties are present
+
+            // TODO: payment option
+            double amount = 2.00;
+            var resp = await _nuveiPaymentService.ProcessPaymentWithCardDetailsAsync(amount, currencyId, false);
             _logger.LogInformation($"Nuvei payment response {resp.ToString()}");
+
+            // TODO: pass payment option
+            await CompleteDepositActions(playerData, currencyId, amount, resp);
+
+            // TODO: Set the player's "SavedNuveiPaymentToken" according to the response
+            // Get from resp
+
             dynamic response = new System.Dynamic.ExpandoObject();
+            // Provide the saved token to the app
+            // + new balance after change
             response.Data = resp;
             return Ok(response);
         }
@@ -87,7 +134,12 @@ namespace CustomMatching.Controllers
         [HttpPost, Route("MakePaymentWithSavedToken/{playerId}/{currencyId}/{paymentOptionId}")]
         public async Task<IActionResult> MakePaymentWithSavedToken(Guid playerId, int currencyId, string paymentOptionId)
         {
-            _logger.LogInformation("Received MakePaymentWithSavedToken request for playerId \"{PlayerId}\"", playerId);
+            if (currencyId < 0 || paymentOptionId is null)
+            {
+                // TODO: validations on the paymentOptionId
+                return BadRequest("Invalid currency or payment option.");
+            }
+
             var playerData = await _suikaDbService.GetPlayerById(playerId);
             if (playerData is null)
             {
@@ -98,10 +150,12 @@ namespace CustomMatching.Controllers
                 throw new Exception("");
             }
 
-            var resp = await _nuveiPaymentService.ProcessPaymentWithTokenAsync(playerData.PlayerId.ToString(), playerData.SavedNuveiPaymentToken, 2.00, currencyId, false);
+            double amount = 2.00;
+            var resp = await _nuveiPaymentService.ProcessPaymentWithTokenAsync(playerData.PlayerId, playerData.SavedNuveiPaymentToken, amount, currencyId, false);
             _logger.LogInformation($"Nuvei saved-token payment response {resp}");
+            await CompleteDepositActions(playerData, currencyId, amount, resp);
+
             dynamic response = new System.Dynamic.ExpandoObject();
-            response.Data = resp;
             return Ok(response);
         }
 
