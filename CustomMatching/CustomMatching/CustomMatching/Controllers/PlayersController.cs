@@ -15,6 +15,14 @@ using static CustomMatching.Controllers.PlayersController;
 
 // For more information on enabling Web API for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
 
+public class PaymentRequestBody
+{
+    public string CardNumber { get; set; }
+    public string CVV { get; set; }
+    public string ExpMonth { get; set; }
+    public string ExpYear { get; set; }
+}
+
 namespace CustomMatching.Controllers
 {
     [Route("[controller]")]
@@ -92,7 +100,7 @@ namespace CustomMatching.Controllers
         }
 
         [HttpPost, Route("MakePayment/{playerId}/{currencyId}/{paymentOptionId}")]
-        public async Task<IActionResult> MakePayment(Guid playerId, int currencyId, string paymentOptionId, [FromBody] string cardNumber, [FromBody] string cvv, [FromBody] string expMonthStr, [FromBody] string expYearStr)
+        public async Task<IActionResult> MakePayment(Guid playerId, int currencyId, string paymentOptionId, [FromBody] PaymentRequestBody paymentRequest)
         {
             if (currencyId < 0 || paymentOptionId is null)
             {
@@ -100,10 +108,10 @@ namespace CustomMatching.Controllers
                 return BadRequest("Invalid currency or payment option.");
             }
             int expMonth;
-            Int32.TryParse(expMonthStr, out expMonth);
+            Int32.TryParse(paymentRequest.ExpMonth, out expMonth);
             int expYear;
-            Int32.TryParse(expYearStr, out expYear);
-            if (cardNumber.Length != 16 || !(cvv.Length == 3 || cvv.Length == 4) || expMonth <= 0 || expMonth > 12 || expYear < 2025 || expYear > 2050)
+            Int32.TryParse(paymentRequest.ExpYear, out expYear);
+            if (paymentRequest.CardNumber.Length != 16 || !(paymentRequest.CVV.Length == 3 || paymentRequest.CVV.Length == 4) || expMonth <= 0 || expMonth > 12 || expYear < 2025 || expYear > 2050)
             {
                 return BadRequest("Invalid card information.");
             }
@@ -116,9 +124,17 @@ namespace CustomMatching.Controllers
 
             // TODO: After registration is available- verify that the user is registered + all of the relevant properties are present
 
+            PaymentOptionCard card = new PaymentOptionCard
+            {
+                cardNumber = paymentRequest.CardNumber,
+                cardHolderName = "John Doe",
+                expirationMonth = paymentRequest.ExpMonth,
+                expirationYear = paymentRequest.ExpYear,
+                CVV = paymentRequest.CVV
+            };
             // TODO: payment option
             double amount = 2.00;
-            var resp = await _nuveiPaymentService.ProcessPaymentWithCardDetailsAsync(amount, currencyId, false);
+            var resp = await _nuveiPaymentService.ProcessPaymentWithCardDetailsAsync(card, amount, currencyId, false);
             _logger.LogInformation($"Nuvei payment response {resp.ToString()}");
 
             // TODO: pass payment option
