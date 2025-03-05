@@ -11,6 +11,6 @@ namespace DataObjects
 		public required double Amount { get; set; }
 		public required string ProcessorTransactionId { get; set; }
 		public required string PaymentOptionId { get; set; }
-
+		public string? ResponseBody { get; set; }
 	}
 }

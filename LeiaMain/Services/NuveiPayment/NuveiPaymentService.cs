@@ -8,10 +8,10 @@ namespace Services.NuveiPayment
 
     public interface INuveiPaymentService
     {
-        Task<string> ProcessPaymentWithCardDetailsAsync(double amount, int currencyId, Boolean? useInitPayment);
-        Task<string> ProcessPaymentWithTokenAsync(Guid userId, string userPaymentOptionId, double amount, int currencyId, Boolean? useInitPayment);
-        Task<string> ProcessRefundAsync(string nuveiPaymentId, double amount, int currencyId);
-        Task<string> ProcessPayoutAsync(string userId, string userPaymentOptionId, double amount, int currencyId);
+        Task<PaymentResponse> ProcessPaymentWithCardDetailsAsync(double amount, int currencyId, Boolean? useInitPayment);
+        Task<PaymentResponse> ProcessPaymentWithTokenAsync(Guid userId, string userPaymentOptionId, double amount, int currencyId, Boolean? useInitPayment);
+        Task<RefundResponse> ProcessRefundAsync(string nuveiPaymentId, double amount, int currencyId);
+        Task<PayoutResponse> ProcessPayoutAsync(string userId, string userPaymentOptionId, double amount, int currencyId);
     }
 
     public class NuveiPaymentService : INuveiPaymentService
@@ -176,7 +176,7 @@ namespace Services.NuveiPayment
             return "USD";
         }
 
-        public async Task<string> ProcessPaymentWithCardDetailsAsync(double amount, int currencyId, Boolean? useInitPayment)
+        public async Task<PaymentResponse> ProcessPaymentWithCardDetailsAsync(double amount, int currencyId, Boolean? useInitPayment)
         {
             var initPaymentRequest = new InitPaymentRequest()
             {
@@ -217,13 +217,13 @@ namespace Services.NuveiPayment
                 relatedTransactionId = initPaymentResponse.transactionId;
             }
 
-            var paymentResponse = await PaymentAsync(initPaymentRequest, sessionToken, relatedTransactionId);
+            PaymentResponse paymentResponse = await PaymentAsync(initPaymentRequest, sessionToken, relatedTransactionId);
             NuveiUtils.AssertValidResponse(paymentResponse);
 
-            return paymentResponse.transactionId;
+            return paymentResponse;
         }
 
-        public async Task<string> ProcessPaymentWithTokenAsync(Guid userId, string userPaymentOptionId, double amount, int currencyId, Boolean? useInitPayment)
+        public async Task<PaymentResponse> ProcessPaymentWithTokenAsync(Guid userId, string userPaymentOptionId, double amount, int currencyId, Boolean? useInitPayment)
         {
             var initPaymentRequest = new InitPaymentRequest()
             {
@@ -258,26 +258,30 @@ namespace Services.NuveiPayment
                 relatedTransactionId = initPaymentResponse.transactionId;
             }
 
-            var paymentResponse = await PaymentAsync(initPaymentRequest, relatedTransactionId, sessionToken);
-            return paymentResponse.transactionId;
+            PaymentResponse paymentResponse = await PaymentAsync(initPaymentRequest, relatedTransactionId, sessionToken);
+            NuveiUtils.AssertValidResponse(paymentResponse);
+
+            return paymentResponse;
         }
 
-        public async Task<string> ProcessRefundAsync(string nuveiPaymentId, double amount, int currencyId)
+        public async Task<RefundResponse> ProcessRefundAsync(string nuveiPaymentId, double amount, int currencyId)
         {
             string sessionToken = await GetSessionToken();
             string currency = GetCurrencyCodeFromCurrencyId(currencyId);
-            var response = await RefundAsync(nuveiPaymentId, amount, currency, sessionToken);
+            RefundResponse response = await RefundAsync(nuveiPaymentId, amount, currency, sessionToken);
             NuveiUtils.AssertValidResponse(response);
-            return response.transactionId;
+
+            return response;
         }
 
-        public async Task<string> ProcessPayoutAsync(string userId, string userPaymentOptionId, double amount, int currencyId)
+        public async Task<PayoutResponse> ProcessPayoutAsync(string userId, string userPaymentOptionId, double amount, int currencyId)
         {
             string sessionToken = await GetSessionToken();
             string currency = GetCurrencyCodeFromCurrencyId(currencyId);
-            var response = await PayoutAsync(userId, userPaymentOptionId, amount, currency, sessionToken);
+            PayoutResponse response = await PayoutAsync(userId, userPaymentOptionId, amount, currency, sessionToken);
             NuveiUtils.AssertValidResponse(response);
-            return response.transactionId;
+
+            return response;
         }
     }
 }

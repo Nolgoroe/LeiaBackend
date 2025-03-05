@@ -2,6 +2,7 @@
 using System.Data;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using System.Text.Json;
 using DataObjects;
 
 using Microsoft.AspNetCore.Mvc;
@@ -9,6 +10,7 @@ using Microsoft.EntityFrameworkCore;
 
 using Services;
 using Services.NuveiPayment;
+using Services.NuveiPayment.Api;
 using static CustomMatching.Controllers.PlayersController;
 
 // For more information on enabling Web API for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
@@ -73,15 +75,16 @@ namespace CustomMatching.Controllers
             return Ok(player);
         }
 
-        private async Task CompleteDepositActions(Player playerData, int currencyId, double amount, string resp)
+        private async Task CompleteDepositActions(Player playerData, int currencyId, double amount, PaymentResponse resp)
         {
             PaymentTransaction paymentTransaction = new PaymentTransaction
             {
                 PaymentId = Guid.NewGuid(),
                 PlayerId = playerData.PlayerId,
                 Amount = amount,
-                ProcessorTransactionId = resp,
+                ProcessorTransactionId = resp.transactionId,
                 PaymentOptionId = "",
+                ResponseBody = JsonSerializer.Serialize(resp, resp.GetType())
             };
             // Save the transaction record to the DB
 
@@ -121,13 +124,11 @@ namespace CustomMatching.Controllers
             // TODO: pass payment option
             await CompleteDepositActions(playerData, currencyId, amount, resp);
 
-            // TODO: Set the player's "SavedNuveiPaymentToken" according to the response
-            // Get from resp
+            playerData.SavedNuveiPaymentToken = resp.paymentOption?.userPaymentOptionId;
+            // TODO: save the player data
 
             dynamic response = new System.Dynamic.ExpandoObject();
-            // Provide the saved token to the app
-            // + new balance after change
-            response.Data = resp;
+            response.Data = new { nuveiPaymentToken = playerData.SavedNuveiPaymentToken };
             return Ok(response);
         }
 
