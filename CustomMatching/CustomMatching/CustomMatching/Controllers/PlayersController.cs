@@ -123,7 +123,7 @@ namespace CustomMatching.Controllers
             var playerData = await _suikaDbService.GetPlayerById(playerId);
             if (playerData is null)
             {
-                throw new Exception("");
+                return NotFound("Player was not found");
             }
 
             // TODO: After registration is available- verify that the user is registered + all of the relevant properties are present
@@ -164,11 +164,11 @@ namespace CustomMatching.Controllers
             var playerData = await _suikaDbService.GetPlayerById(playerId);
             if (playerData is null)
             {
-                throw new Exception("");
+                return NotFound("Player was not found");
             }
             if (playerData.SavedNuveiPaymentToken is null || playerData.SavedNuveiPaymentToken == "")
             {
-                throw new Exception("");
+                return BadRequest("User does not have a saved payment token");
             }
 
             double amount = 2.00;
@@ -191,7 +191,7 @@ namespace CustomMatching.Controllers
             var playerData = await _suikaDbService.GetPlayerById(playerId);
             if (playerData is null)
             {
-                throw new Exception("");
+                return NotFound("Player was not found");
             }
             var playerBalance = await _suikaDbService.GetPlayerBalance(playerData.PlayerId, currencyId);
             if (playerBalance is null || amount > playerBalance)

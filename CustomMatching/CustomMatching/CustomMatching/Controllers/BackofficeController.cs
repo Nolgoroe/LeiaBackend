@@ -22,14 +22,12 @@ namespace CustomMatching.Controllers
 
 		private void ValidateWithdrawalRequest(Player? playerData, WithdrawalDetails? withdrawalDetails, Guid withdrawalMutationToken)
 		{
-			if (playerData is null || withdrawalDetails is null)
+			if (playerData is null
+				|| withdrawalDetails is null
+				|| withdrawalDetails.PlayerId != playerData.PlayerId
+				|| withdrawalDetails.MutationToken != withdrawalMutationToken)
 			{
-				throw new Exception("");
-			}
-
-			if (withdrawalDetails.PlayerId != playerData.PlayerId || withdrawalDetails.MutationToken != withdrawalMutationToken)
-			{
-				throw new Exception("");
+				throw new Exception("Request parameters are invalid");
 			}
 
 			if (withdrawalDetails.Status != "PendingProcessing")
@@ -39,7 +37,7 @@ namespace CustomMatching.Controllers
 
 			if (playerData.SavedNuveiPaymentToken is null)
 			{
-				throw new Exception("");
+				throw new Exception("Player does not have a saved payment token");
 			}
 		}
 
@@ -84,7 +82,7 @@ namespace CustomMatching.Controllers
 			var currentBalance = await _suikaDbService.GetPlayerBalance(playerData.PlayerId, withdrawalDetails.CurrencyId);
 			if (currentBalance is null)
 			{
-				throw new Exception("");
+				throw new Exception("Could not get the player's balance");
 			}
 			double restoredBalance = (double)(currentBalance + withdrawalDetails.Amount);
 			await _suikaDbService.UpdatePlayerBalance(playerData.PlayerId, withdrawalDetails.CurrencyId, restoredBalance);
