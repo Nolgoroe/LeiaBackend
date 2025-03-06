@@ -180,7 +180,7 @@ namespace CustomMatching.Controllers
             return Ok(response);
         }
 
-        [HttpPost, Route("MakeWithdraw/{playerId}/{currencyId}/{amount}")]
+        [HttpPost, Route("CreateWithdrawal/{playerId}/{currencyId}/{amount}")]
         public async Task<IActionResult> MakeWithdraw(Guid playerId, int currencyId, double amount)
         {
             if (currencyId <= 0 || amount <= 0)
