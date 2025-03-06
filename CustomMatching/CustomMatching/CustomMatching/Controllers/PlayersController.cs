@@ -183,7 +183,7 @@ namespace CustomMatching.Controllers
         [HttpPost, Route("CreateWithdrawal/{playerId}/{currencyId}/{amount}")]
         public async Task<IActionResult> MakeWithdraw(Guid playerId, int currencyId, double amount)
         {
-            if (currencyId <= 0 || amount <= 0)
+            if (currencyId < 0 || amount <= 0)
             {
                 return BadRequest("Invalid currency or amount.");
             }
@@ -228,7 +228,8 @@ namespace CustomMatching.Controllers
             string emailSubject = $"Withdrawal request from player \"{playerData.PlayerId}\"";
             string approveLink = $"https://leiagames.com/Backoffice/ApproveWithdrawal/{playerId}/{withdrawalDetails.WithdrawalId}/{withdrawalDetails.MutationToken}";
             string declineLink = $"https://leiagames.com/Backoffice/DeclineWithdrawal/{playerId}/{withdrawalDetails.WithdrawalId}/{withdrawalDetails.MutationToken}";
-            string emailBody = $"Withdrawal request for {amount}<br /><br /><br />Approve: <a href=\"{approveLink}\">{approveLink}</a><br /><br />Decline: <a href=\"declineLink\">declineLink</a>";
+            // TODO: add currency sign / code
+            string emailBody = $"Withdrawal request for {amount}<br />Player name: {playerData.Name}<br />Player ID: {playerData.PlayerId}<br /><br /><br /><a href=\"{approveLink}\">Approve the withdrawal</a><br /><br /><br /><a href=\"{declineLink}\">Decline the withdrawal</a>";
             _emailService.SendEmail("support@leia.games", emailSubject, emailBody);
 
             withdrawalDetails.Status = "PendingProcessing";
