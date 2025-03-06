@@ -226,11 +226,10 @@ namespace CustomMatching.Controllers
             await _suikaDbService.UpdatePlayerBalance(playerData.PlayerId, currencyId, -1 * amount);
 
             string emailSubject = $"Withdrawal request from player \"{playerData.PlayerId}\"";
-            // TODO: What's the correct host?
-            string approveLink = $"https://api.leia.games/Backoffice/ApproveWithdrawal/{playerId}/{withdrawalDetails.WithdrawalId}/{withdrawalDetails.MutationToken}";
-            string declineLink = $"https://api.leia.games/Backoffice/DeclineWithdrawal/{playerId}/{withdrawalDetails.WithdrawalId}/{withdrawalDetails.MutationToken}";
+            string approveLink = $"https://leiagames.com/Backoffice/ApproveWithdrawal/{playerId}/{withdrawalDetails.WithdrawalId}/{withdrawalDetails.MutationToken}";
+            string declineLink = $"https://leiagames.com/Backoffice/DeclineWithdrawal/{playerId}/{withdrawalDetails.WithdrawalId}/{withdrawalDetails.MutationToken}";
             string emailBody = $"Withdrawal request for {amount}<br /><br /><br />Approve: <a href=\"{approveLink}\">{approveLink}</a><br /><br />Decline: <a href=\"declineLink\">declineLink</a>";
-            _emailService.SendEmail("withdrawals@leia.games", emailSubject, emailBody);
+            _emailService.SendEmail("support@leia.games", emailSubject, emailBody);
 
             withdrawalDetails.Status = "PendingProcessing";
             await _suikaDbService.UpdateWithdrawalDetails(withdrawalDetails);

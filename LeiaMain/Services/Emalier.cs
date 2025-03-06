@@ -21,18 +21,23 @@ namespace Services.Emailer
 			{
 				Port = 587,
 				Credentials = new NetworkCredential(username, password),
-				EnableSsl = true
+				EnableSsl = true,
 			};
 			_from = fromAddress;
 		}
 
 		public void SendEmail(string to, string subject, string body)
 		{
-			MailMessage message = new MailMessage(_from, to);
-			message.Subject = subject;
-			message.SubjectEncoding = System.Text.Encoding.UTF8;
-			message.Body = body;
-			message.BodyEncoding = System.Text.Encoding.UTF8;
+			MailMessage message = new MailMessage
+			{
+				From = new MailAddress(_from),
+				Subject = subject,
+				SubjectEncoding = System.Text.Encoding.UTF8,
+				Body = body,
+				BodyEncoding = System.Text.Encoding.UTF8,
+				IsBodyHtml = true,
+			};
+			message.To.Add(to);
 			_client.Send(message);
 		}
 	}
