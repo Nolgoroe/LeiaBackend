@@ -1,4 +1,5 @@
 ﻿using System.Data;
+using DAL;
 using DataObjects;
 
 using Microsoft.AspNetCore.Mvc;
@@ -62,18 +63,22 @@ namespace CustomMatching.Controllers
         [HttpPost, Route("GetPlayerTournamentHistory/")]
         public async Task<IActionResult> GetPlayerTournamentHistory([FromBody] BaseAccountRequest request)
         {
-            var player = await _suikaDbService.LoadPlayerByAuthToken(request.authToken);
-            if (player == null) return NotFound("PlayerId was not provided");
-            var playerId = player.PlayerId;
-            try
+            using (var context = new LeiaContext())
             {
-                var tournaments = await _suikaDbService.GetPlayerTournaments(_suikaDbService.LeiaContext, playerId);
-                return Ok(tournaments);
-            }
-            catch (Exception ex)
-            {
-                await _suikaDbService.Log(ex, playerId);
-                return StatusCode(500, ex.Message + "\n" + ex.InnerException?.Message);
+                var suikaDbService = new SuikaDbService(context);
+                var player = await suikaDbService.LoadPlayerByAuthToken(request.authToken);
+                if (player == null) return NotFound("Invalid session auth token");
+                var playerId = player.PlayerId;
+                try
+                {
+                    var tournaments = await suikaDbService.GetPlayerTournaments(context, playerId);
+                    return Ok(tournaments);
+                }
+                catch (Exception ex)
+                {
+                    await suikaDbService.Log(ex, playerId);
+                    return StatusCode(500, ex.Message + "\n" + ex.InnerException?.Message);
+                }
             }
         }
 
