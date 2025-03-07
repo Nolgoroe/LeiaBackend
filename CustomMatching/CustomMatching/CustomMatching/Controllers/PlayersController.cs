@@ -230,7 +230,16 @@ namespace CustomMatching.Controllers
             string declineLink = $"https://leiagames.com/Backoffice/DeclineWithdrawal/{playerId}/{withdrawalDetails.WithdrawalId}/{withdrawalDetails.MutationToken}";
             // TODO: add currency sign / code
             string emailBody = $"Withdrawal request for {amount}<br />Player name: {playerData.Name}<br />Player ID: {playerData.PlayerId}<br /><br /><br /><a href=\"{approveLink}\">Approve the withdrawal</a><br /><br /><br /><a href=\"{declineLink}\">Decline the withdrawal</a>";
-            _emailService.SendEmail("support@leia.games", emailSubject, emailBody);
+            try
+            {
+                _logger.LogInformation($"Sending withdrawals email for player ID \"{playerData.PlayerId}\"");
+                _emailService.SendEmail("support@leia.games", emailSubject, emailBody);
+                await _suikaDbService.Log("Sent withdrawals email for player ID", playerData.PlayerId);
+            }
+            catch (Exception ex)
+            {
+                await _suikaDbService.Log(ex, playerData.PlayerId);
+            }
 
             withdrawalDetails.Status = "PendingProcessing";
             await _suikaDbService.UpdateWithdrawalDetails(withdrawalDetails);
