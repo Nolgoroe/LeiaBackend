@@ -19,4 +19,5 @@ namespace CustomMatching.Controllers
     public record UpdateBalancesRequest(int currencyId, double amount) : BaseAccountRequest;
 
     public record SetScoreRequest(int tournamentId, int score) : BaseAccountRequest;
+
 }

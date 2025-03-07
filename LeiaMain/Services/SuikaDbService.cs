@@ -40,6 +40,29 @@ namespace Services
         }
     }
 
+    public record HistoryDTO //DTO = data transfer object from server
+    {
+        public LeaderboardPlayerData[] players { get; set; }
+        public int tournamentID { get; set; }
+        public int tournamentTypeID { get; set; }
+        public int tournamentTypeMaxPlayers { get; set; }
+        public int currencyID { get; set; }
+        public float entryFee { get; set; }
+        public bool isOpen { get; set; }
+        public List<Reward> rewards { get; set; }
+
+    }
+
+
+    public record LeaderboardPlayerData
+    {
+        public string name { get; set; }
+        public string id { get; set; }
+        public int? score { get; set; }
+        public bool? didClaim { get; set; }
+        public DateTime joinTime { get; set; }
+    }
+
     public interface ISuikaDbService
     {
         public Task<(Player, PlayerAuthToken)> CreateNewPlayer(Player player);
@@ -47,7 +70,7 @@ namespace Services
         public Task<Player?> GetPlayerById(Guid playerId);
         public Task<Player?> GetPlayerByName(string playerName);
         public Task<Player?> LoadPlayerByAuthToken(string token);
-        public Task<List<dynamic>> GetPlayerTournaments(LeiaContext context, Guid playerId);
+        public Task<List<HistoryDTO>> GetPlayerTournaments(LeiaContext context, Guid playerId);
         public Task<double?> GetPlayerBalance(Guid? playerId, int? currencyId);
         public Task<List<PlayerCurrencies?>?> GetAllPlayerBalances(Guid playerId);
         public Task<PlayerCurrencies?> UpdatePlayerBalance(Guid? playerId, int? currencyId, double? amount);
@@ -487,19 +510,38 @@ namespace Services
             }
         }
 
+
+
         /// Helper function of `GetPlayerTournaments`
-        private dynamic GetPlayerTournamentsCalcLeaderboard(Guid playerId, IEnumerable<PlayerTournamentSession> allPlayerSessions, TournamentType tournamentType, int tournamentSessionId)
+        private HistoryDTO GetPlayerTournamentsCalcLeaderboard(Guid playerId, Dictionary<Guid, Player> allPlayersById, IEnumerable<PlayerTournamentSession> allPlayerSessions, TournamentType tournamentType, int tournamentSessionId)
         {
             var leaderBoard = PostTournamentService.CalculateLeaderboardForPlayer(playerId, allPlayerSessions, tournamentType, tournamentSessionId).ToList();
-            var myEntry = leaderBoard.First(s => s.PlayerId == playerId);
-            leaderBoard.Remove(myEntry);
-            return new { myEntry, leaderBoard };
+            var playerEntries = leaderBoard.Select(l => new LeaderboardPlayerData()
+            {
+                name = allPlayersById[l.PlayerId].Name,
+                id = l.PlayerId.ToString(),
+                score = l.PlayerScore,
+                didClaim = l.DidClaim,
+                joinTime = l.JoinTime,
+            }).ToArray();
+
+            return new HistoryDTO
+            {
+                players = playerEntries,
+                tournamentID = tournamentSessionId,
+                tournamentTypeID = tournamentType.TournamentTypeId,
+                tournamentTypeMaxPlayers = tournamentType.NumberOfPlayers.Value,
+                currencyID = tournamentType.CurrenciesId,
+                entryFee = (float)tournamentType.EntryFee.Value,
+                isOpen = leaderBoard.Any(s => s.PlayerScore == null),
+                rewards = tournamentType.Reward,
+            };
         }
 
-        public async Task<List<dynamic>> GetPlayerTournaments(LeiaContext context, Guid playerId)
+        public async Task<List<HistoryDTO>> GetPlayerTournaments(LeiaContext context, Guid playerId)
         {
             // We load all the tournament types and 100 of the most recent sessions of the current player
-            var allTournamentTypesById = await context.TournamentTypes.ToDictionaryAsync(t => t.TournamentTypeId);
+            var allTournamentTypesById = await context.TournamentTypes.Include(t => t.Reward).ToDictionaryAsync(t => t.TournamentTypeId);
             var allSessionsOfCurrentPlayer = context.PlayerTournamentSession
                 .Where(s => s.PlayerId == playerId)
                 .OrderByDescending(s => s.SubmitScoreTime)
@@ -511,10 +553,12 @@ namespace Services
             var allOtherSessionsByTournamentId = context.PlayerTournamentSession.Where(s => playerTournamentIds.Contains(s.TournamentSessionId))
                 .GroupBy(s => s.TournamentSessionId)
                 .ToDictionary(group => group.Key, group => group.ToList());
+            var allPlayerIds = allOtherSessionsByTournamentId.SelectMany(kv => kv.Value).Select(s => s.PlayerId).Distinct().ToList();
+            var allPlayersById = context.Players.Where(p => allPlayerIds.Contains(p.PlayerId)).ToDictionary(p => p.PlayerId);
             // We convert and sort the sessions to leaderboards using the mixed-trounament leaderboard calculator
             return allSessionsOfCurrentPlayer.Select(s =>
             {
-                return GetPlayerTournamentsCalcLeaderboard(s.PlayerId, allOtherSessionsByTournamentId[s.TournamentSessionId], allTournamentTypesById[s.TournamentTypeId], s.TournamentSessionId);
+                return GetPlayerTournamentsCalcLeaderboard(s.PlayerId, allPlayersById, allOtherSessionsByTournamentId[s.TournamentSessionId], allTournamentTypesById[s.TournamentTypeId], s.TournamentSessionId);
             }).ToList();
 
         }
