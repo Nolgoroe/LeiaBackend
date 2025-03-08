@@ -59,6 +59,9 @@ namespace CustomMatching.Controllers
                 var dbTournamentType = await _suikaDbService.LeiaContext.TournamentTypes.FindAsync(tournamentType.TournamentTypeId);
                 if (dbTournamentType == null) return NotFound("There is no such Tournament Type");
 
+                var gameType = await _suikaDbService.LeiaContext.GameType.FindAsync(request.gameTypeId);
+                if (gameType == null) return NotFound("There is no such game Type");
+
                 var playerBalance = await _suikaDbService.GetPlayerBalance(playerId, dbTournamentType?.CurrenciesId/*currency*/);
                 if (playerBalance == null) return BadRequest("The player doesn't have a balance for this currency");
 
@@ -66,7 +69,7 @@ namespace CustomMatching.Controllers
 
                 #endregion
 
-                var canMatchMake = await _suikaDbService.MarkPlayerAsMatchMaking(player.PlayerId, tournamentType.EntryFee.Value, currencies.CurrencyId, tournamentType.TournamentTypeId);
+                var canMatchMake = await _suikaDbService.MarkPlayerAsMatchMaking(player.PlayerId, tournamentType.EntryFee.Value, currencies.CurrencyId, tournamentType.TournamentTypeId, request.gameTypeId);
 
                 if (!canMatchMake)
                 {
@@ -168,9 +171,14 @@ namespace CustomMatching.Controllers
         public IActionResult GetTournamentTypes()
         {
             var tournamentTypes = _suikaDbService.LeiaContext.TournamentTypes.Include(tp => tp.Reward).OrderBy(tp => tp.CurrenciesId).ToList();
+            return Ok(tournamentTypes);
+        }
 
-            /// DON'T UNSUBSCRIBE FROM THE EVENT HERE! this keeps the PlayerAddedToTournamentHandler  connected to the event, and that makes sure  the PlayerAddedToTournamentHandler method is fired 
-            //_tournamentService.PlayerAddedToTournament -= PlayerAddedToTournamentHandler;
+
+        [HttpGet, Route("GetGameTypes")]
+        public IActionResult GetGameTypes()
+        {
+            var tournamentTypes = _suikaDbService.LeiaContext.GameType.ToList();
             return Ok(tournamentTypes);
         }
     }

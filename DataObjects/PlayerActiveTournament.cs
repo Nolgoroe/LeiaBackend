@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -35,6 +36,8 @@ namespace DataObjects
         public int CurrencyId { get; set; }
 
         public int TournamentTypeId { get; set; }
+
+        public int GameTypeId { get; set; } = 1;
 
         public DateTime MatchmakeStartTime { get; set; }
         public DateTime JoinTournamentTime { get; set; }

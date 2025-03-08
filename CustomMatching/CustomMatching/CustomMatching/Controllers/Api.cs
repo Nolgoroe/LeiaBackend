@@ -14,7 +14,7 @@ namespace CustomMatching.Controllers
     
     public record ClaimTournamentPrizeRequest(int tournamentId) :  BaseAccountRequest;
 
-    public record MatchRequest(int tournamentTypeId) : BaseAccountRequest;
+    public record MatchRequest(int tournamentTypeId, int gameTypeId) : BaseAccountRequest;
 
     public record UpdateBalancesRequest(int currencyId, double amount) : BaseAccountRequest;
 

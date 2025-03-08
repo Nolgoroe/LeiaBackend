@@ -20,24 +20,10 @@ namespace Services
     {
         public Player Player;
         public PlayerActiveTournament QueueEntry;
+        public int GameTypeId;
 
-        /// <summary>
-        /// A temporary method that is meant to reduce the amount of refactoring done in a single iteration
-        /// Eventually the class MatchRequest is to be deprecated
-        /// </summary>
-        public MatchRequest ConvertToLegacyMatchRequest(LeiaContext leiaContext)
-        {
-            var currency = leiaContext.Currencies.First(c => c.CurrencyId == QueueEntry.CurrencyId);
-            var tournamentType = leiaContext.TournamentTypes.First(t => t.TournamentTypeId == QueueEntry.TournamentTypeId);
-            return new MatchRequest()
-            {
-                Player = Player,
-                MatchFee = QueueEntry.EntryFee,
-                MatchFeeCurrency = currency,
-                RequestTime = QueueEntry.MatchmakeStartTime,
-                TournamentType = tournamentType,
-            };
-        }
+        public Currencies LoadCurrency(LeiaContext leiaContext) => leiaContext.Currencies.First(c => c.CurrencyId == QueueEntry.CurrencyId);
+        public TournamentType LoadTournamentType(LeiaContext leiaContext) => leiaContext.TournamentTypes.First(t => t.TournamentTypeId == QueueEntry.TournamentTypeId);
     }
 
     public record HistoryDTO //DTO = data transfer object from server
@@ -50,6 +36,8 @@ namespace Services
         public float entryFee { get; set; }
         public bool isOpen { get; set; }
         public List<Reward> rewards { get; set; }
+
+        public int GameTypeId { get; set; }
 
     }
 
@@ -90,7 +78,7 @@ namespace Services
         /// <param name="currencyId">Currency Id of the tournament type selected</param>
         /// <param name="tournamentTypeId">Tournament type selected</param>
         /// <returns>True if player is added, returns false and exception if not</returns>
-        public Task<bool> MarkPlayerAsMatchMaking(Guid playerId, double entryFee, int currencyId, int tournamentTypeId);
+        public Task<bool> MarkPlayerAsMatchMaking(Guid playerId, double entryFee, int currencyId, int tournamentTypeId, int gameTypeId);
 
         /// <summary>
         /// Gets the PlayerActiveTournament for a player
@@ -135,7 +123,7 @@ namespace Services
         /// <param name="playerBalance"></param>
         /// <param name="maxResults"></param>
         /// <returns></returns>
-        public Task<IEnumerable<TournamentSession>> FindSuitableTournamentForRating(Guid playerId, int playerRating, int maxRatingDrift, int tournamentTypeId, int currencyId, double playerBalance, int maxResults);
+        public Task<IEnumerable<TournamentSession>> FindSuitableTournamentForRating(Guid playerId, int gameTypeId, int playerRating, int maxRatingDrift, int tournamentTypeId, int currencyId, double playerBalance, int maxResults);
         public LeiaContext LeiaContext { get; set; }
     }
 
@@ -273,7 +261,7 @@ namespace Services
                    .ToListAsync();
         }
 
-        public async Task<IEnumerable<TournamentSession>> FindSuitableTournamentForRating(Guid playerId, int playerRating, int maxRatingDrift, int tournamentTypeId, int currencyId, double playerBalance, int maxResults)
+        public async Task<IEnumerable<TournamentSession>> FindSuitableTournamentForRating(Guid playerId, int gameTypeId, int playerRating, int maxRatingDrift, int tournamentTypeId, int currencyId, double playerBalance, int maxResults)
         {
             var tournamentType = await _leiaContext.TournamentTypes.FindAsync(tournamentTypeId);
             if (tournamentType == null)
@@ -288,7 +276,7 @@ namespace Services
                 .Where(
                     t => Math.Abs(t.Rating - playerRating) < maxRatingDrift &&         // Rating is in range
                                                                                        // t.TournamentData.TournamentTypeId == tournamentTypeId &&
-                    t.IsOpen &&                                                        // Tournament is open
+                    t.GameTypeId == gameTypeId &&
                                                                                        // t.TournamentData.EntryFeeCurrencyId == currencyId &&               // The currency Id is matching
                     t.Players.Count < tournamentType.NumberOfPlayers &&
                     !t.Players.Select(p => p.PlayerId).Contains(playerId)
@@ -405,7 +393,7 @@ namespace Services
             Trace.WriteLine(message);
         }
 
-        public async Task<bool> MarkPlayerAsMatchMaking(Guid playerId, double entryFee, int currencyId, int tournamentTypeId)
+        public async Task<bool> MarkPlayerAsMatchMaking(Guid playerId, double entryFee, int currencyId, int tournamentTypeId, int gameTypeId)
         {
 
             try
@@ -417,7 +405,8 @@ namespace Services
                     MatchmakeStartTime = DateTime.Now,
                     CurrencyId = currencyId,
                     TournamentTypeId = tournamentTypeId,
-                    EntryFee = entryFee
+                    EntryFee = entryFee,
+                    GameTypeId = gameTypeId,
                 });
                 await _leiaContext.SaveChangesAsync();
                 var message = $"Player {playerId} started matchmaking";
@@ -513,7 +502,7 @@ namespace Services
 
 
         /// Helper function of `GetPlayerTournaments`
-        private HistoryDTO GetPlayerTournamentsCalcLeaderboard(Guid playerId, Dictionary<Guid, Player> allPlayersById, IEnumerable<PlayerTournamentSession> allPlayerSessions, TournamentType tournamentType, int tournamentSessionId)
+        private HistoryDTO GetPlayerTournamentsCalcLeaderboard(Guid playerId, Dictionary<Guid, Player> allPlayersById, IEnumerable<PlayerTournamentSession> allPlayerSessions, TournamentType tournamentType, int tournamentSessionId, int gameTypeId)
         {
             var leaderBoard = PostTournamentService.CalculateLeaderboardForPlayer(playerId, allPlayerSessions, tournamentType, tournamentSessionId).ToList();
             var playerEntries = leaderBoard.Select(l => new LeaderboardPlayerData()
@@ -535,6 +524,7 @@ namespace Services
                 entryFee = (float)tournamentType.EntryFee.Value,
                 isOpen = leaderBoard.Any(s => s.PlayerScore == null),
                 rewards = tournamentType.Reward,
+                GameTypeId = gameTypeId
             };
         }
 
@@ -555,10 +545,12 @@ namespace Services
                 .ToDictionary(group => group.Key, group => group.ToList());
             var allPlayerIds = allOtherSessionsByTournamentId.SelectMany(kv => kv.Value).Select(s => s.PlayerId).Distinct().ToList();
             var allPlayersById = context.Players.Where(p => allPlayerIds.Contains(p.PlayerId)).ToDictionary(p => p.PlayerId);
+            var allTournamentsById = context.Tournaments.Where(p => playerTournamentIds.Contains(p.TournamentSessionId)).ToDictionary(t => t.TournamentSessionId);
             // We convert and sort the sessions to leaderboards using the mixed-trounament leaderboard calculator
             return allSessionsOfCurrentPlayer.Select(s =>
             {
-                return GetPlayerTournamentsCalcLeaderboard(s.PlayerId, allPlayersById, allOtherSessionsByTournamentId[s.TournamentSessionId], allTournamentTypesById[s.TournamentTypeId], s.TournamentSessionId);
+                return GetPlayerTournamentsCalcLeaderboard(s.PlayerId, allPlayersById, allOtherSessionsByTournamentId[s.TournamentSessionId], allTournamentTypesById[s.TournamentTypeId], s.TournamentSessionId,
+                    allTournamentsById[s.TournamentSessionId].GameTypeId);
             }).ToList();
 
         }

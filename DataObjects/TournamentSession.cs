@@ -1,5 +1,6 @@
 ﻿using System;
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace DataObjects
 {
@@ -22,5 +23,7 @@ namespace DataObjects
         public int TournamentSeed { get; set; }
         public bool IsOpen { get; set; }
         public int Rating { get; set; }
+
+        public int GameTypeId { get; set; } = 1;
     }
 }
