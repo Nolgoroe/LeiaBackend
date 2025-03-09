@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Services;
 using Services.NuveiPayment;
+using static CustomMatching.Constants;
 
 namespace CustomMatching.Controllers
 {
@@ -58,7 +59,7 @@ namespace CustomMatching.Controllers
 			// Leftover as payout
 			int currencyId = 0;
 			double amount = 5.55;
-			var resp = await _nuveiPaymentService.ProcessPayoutAsync(playerData.PlayerId.ToString(), playerData.SavedNuveiPaymentToken, amount, currencyId);
+			var resp = await _nuveiPaymentService.ProcessPayoutAsync(playerData.PlayerId.ToString(), playerData.SavedNuveiPaymentToken, amount, withdrawalDetails.CurrencyCode);
 			_logger.LogInformation($"Nuvei payment response {resp}");
 
 			withdrawalDetails.Status = "Approved";
@@ -79,13 +80,10 @@ namespace CustomMatching.Controllers
 			withdrawalDetails.Status = "ProcessingDecline";
 			await _suikaDbService.UpdateWithdrawalDetails(withdrawalDetails);
 
-			var currentBalance = await _suikaDbService.GetPlayerBalance(playerData.PlayerId, withdrawalDetails.CurrencyId);
-			if (currentBalance is null)
-			{
-				throw new Exception("Could not get the player's balance");
-			}
-			double restoredBalance = (double)(currentBalance + withdrawalDetails.Amount);
-			await _suikaDbService.UpdatePlayerBalance(playerData.PlayerId, withdrawalDetails.CurrencyId, restoredBalance);
+			// Hard-coded to the USD balance since the amount is normalized
+			int currencyId = 6;
+			double amountToAdd = withdrawalDetails.Amount * CurrencyCodeToMultiplier[withdrawalDetails.CurrencyCode];
+			await _suikaDbService.UpdatePlayerBalance(playerData.PlayerId, currencyId, amountToAdd);
 
 			withdrawalDetails.Status = "Declined";
 			withdrawalDetails.ProcessedAt = DateTime.Now;
