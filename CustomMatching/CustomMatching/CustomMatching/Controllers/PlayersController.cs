@@ -18,10 +18,10 @@ using static CustomMatching.Constants;
 
 public class PaymentRequestBody
 {
-    public string CardNumber { get; set; }
-    public string CVV { get; set; }
-    public string ExpMonth { get; set; }
-    public string ExpYear { get; set; }
+    public required string cardNumber { get; set; }
+    public required string cvv { get; set; }
+    public required string expMonth { get; set; }
+    public required string expYear { get; set; }
 }
 
 namespace CustomMatching.Controllers
@@ -117,10 +117,10 @@ namespace CustomMatching.Controllers
                 return BadRequest("Invalid currency or payment option.");
             }
             int expMonth;
-            Int32.TryParse(paymentRequest.ExpMonth, out expMonth);
+            Int32.TryParse(paymentRequest.expMonth, out expMonth);
             int expYear;
-            Int32.TryParse(paymentRequest.ExpYear, out expYear);
-            if (paymentRequest.CardNumber.Length != 16 || !(paymentRequest.CVV.Length == 3 || paymentRequest.CVV.Length == 4) || expMonth <= 0 || expMonth > 12 || expYear < 2025 || expYear > 2050)
+            Int32.TryParse(paymentRequest.expYear, out expYear);
+            if (paymentRequest.cardNumber.Length != 16 || !(paymentRequest.cvv.Length == 3 || paymentRequest.cvv.Length == 4) || expMonth <= 0 || expMonth > 12 || expYear < 2025 || expYear > 2050)
             {
                 return BadRequest("Invalid card information.");
             }
@@ -135,11 +135,11 @@ namespace CustomMatching.Controllers
 
             PaymentOptionCard card = new PaymentOptionCard
             {
-                cardNumber = paymentRequest.CardNumber,
+                cardNumber = paymentRequest.cardNumber,
                 cardHolderName = "John Doe",
-                expirationMonth = paymentRequest.ExpMonth,
-                expirationYear = paymentRequest.ExpYear,
-                CVV = paymentRequest.CVV
+                expirationMonth = paymentRequest.expMonth,
+                expirationYear = paymentRequest.expYear,
+                CVV = paymentRequest.cvv
             };
             // TODO: payment option
             double amount = 2.00;
