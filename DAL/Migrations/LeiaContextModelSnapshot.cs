@@ -106,72 +106,6 @@ namespace DAL.Migrations
                     b.ToTable("League");
                 });
 
-            modelBuilder.Entity("DataObjects.PaymentDetails", b =>
-                {
-                    b.Property<Guid>("PaymentId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<double>("Amount")
-                        .HasColumnType("float");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("PaymentOptionId")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<Guid>("PlayerId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("ProcessorTransactionId")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("ResponseBody")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("PaymentId");
-
-                    b.ToTable("PaymentDetails");
-                });
-
-            modelBuilder.Entity("DataObjects.PayoutDetails", b =>
-                {
-                    b.Property<Guid>("PayoutId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<double>("Amount")
-                        .HasColumnType("float");
-
-                    b.Property<Guid>("PlayerId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("Processor")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("ProcessorTransactionId")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("ResponseBody")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("UserPaymentOptionId")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<Guid>("WithdrawalId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("PayoutId");
-
-                    b.ToTable("PayoutDetails");
-                });
-
             modelBuilder.Entity("DataObjects.Player", b =>
                 {
                     b.Property<Guid>("PlayerId")
@@ -219,9 +153,6 @@ namespace DAL.Migrations
 
                     b.Property<DateTime?>("RegistrationDate")
                         .HasColumnType("datetime2");
-
-                    b.Property<string>("SavedNuveiPaymentToken")
-                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("UserType")
                         .HasColumnType("nvarchar(max)");
@@ -326,40 +257,6 @@ namespace DAL.Migrations
                     b.HasIndex("TournamentTypeId");
 
                     b.ToTable("PlayerTournamentSession");
-                });
-
-            modelBuilder.Entity("DataObjects.RefundDetails", b =>
-                {
-                    b.Property<Guid>("RefundId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<double>("Amount")
-                        .HasColumnType("float");
-
-                    b.Property<Guid>("PaymentId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("PlayerId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("Processor")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("ProcessorTransactionId")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("ResponseBody")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<Guid>("WithdrawalId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("RefundId");
-
-                    b.ToTable("RefundDetails");
                 });
 
             modelBuilder.Entity("DataObjects.Reward", b =>
@@ -538,39 +435,6 @@ namespace DAL.Migrations
                     b.HasIndex("TransactionTypeId");
 
                     b.ToTable("Transactions");
-                });
-
-            modelBuilder.Entity("DataObjects.WithdrawalDetails", b =>
-                {
-                    b.Property<Guid>("WithdrawalId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<double>("Amount")
-                        .HasColumnType("float");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("CurrencyId")
-                        .HasColumnType("int");
-
-                    b.Property<Guid>("MutationToken")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("PlayerId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime?>("ProcessedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("WithdrawalId");
-
-                    b.ToTable("WithdrawalDetails");
                 });
 
             modelBuilder.Entity("RewardTournamentType", b =>
