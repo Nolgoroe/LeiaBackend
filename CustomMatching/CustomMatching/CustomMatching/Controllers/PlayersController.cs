@@ -266,10 +266,29 @@ namespace CustomMatching.Controllers
 
             // Check that the SMS code matches
 
+            if (registrationData is null)
+            {
+                throw new Exception("");
+            }
+            DateOnly birthday;
+            DateOnly.TryParseExact(
+                registrationData.birthday,
+                "dd-MM-yyyy",
+                System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.None,
+                out birthday);
             // If the current user is un-registered + registrationData is provided
             // Validate the registration data (phone number regex, email regex, minimal name checks, age from birthday)
             // Verify that phone number and/or email aren't already in use by another player
             // Update the user's data (incl. IsRegistered)
+            Player playerData = new Player();
+            playerData.FirstName = registrationData.firstName;
+            playerData.LastName = registrationData.lastName;
+            playerData.RegistrationDate = DateTime.Now;
+            playerData.PhoneNumber = phoneNumber;
+            playerData.Email = registrationData.email;
+            playerData.Country = registrationData.country;
+            playerData.Birthday = birthday;
 
             // Assign the auth token
 
