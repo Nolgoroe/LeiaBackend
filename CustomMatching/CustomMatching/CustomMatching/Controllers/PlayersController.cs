@@ -87,7 +87,7 @@ namespace CustomMatching.Controllers
             return Ok(player);
         }
 
-        private async Task CompleteDepositActions(Player playerData, string currencyCode, double amount, PaymentResponse resp)
+        private async Task CompleteDepositActions(Player playerData, string currencyCode, double amount, PaymentPackage paymentPackage, PaymentResponse resp)
         {
             PaymentDetails paymentDetails = new PaymentDetails
             {
@@ -97,23 +97,31 @@ namespace CustomMatching.Controllers
                 Amount = amount,
                 CurrencyCode = currencyCode,
                 ProcessorTransactionId = resp.transactionId,
-                PaymentOptionId = "",
+                PaymentPackageId = paymentPackage.ID,
                 ResponseBody = JsonSerializer.Serialize(resp, resp.GetType())
             };
             await _suikaDbService.CreatePaymentDetails(paymentDetails);
 
             // Hard-coded to the USD balance since the amount is normalized
             int currencyId = 6;
-            double normalizedIncludingMultiplier = amount * CurrencyCodeToMultiplier[currencyCode];
-            await _suikaDbService.UpdatePlayerBalance(playerData.PlayerId, currencyId, normalizedIncludingMultiplier);
+            double amountIncludingMultiplier = paymentPackage.AmountInUsd * CurrencyCodeToMultiplier[currencyCode];
+            await _suikaDbService.UpdatePlayerBalance(playerData.PlayerId, currencyId, amountIncludingMultiplier);
+
+            if (paymentPackage.BonusAmount > 0)
+            {
+
+                // Hard-coded to the USD balance since the amount is normalized
+                int bonusCurrencyId = 6;
+                double bonusAmountIncludingMultiplier = paymentPackage.BonusAmount * CurrencyCodeToMultiplier[currencyCode];
+                await _suikaDbService.UpdatePlayerBalance(playerData.PlayerId, bonusCurrencyId, bonusAmountIncludingMultiplier);
+            }
         }
 
-        [HttpPost, Route("MakePayment/{playerId}/{currencyCode}/{paymentOptionId}")]
-        public async Task<IActionResult> MakePayment(Guid playerId, string currencyCode, string paymentOptionId, [FromBody] PaymentRequestBody paymentRequest)
+        [HttpPost, Route("MakePayment/{playerId}/{currencyCode}/{paymentPackageId}")]
+        public async Task<IActionResult> MakePayment(Guid playerId, string currencyCode, string paymentPackageId, [FromBody] PaymentRequestBody paymentRequest)
         {
-            if (!CurrencyCodeToMultiplier.ContainsKey(currencyCode) || paymentOptionId is null)
+            if (!CurrencyCodeToMultiplier.ContainsKey(currencyCode) || !PaymentPackages.ContainsKey(paymentPackageId))
             {
-                // TODO: validations on the paymentOptionId
                 return BadRequest("Invalid currency or payment option.");
             }
             int expMonth;
@@ -141,13 +149,12 @@ namespace CustomMatching.Controllers
                 expirationYear = paymentRequest.expYear,
                 CVV = paymentRequest.cvv
             };
-            // TODO: payment option
-            double amount = 2.00;
+            PaymentPackage paymentPackage = PaymentPackages[paymentPackageId];
+            double amount = paymentPackage.AmountInUsd * CurrencyCodeToMultiplier[currencyCode];
             PaymentResponse resp = await _nuveiPaymentService.ProcessPaymentWithCardDetailsAsync(card, amount, currencyCode, false);
             _logger.LogInformation($"Nuvei payment response {resp.ToString()}");
 
-            // TODO: pass payment option
-            await CompleteDepositActions(playerData, currencyCode, amount, resp);
+            await CompleteDepositActions(playerData, currencyCode, amount, paymentPackage, resp);
 
             var nuveiPaymentToken = resp.paymentOption?.userPaymentOptionId;
             await _suikaDbService.UpdatePlayerSavedNuveiPaymentToken(playerData.PlayerId, nuveiPaymentToken);
@@ -157,12 +164,11 @@ namespace CustomMatching.Controllers
             return Ok(response);
         }
 
-        [HttpPost, Route("MakePaymentWithSavedToken/{playerId}/{currencyCode}/{paymentOptionId}")]
-        public async Task<IActionResult> MakePaymentWithSavedToken(Guid playerId, string currencyCode, string paymentOptionId)
+        [HttpPost, Route("MakePaymentWithSavedToken/{playerId}/{currencyCode}/{paymentPackageId}")]
+        public async Task<IActionResult> MakePaymentWithSavedToken(Guid playerId, string currencyCode, string paymentPackageId)
         {
-            if (!CurrencyCodeToMultiplier.ContainsKey(currencyCode) || paymentOptionId is null)
+            if (!CurrencyCodeToMultiplier.ContainsKey(currencyCode) || !PaymentPackages.ContainsKey(paymentPackageId))
             {
-                // TODO: validations on the paymentOptionId
                 return BadRequest("Invalid currency or payment option.");
             }
 
@@ -176,10 +182,11 @@ namespace CustomMatching.Controllers
                 return BadRequest("User does not have a saved payment token");
             }
 
-            double amount = 2.00;
+            PaymentPackage paymentPackage = PaymentPackages[paymentPackageId];
+            double amount = paymentPackage.AmountInUsd * CurrencyCodeToMultiplier[currencyCode];
             PaymentResponse resp = await _nuveiPaymentService.ProcessPaymentWithTokenAsync(playerData.PlayerId, playerData.SavedNuveiPaymentToken, amount, currencyCode, false);
             _logger.LogInformation($"Nuvei saved-token payment response {resp}");
-            await CompleteDepositActions(playerData, currencyCode, amount, resp);
+            await CompleteDepositActions(playerData, currencyCode, amount, paymentPackage, resp);
 
             dynamic response = new System.Dynamic.ExpandoObject();
             return Ok(response);
