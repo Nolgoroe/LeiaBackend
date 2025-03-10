@@ -10,7 +10,6 @@ namespace Services.NuveiPayment
     {
         Task<JsonObject> GetIframeCheckoutJsonObject(string userId, string clientUniqueId, double amount, string currencyCode, BillingAddressDetails billingAddressDetails);
         Task<GetPaymentStatusResponse> GetPaymentStatus(string sessionToken);
-        Task<PaymentResponse> ProcessPaymentWithCardDetailsAsync(PaymentOptionCard card, double amount, string currencyCode, Boolean? useInitPayment);
         Task<PaymentResponse> ProcessPaymentWithTokenAsync(Guid userId, string userPaymentOptionId, double amount, string currencyCode, Boolean? useInitPayment);
         Task<RefundResponse> ProcessRefundAsync(string nuveiPaymentId, double amount, string currencyCode);
         Task<PayoutResponse> ProcessPayoutAsync(string userId, string userPaymentOptionId, double amount, string currencyCode);
@@ -206,43 +205,6 @@ namespace Services.NuveiPayment
         public async Task<GetPaymentStatusResponse> GetPaymentStatus(string sessionToken)
         {
             return await GetPaymentStatusAsync(sessionToken);
-        }
-
-        public async Task<PaymentResponse> ProcessPaymentWithCardDetailsAsync(PaymentOptionCard card, double amount, string currencyCode, Boolean? useInitPayment)
-        {
-            var initPaymentRequest = new InitPaymentRequest()
-            {
-                amount = FormatPaymentAmount(amount),
-                currency = currencyCode,
-                paymentOption = new PaymentOptionRoot { card = card, },
-                billingAddress = new BillingAddressDetails
-                {
-                    country = "IL",
-                    email = "hello@leia.games",
-                    firstName = "Leia",
-                    lastName = "Games",
-                },
-                deviceDetails = new DeviceDetails
-                {
-                    ipAddress = "0.0.0.0",
-                    deviceType = "SMARTPHONE",
-                },
-            };
-
-            string sessionToken = await GetSessionToken();
-            string relatedTransactionId = "";
-            if (useInitPayment == true)
-            {
-                var initPaymentResponse = await InitPaymentAsync(initPaymentRequest, sessionToken);
-                NuveiUtils.AssertValidResponse(initPaymentResponse);
-
-                relatedTransactionId = initPaymentResponse.transactionId;
-            }
-
-            PaymentResponse paymentResponse = await PaymentAsync(initPaymentRequest, sessionToken, relatedTransactionId);
-            NuveiUtils.AssertValidResponse(paymentResponse);
-
-            return paymentResponse;
         }
 
         public async Task<PaymentResponse> ProcessPaymentWithTokenAsync(Guid userId, string userPaymentOptionId, double amount, string currencyCode, Boolean? useInitPayment)
