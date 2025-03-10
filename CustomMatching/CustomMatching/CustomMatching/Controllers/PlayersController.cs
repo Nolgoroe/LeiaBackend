@@ -17,12 +17,9 @@ using static CustomMatching.Constants;
 
 // For more information on enabling Web API for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
 
-public class PaymentRequestBody
+public class CompletePaymentRequestBody
 {
-    public required string cardNumber { get; set; }
-    public required string cvv { get; set; }
-    public required string expMonth { get; set; }
-    public required string expYear { get; set; }
+    public required string nuveiSimplyConnectResponse { get; set; }
 }
 
 namespace CustomMatching.Controllers
@@ -160,51 +157,38 @@ namespace CustomMatching.Controllers
             }
         }
 
-        [HttpPost, Route("MakePayment/{playerId}/{currencyCode}/{paymentPackageId}")]
-        public async Task<IActionResult> MakePayment(Guid playerId, string currencyCode, string paymentPackageId, [FromBody] PaymentRequestBody paymentRequest)
+        [HttpPost, Route("CompletePayment/{playerId}/{paymentId}")]
+        public async Task<IActionResult> CompletePayment(Guid playerId, Guid paymentId, [FromBody] CompletePaymentRequestBody completePaymentRequestBody)
         {
-            if (!CurrencyCodeToMultiplier.ContainsKey(currencyCode) || !PaymentPackages.ContainsKey(paymentPackageId))
-            {
-                return BadRequest("Invalid currency or payment option.");
-            }
-            int expMonth;
-            Int32.TryParse(paymentRequest.expMonth, out expMonth);
-            int expYear;
-            Int32.TryParse(paymentRequest.expYear, out expYear);
-            if (paymentRequest.cardNumber.Length != 16 || !(paymentRequest.cvv.Length == 3 || paymentRequest.cvv.Length == 4) || expMonth <= 0 || expMonth > 12 || expYear < 2025 || expYear > 2050)
-            {
-                return BadRequest("Invalid card information.");
-            }
-
             var playerData = await _suikaDbService.GetPlayerById(playerId);
             if (playerData is null)
             {
                 return NotFound("Player was not found");
             }
-
             // TODO: After registration is available- verify that the user is registered + all of the relevant properties are present
 
-            PaymentOptionCard card = new PaymentOptionCard
+            var paymentDetails = await _suikaDbService.GetPaymentById(paymentId);
+            if (paymentDetails is null || paymentDetails.Status != "PendingClient")
             {
-                cardNumber = paymentRequest.cardNumber,
-                cardHolderName = "John Doe",
-                expirationMonth = paymentRequest.expMonth,
-                expirationYear = paymentRequest.expYear,
-                CVV = paymentRequest.cvv
-            };
-            PaymentPackage paymentPackage = PaymentPackages[paymentPackageId];
-            double amount = paymentPackage.AmountInUsd * CurrencyCodeToMultiplier[currencyCode];
-            PaymentResponse resp = await _nuveiPaymentService.ProcessPaymentWithCardDetailsAsync(card, amount, currencyCode, false);
-            _logger.LogInformation($"Nuvei payment response {resp.ToString()}");
+                return NotFound("Payment was not found");
+            }
 
-            await CompleteDepositActions(playerData, currencyCode, amount, paymentPackage, resp);
+            GetPaymentStatusResponse resp = await _nuveiPaymentService.GetPaymentStatus(paymentDetails.ProcessorTransactionId);
+            _logger.LogInformation($"Nuvei payment response {resp}");
 
-            var nuveiPaymentToken = resp.paymentOption?.userPaymentOptionId;
+            paymentDetails.ProcessorTransactionId = resp.transactionId;
+            paymentDetails.SimplyConnectResponse = completePaymentRequestBody.nuveiSimplyConnectResponse;
+            paymentDetails.ResponseBody = JsonSerializer.Serialize(resp, resp.GetType());
+            paymentDetails.Status = "Success";
+            await _suikaDbService.UpdatePaymentDetails(paymentDetails);
+
+            PaymentPackage paymentPackage = PaymentPackages[paymentDetails.PaymentPackageId];
+            await UpdatePlayerBalancePostDeposit(playerData.PlayerId, paymentDetails.CurrencyCode, paymentPackage);
+
+            var nuveiPaymentToken = resp.paymentOption.userPaymentOptionId;
             await _suikaDbService.UpdatePlayerSavedNuveiPaymentToken(playerData.PlayerId, nuveiPaymentToken);
 
-            dynamic response = new System.Dynamic.ExpandoObject();
-            response.Data = new { nuveiPaymentToken = nuveiPaymentToken };
-            return Ok(response);
+            return Ok(new { nuveiPaymentToken });
         }
 
         [HttpPost, Route("MakePaymentWithSavedToken/{playerId}/{currencyCode}/{paymentPackageId}")]
