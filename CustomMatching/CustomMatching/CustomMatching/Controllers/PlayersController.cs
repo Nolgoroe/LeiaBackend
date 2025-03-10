@@ -3,6 +3,7 @@ using System.Data;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using DataObjects;
 
 using Microsoft.AspNetCore.Mvc;
@@ -85,6 +86,61 @@ namespace CustomMatching.Controllers
         {
             var player = await _suikaDbService.GetPlayerById(playerId);
             return Ok(player);
+        }
+
+        [HttpPost, Route("GetPaymentUrl/{playerId}/{currencyCode}/{paymentPackageId}")]
+        public async Task<IActionResult> GetPaymentUrl(Guid playerId, string currencyCode, string paymentPackageId)
+        {
+            if (!CurrencyCodeToMultiplier.ContainsKey(currencyCode) || !PaymentPackages.ContainsKey(paymentPackageId))
+            {
+                return BadRequest("Invalid currency or payment option.");
+            }
+
+            var playerData = await _suikaDbService.GetPlayerById(playerId);
+            if (playerData is null)
+            {
+                return NotFound("Player was not found");
+            }
+            // TODO: After registration is implemented- verify that the user is registered + all of the relevant properties are present
+
+            Guid clientUniqueId = Guid.NewGuid();
+            PaymentPackage paymentPackage = PaymentPackages[paymentPackageId];
+            double amount = paymentPackage.AmountInUsd * CurrencyCodeToMultiplier[currencyCode];
+            PaymentDetails paymentDetails = new PaymentDetails
+            {
+                PaymentId = clientUniqueId,
+                PlayerId = playerId,
+                CreatedAt = DateTime.Now,
+                Amount = amount,
+                CurrencyCode = currencyCode,
+                PaymentPackageId = paymentPackage.ID,
+                ProcessorTransactionId = "",
+                Status = "PendingClient",
+            };
+
+            BillingAddressDetails billingAddressDetails = new BillingAddressDetails
+            {
+                country = "US",
+                email = "john.doe@email.com",
+                firstName = "John",
+                lastName = "Doe"
+            };
+            var returnObj = await _nuveiPaymentService.GetIframeCheckoutJsonObject(
+                playerId.ToString(),
+                clientUniqueId.ToString(),
+                amount,
+                currencyCode,
+                billingAddressDetails);
+            paymentDetails.ProcessorTransactionId = returnObj["sessionToken"]?.ToString() ?? "";
+            await _suikaDbService.CreatePaymentDetails(paymentDetails);
+
+            string returnObjString = JsonSerializer.Serialize(returnObj);
+            byte[] plainTextBytes = System.Text.Encoding.UTF8.GetBytes(returnObjString);
+            string data = Convert.ToBase64String(plainTextBytes);
+            // TODO: serve the HTML
+            string url = $"https://leiagames.com/ABCONTROLLER/SOMETHING?data={data}";
+
+            return Ok(new { url, paymentId = paymentDetails.PaymentId });
         }
 
         private async Task UpdatePlayerBalancePostDeposit(Guid playerId, string currencyCode, PaymentPackage paymentPackage)
