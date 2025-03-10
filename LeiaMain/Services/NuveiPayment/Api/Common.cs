@@ -6,11 +6,11 @@ namespace Services.NuveiPayment.Api
 
 	public class PaymentOptionCard
 	{
-		public required string cardHolderName { get; set; }
-		public required string cardNumber { get; set; }
-		public required string expirationMonth { get; set; }
-		public required string expirationYear { get; set; }
-		public required string CVV { get; set; }
+		public string? cardHolderName { get; set; }
+		public string? cardNumber { get; set; }
+		public string? expirationMonth { get; set; }
+		public string? expirationYear { get; set; }
+		public string? CVV { get; set; }
 	}
 
 	public class PaymentOptionToken

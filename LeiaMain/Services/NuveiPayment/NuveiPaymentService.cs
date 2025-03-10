@@ -119,7 +119,7 @@ namespace Services.NuveiPayment
             return await PerformHttpPost(request, "initPayment", sessionToken);
         }
 
-        private async Task<PaymentResponse> PaymentAsync(InitPaymentRequest initPaymentRequest, string sessionToken, string relatedTransactionId)
+        private async Task<PaymentResponse> PaymentAsync(InitPaymentRequest initPaymentRequest, string relatedTransactionId, string sessionToken)
         {
             var request = new PaymentRequest
             {
@@ -217,6 +217,8 @@ namespace Services.NuveiPayment
                 paymentOption = new PaymentOptionRoot
                 {
                     userPaymentOptionId = userPaymentOptionId,
+                    // TODO: Ask and include the CVV in the flow unless Nuvei agrees to remove the requirement
+                    // card = new PaymentOptionCard { CVV = "123", }
                 },
                 billingAddress = new BillingAddressDetails
                 {

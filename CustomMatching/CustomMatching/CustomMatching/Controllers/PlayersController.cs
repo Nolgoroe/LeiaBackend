@@ -192,7 +192,7 @@ namespace CustomMatching.Controllers
         }
 
         [HttpPost, Route("MakePaymentWithSavedToken/{playerId}/{currencyCode}/{paymentPackageId}")]
-        public async Task<IActionResult> MakePaymentWithSavedToken(Guid playerId, string currencyCode, string paymentPackageId)
+        public async Task<IActionResult> MakePaymentWithSavedToken(Guid playerId, string currencyCode, string paymentPackageId, [FromBody] string nuveiPaymentToken)
         {
             if (!CurrencyCodeToMultiplier.ContainsKey(currencyCode) || !PaymentPackages.ContainsKey(paymentPackageId))
             {
@@ -204,7 +204,7 @@ namespace CustomMatching.Controllers
             {
                 return NotFound("Player was not found");
             }
-            if (playerData.SavedNuveiPaymentToken is null || playerData.SavedNuveiPaymentToken == "")
+            if (playerData.SavedNuveiPaymentToken is null || playerData.SavedNuveiPaymentToken == "" || playerData.SavedNuveiPaymentToken != nuveiPaymentToken)
             {
                 return BadRequest("User does not have a saved payment token");
             }
