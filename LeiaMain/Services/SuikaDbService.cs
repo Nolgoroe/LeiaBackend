@@ -120,6 +120,8 @@ namespace Services
         /// <returns>The updated Player entity, or null if not found or update fails</returns>
         public Task<Player?> UpdatePlayerSavedNuveiPaymentToken(Guid playerId, string? savedNuveiPaymentToken);
         public Task<PaymentDetails> CreatePaymentDetails(PaymentDetails paymentDetails);
+        public Task<PaymentDetails?> GetPaymentById(Guid paymentId);
+        public Task<PaymentDetails?> UpdatePaymentDetails(PaymentDetails paymentDetails);
         public Task<WithdrawalDetails> CreateWithdrawalDetails(WithdrawalDetails withdrawalDetails);
         public Task<WithdrawalDetails?> GetWithdrawalById(Guid withdrawalId);
         public Task<WithdrawalDetails?> UpdateWithdrawalDetails(WithdrawalDetails withdrawalDetails);
@@ -595,6 +597,46 @@ namespace Services
             catch (Exception ex)
             {
                 Trace.WriteLine("Error creating PaymentDetails entry: " + ex.Message + "\n" + ex.InnerException?.Message);
+                throw;
+            }
+        }
+
+        public async Task<PaymentDetails?> GetPaymentById(Guid paymentId)
+        {
+            return await _leiaContext.PaymentDetails.FindAsync(paymentId);
+        }
+
+        public async Task<PaymentDetails?> UpdatePaymentDetails(PaymentDetails paymentDetails)
+        {
+            if (paymentDetails == null)
+            {
+                Trace.WriteLine("WithdrawalDetails is null. Update aborted.");
+                return null;
+            }
+
+            // Mark the entire entity as modified.
+            _leiaContext.Entry(paymentDetails).State = EntityState.Modified;
+
+            try
+            {
+                // Update the entry and save changes.
+                var updatedPaymentDetails = _leiaContext.PaymentDetails.Update(paymentDetails);
+                var saved = await _leiaContext.SaveChangesAsync();
+
+                if (saved > 0)
+                {
+                    Trace.WriteLine($"PaymentDetails with id {paymentDetails.PaymentId} updated successfully.");
+                    return updatedPaymentDetails.Entity;
+                }
+                else
+                {
+                    Trace.WriteLine($"PaymentDetails with id {paymentDetails.PaymentId} update did not result in any changes.");
+                    return null;
+                }
+            }
+            catch (Exception ex)
+            {
+                Trace.WriteLine("Error updating PaymentDetails: " + ex.Message + "\n" + ex.InnerException?.Message);
                 throw;
             }
         }
