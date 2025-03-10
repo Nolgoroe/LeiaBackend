@@ -87,25 +87,12 @@ namespace CustomMatching.Controllers
             return Ok(player);
         }
 
-        private async Task CompleteDepositActions(Player playerData, string currencyCode, double amount, PaymentPackage paymentPackage, PaymentResponse resp)
+        private async Task UpdatePlayerBalancePostDeposit(Guid playerId, string currencyCode, PaymentPackage paymentPackage)
         {
-            PaymentDetails paymentDetails = new PaymentDetails
-            {
-                PaymentId = Guid.NewGuid(),
-                PlayerId = playerData.PlayerId,
-                CreatedAt = DateTime.Now,
-                Amount = amount,
-                CurrencyCode = currencyCode,
-                ProcessorTransactionId = resp.transactionId,
-                PaymentPackageId = paymentPackage.ID,
-                ResponseBody = JsonSerializer.Serialize(resp, resp.GetType())
-            };
-            await _suikaDbService.CreatePaymentDetails(paymentDetails);
-
             // Hard-coded to the USD balance since the amount is normalized
             int currencyId = 6;
             double amountIncludingMultiplier = paymentPackage.AmountInUsd * CurrencyCodeToMultiplier[currencyCode];
-            await _suikaDbService.UpdatePlayerBalance(playerData.PlayerId, currencyId, amountIncludingMultiplier);
+            await _suikaDbService.UpdatePlayerBalance(playerId, currencyId, amountIncludingMultiplier);
 
             if (paymentPackage.BonusAmount > 0)
             {
@@ -113,7 +100,7 @@ namespace CustomMatching.Controllers
                 // Hard-coded to the USD balance since the amount is normalized
                 int bonusCurrencyId = 6;
                 double bonusAmountIncludingMultiplier = paymentPackage.BonusAmount * CurrencyCodeToMultiplier[currencyCode];
-                await _suikaDbService.UpdatePlayerBalance(playerData.PlayerId, bonusCurrencyId, bonusAmountIncludingMultiplier);
+                await _suikaDbService.UpdatePlayerBalance(playerId, bonusCurrencyId, bonusAmountIncludingMultiplier);
             }
         }
 
@@ -186,7 +173,22 @@ namespace CustomMatching.Controllers
             double amount = paymentPackage.AmountInUsd * CurrencyCodeToMultiplier[currencyCode];
             PaymentResponse resp = await _nuveiPaymentService.ProcessPaymentWithTokenAsync(playerData.PlayerId, playerData.SavedNuveiPaymentToken, amount, currencyCode, false);
             _logger.LogInformation($"Nuvei saved-token payment response {resp}");
-            await CompleteDepositActions(playerData, currencyCode, amount, paymentPackage, resp);
+
+            PaymentDetails paymentDetails = new PaymentDetails
+            {
+                PaymentId = Guid.NewGuid(),
+                PlayerId = playerData.PlayerId,
+                CreatedAt = DateTime.Now,
+                Amount = amount,
+                CurrencyCode = currencyCode,
+                ProcessorTransactionId = resp.transactionId,
+                PaymentPackageId = paymentPackage.ID,
+                ResponseBody = JsonSerializer.Serialize(resp, resp.GetType()),
+                Status = "Success",
+            };
+            await _suikaDbService.CreatePaymentDetails(paymentDetails);
+
+            await UpdatePlayerBalancePostDeposit(playerData.PlayerId, currencyCode, paymentPackage);
 
             dynamic response = new System.Dynamic.ExpandoObject();
             return Ok(response);
