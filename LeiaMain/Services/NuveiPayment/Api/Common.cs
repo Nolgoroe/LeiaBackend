@@ -1,4 +1,7 @@
-﻿namespace Services.NuveiPayment.Api
+﻿using System.Text.Json;
+using System.Text.Json.Nodes;
+
+namespace Services.NuveiPayment.Api
 {
 
 	public class PaymentOptionCard
@@ -33,6 +36,12 @@
 		public required string email { get; set; }
 		public required string firstName { get; set; }
 		public required string lastName { get; set; }
+
+		public JsonNode ToJsonNode()
+		{
+			string jsonString = JsonSerializer.Serialize(this);
+			return JsonNode.Parse(jsonString)!;
+		}
 	}
 
 	public class DynamicDescriptor
@@ -48,11 +57,12 @@
 
 	public class PaymentOptionResponseCard
 	{
-		public required string ccCardNumber { get; set; }
-		public required string bin { get; set; }
-		public required string ccExpMonth { get; set; }
-		public required string ccExpYear { get; set; }
-		public required string last4Digits { get; set; }
+		public string? ccCardNumber { get; set; }
+		public string? bin { get; set; }
+		public string? ccExpMonth { get; set; }
+		public string? ccExpYear { get; set; }
+		public string? last4Digits { get; set; }
+		public string? uniqueCC { get; set; }
 	}
 
 	public class PaymentOptionResponseRoot

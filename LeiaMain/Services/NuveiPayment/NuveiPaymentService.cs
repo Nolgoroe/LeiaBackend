@@ -8,6 +8,8 @@ namespace Services.NuveiPayment
 
     public interface INuveiPaymentService
     {
+        Task<JsonObject> GetIframeCheckoutJsonObject(string userId, string clientUniqueId, double amount, string currencyCode, BillingAddressDetails billingAddressDetails);
+        Task<GetPaymentStatusResponse> GetPaymentStatus(string sessionToken);
         Task<PaymentResponse> ProcessPaymentWithCardDetailsAsync(PaymentOptionCard card, double amount, string currencyCode, Boolean? useInitPayment);
         Task<PaymentResponse> ProcessPaymentWithTokenAsync(Guid userId, string userPaymentOptionId, double amount, string currencyCode, Boolean? useInitPayment);
         Task<RefundResponse> ProcessRefundAsync(string nuveiPaymentId, double amount, string currencyCode);
@@ -62,10 +64,12 @@ namespace Services.NuveiPayment
             return new StringContent(jsonObj.ToJsonString(), Encoding.UTF8, "application/json");
         }
 
-        private async Task<T> PerformHttpPost<T>(BaseNuveiApiRequest<T> request, string endpoint, string? sessionToken) where T : BaseNuveiApiResponse
+        private async Task<T> PerformHttpPost<T>(BaseNuveiApiRequest<T> request, string endpoint, string? sessionToken, Boolean includeChecksum = true) where T : BaseNuveiApiResponse
         {
             var url = $"{_apiBaseUrl}/{endpoint}.do";
-            var content = GetRequestHttpContent(request, sessionToken);
+            var content = includeChecksum
+                ? GetRequestHttpContent(request, sessionToken)
+                : new StringContent(new JsonObject { ["sessionToken"] = sessionToken }.ToJsonString(), Encoding.UTF8, "application/json");
             var httpResponse = await _httpClient.PostAsync(url, content);
             httpResponse.EnsureSuccessStatusCode();
 
@@ -98,6 +102,17 @@ namespace Services.NuveiPayment
             }
 
             return response.sessionToken;
+        }
+
+        private async Task<OpenOrderResponse> OpenOrderAsync(OpenOrderRequest request, string sessionToken)
+        {
+            return await PerformHttpPost(request, "openOrder", sessionToken);
+        }
+
+        private async Task<GetPaymentStatusResponse> GetPaymentStatusAsync(string sessionToken)
+        {
+            GetPaymentStatusRequest request = new GetPaymentStatusRequest();
+            return await PerformHttpPost(request, "getPaymentStatus", sessionToken, false);
         }
 
         private async Task<InitPaymentResponse> InitPaymentAsync(InitPaymentRequest request, string sessionToken)
@@ -157,6 +172,40 @@ namespace Services.NuveiPayment
                 }
             };
             return await PerformHttpPost(request, "payout", sessionToken);
+        }
+
+        public async Task<JsonObject> GetIframeCheckoutJsonObject(string userId, string clientUniqueId, double amount, string currencyCode, BillingAddressDetails billingAddressDetails)
+        {
+            string sessionToken = await GetSessionToken();
+            OpenOrderRequest request = new OpenOrderRequest
+            {
+                clientUniqueId = clientUniqueId,
+                currency = currencyCode,
+                amount = FormatPaymentAmount(amount),
+                userTokenId = userId,
+            };
+            await OpenOrderAsync(request, sessionToken);
+            // PerformHttpPost already asserts "success" = true
+
+            var returnDict = new JsonObject
+            {
+                { "sessionToken", sessionToken },
+                { "merchantId", _merchantId },
+                { "merchantSiteId", _merchantSiteId },
+                { "amount", amount },
+                { "currency", currencyCode },
+                { "country", currencyCode == "JPY" ? "JP" : "US" },
+                { "billingAddress", billingAddressDetails.ToJsonNode() },
+                { "savePM", "force" },
+                { "alwaysCollectCvv", true }
+            };
+
+            return returnDict;
+        }
+
+        public async Task<GetPaymentStatusResponse> GetPaymentStatus(string sessionToken)
+        {
+            return await GetPaymentStatusAsync(sessionToken);
         }
 
         public async Task<PaymentResponse> ProcessPaymentWithCardDetailsAsync(PaymentOptionCard card, double amount, string currencyCode, Boolean? useInitPayment)

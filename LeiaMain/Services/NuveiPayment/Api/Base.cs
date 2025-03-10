@@ -7,8 +7,8 @@ namespace Services.NuveiPayment.Api
         public required string status { get; set; }
         public string? transactionStatus { get; set; }
         public required long internalRequestId { get; set; }
-        public required string merchantId { get; set; }
-        public required string merchantSiteId { get; set; }
+        public string? merchantId { get; set; }
+        public string? merchantSiteId { get; set; }
         public required string reason { get; set; }
         public int errCode { get; set; }
         public required string version { get; set; }
