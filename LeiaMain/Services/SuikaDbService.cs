@@ -121,14 +121,7 @@ namespace Services
         public Task<Player?> UpdatePlayerSavedNuveiPaymentToken(Guid playerId, string? savedNuveiPaymentToken);
         public Task<PaymentDetails> CreatePaymentDetails(PaymentDetails paymentDetails);
         public Task<WithdrawalDetails> CreateWithdrawalDetails(WithdrawalDetails withdrawalDetails);
-        public Task<WithdrawalDetails?> GetWithdrawalById(Guid playerId);
-        /// <summary>
-        /// Updates an existing WithdrawalDetails entry.
-        /// </summary>
-        /// <param name="withdrawalDetails">The updated WithdrawalDetails entity.</param>
-        /// <returns>
-        /// The updated WithdrawalDetails entity, or null if the update did not persist any changes.
-        /// </returns>
+        public Task<WithdrawalDetails?> GetWithdrawalById(Guid withdrawalId);
         public Task<WithdrawalDetails?> UpdateWithdrawalDetails(WithdrawalDetails withdrawalDetails);
         /// <summary>
         /// Retrieves the latest WithdrawalDetails entry for the specified player.
