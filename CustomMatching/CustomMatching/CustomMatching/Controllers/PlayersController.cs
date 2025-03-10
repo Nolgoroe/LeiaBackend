@@ -93,11 +93,6 @@ namespace CustomMatching.Controllers
                 return BadRequest("Invalid currency or payment option.");
             }
 
-            var playerData = await _suikaDbService.GetPlayerById(playerId);
-            if (playerData is null)
-            {
-                return NotFound("Player was not found");
-            }
             // TODO: After registration is implemented- verify that the user is registered + all of the relevant properties are present
 
             Guid clientUniqueId = Guid.NewGuid();
@@ -129,15 +124,13 @@ namespace CustomMatching.Controllers
                 currencyCode,
                 billingAddressDetails);
             paymentDetails.ProcessorTransactionId = returnObj["sessionToken"]?.ToString() ?? "";
-            await _suikaDbService.CreatePaymentDetails(paymentDetails);
 
             string returnObjString = JsonSerializer.Serialize(returnObj);
             byte[] plainTextBytes = System.Text.Encoding.UTF8.GetBytes(returnObjString);
             string data = Convert.ToBase64String(plainTextBytes);
             // TODO: serve the HTML
-            string url = $"https://leiagames.com/ABCONTROLLER/SOMETHING?data={data}";
 
-            return Ok(new { url, paymentId = paymentDetails.PaymentId });
+            return Ok(data);
         }
 
         private async Task UpdatePlayerBalancePostDeposit(Guid playerId, string currencyCode, PaymentPackage paymentPackage)
@@ -160,14 +153,17 @@ namespace CustomMatching.Controllers
         [HttpPost, Route("CompletePayment/{playerId}/{paymentId}")]
         public async Task<IActionResult> CompletePayment(Guid playerId, Guid paymentId, [FromBody] CompletePaymentRequestBody completePaymentRequestBody)
         {
-            var playerData = await _suikaDbService.GetPlayerById(playerId);
-            if (playerData is null)
+            PaymentDetails paymentDetails = new PaymentDetails
             {
-                return NotFound("Player was not found");
-            }
-            // TODO: After registration is available- verify that the user is registered + all of the relevant properties are present
-
-            var paymentDetails = await _suikaDbService.GetPaymentById(paymentId);
+                PaymentId = Guid.NewGuid(),
+                PlayerId = playerId,
+                CreatedAt = DateTime.Now,
+                Amount = 5.00,
+                CurrencyCode = "USD",
+                PaymentPackageId = "Basic1",
+                ProcessorTransactionId = "674436e4-3bad-4a18-9cc2-5a6bdc7c160d",
+                Status = "PendingClient",
+            };
             if (paymentDetails is null || paymentDetails.Status != "PendingClient")
             {
                 return NotFound("Payment was not found");
@@ -180,55 +176,24 @@ namespace CustomMatching.Controllers
             paymentDetails.SimplyConnectResponse = completePaymentRequestBody.nuveiSimplyConnectResponse;
             paymentDetails.ResponseBody = JsonSerializer.Serialize(resp, resp.GetType());
             paymentDetails.Status = "Success";
-            await _suikaDbService.UpdatePaymentDetails(paymentDetails);
-
-            PaymentPackage paymentPackage = PaymentPackages[paymentDetails.PaymentPackageId];
-            await UpdatePlayerBalancePostDeposit(playerData.PlayerId, paymentDetails.CurrencyCode, paymentPackage);
 
             var nuveiPaymentToken = resp.paymentOption.userPaymentOptionId;
-            await _suikaDbService.UpdatePlayerSavedNuveiPaymentToken(playerData.PlayerId, nuveiPaymentToken);
 
             return Ok(new { nuveiPaymentToken });
         }
 
         [HttpPost, Route("MakePaymentWithSavedToken/{playerId}/{currencyCode}/{paymentPackageId}")]
-        public async Task<IActionResult> MakePaymentWithSavedToken(Guid playerId, string currencyCode, string paymentPackageId, [FromBody] string nuveiPaymentToken)
+        public async Task<IActionResult> MakePaymentWithSavedToken(Guid playerId, string currencyCode, string paymentPackageId)
         {
             if (!CurrencyCodeToMultiplier.ContainsKey(currencyCode) || !PaymentPackages.ContainsKey(paymentPackageId))
             {
                 return BadRequest("Invalid currency or payment option.");
             }
 
-            var playerData = await _suikaDbService.GetPlayerById(playerId);
-            if (playerData is null)
-            {
-                return NotFound("Player was not found");
-            }
-            if (playerData.SavedNuveiPaymentToken is null || playerData.SavedNuveiPaymentToken == "" || playerData.SavedNuveiPaymentToken != nuveiPaymentToken)
-            {
-                return BadRequest("User does not have a saved payment token");
-            }
-
             PaymentPackage paymentPackage = PaymentPackages[paymentPackageId];
             double amount = paymentPackage.AmountInUsd * CurrencyCodeToMultiplier[currencyCode];
-            PaymentResponse resp = await _nuveiPaymentService.ProcessPaymentWithTokenAsync(playerData.PlayerId, playerData.SavedNuveiPaymentToken, amount, currencyCode, false);
+            PaymentResponse resp = await _nuveiPaymentService.ProcessPaymentWithTokenAsync(Guid.Parse("7086d8e3-4f67-4158-b78c-f4d8a6c74a52"), "723840111", amount, currencyCode, false);
             _logger.LogInformation($"Nuvei saved-token payment response {resp}");
-
-            PaymentDetails paymentDetails = new PaymentDetails
-            {
-                PaymentId = Guid.NewGuid(),
-                PlayerId = playerData.PlayerId,
-                CreatedAt = DateTime.Now,
-                Amount = amount,
-                CurrencyCode = currencyCode,
-                ProcessorTransactionId = resp.transactionId,
-                PaymentPackageId = paymentPackage.ID,
-                ResponseBody = JsonSerializer.Serialize(resp, resp.GetType()),
-                Status = "Success",
-            };
-            await _suikaDbService.CreatePaymentDetails(paymentDetails);
-
-            await UpdatePlayerBalancePostDeposit(playerData.PlayerId, currencyCode, paymentPackage);
 
             dynamic response = new System.Dynamic.ExpandoObject();
             return Ok(response);
