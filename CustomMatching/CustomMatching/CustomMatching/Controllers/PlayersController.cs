@@ -286,6 +286,12 @@ namespace CustomMatching.Controllers
             if (amountClaimed == null || amountClaimed == -1) return StatusCode(500, $"Returned {amountClaimed}, Failed to claim prize");
             if (wasTournamentClaimed == null || wasTournamentClaimed == false) return StatusCode(500, $"Returned {wasTournamentClaimed}, Failed to claim tournament");
 
+            var leaderboardData = await _suikaDbService.LoadPlayerTournamentLeaderboard(_suikaDbService.LeiaContext, playerId, tournamentId);
+            var leaderboard = leaderboardData.Item1;
+            var maxPlayers = leaderboardData.Item2;
+            var allScoresSubmitted = leaderboard.Count >= maxPlayers && leaderboard.All(s => s.PlayerScore != null);
+
+            if (!allScoresSubmitted) return BadRequest("Tournmanet is not closed");
             return Ok($"Prize claimed successfully: {amountClaimed}. Tournament claimed: {wasTournamentClaimed}. Purple Tokens claimed: {PTclaimed}");
         }
 

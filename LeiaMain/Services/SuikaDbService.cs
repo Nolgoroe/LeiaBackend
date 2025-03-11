@@ -82,6 +82,9 @@ namespace Services
         public Task Log(Exception ex);
         public Task Log(Exception ex, Guid playerId);
 
+        public async Task<(List<PlayerTournamentSession>, int)> LoadPlayerTournamentLeaderboard(LeiaContext context, Guid playerId, int tournamentId);
+
+
         /// <summary>
         /// Adds a player to PlayerActiveTournaments
         /// </summary>
@@ -538,6 +541,15 @@ namespace Services
             };
         }
 
+        public async Task<(List<PlayerTournamentSession>, int)> LoadPlayerTournamentLeaderboard(LeiaContext context, Guid playerId, int tournamentId)
+        {
+            var allPlayerSessions = context.PlayerTournamentSession.Where(s => s.TournamentSessionId == tournamentId).ToList();
+            var playerSession = allPlayerSessions.First(s => s.PlayerId == playerId);
+            var tournamentType = context.TournamentTypes.First(t => t.TournamentTypeId == playerSession.TournamentTypeId);
+            var leaderBoard = PostTournamentService.CalculateLeaderboardForPlayer(playerId, allPlayerSessions, tournamentType, tournamentId).ToList();
+            return (leaderBoard, tournamentType.NumberOfPlayers.Value) ;
+        }
+
         public async Task<List<HistoryDTO>> GetPlayerTournaments(LeiaContext context, Guid playerId)
         {
             // We load all the tournament types and 100 of the most recent sessions of the current player
@@ -560,7 +572,6 @@ namespace Services
             {
                 return GetPlayerTournamentsCalcLeaderboard(s.PlayerId, allPlayersById, allOtherSessionsByTournamentId[s.TournamentSessionId], allTournamentTypesById[s.TournamentTypeId], s.TournamentSessionId);
             }).ToList();
-
         }
      
 
