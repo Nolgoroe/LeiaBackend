@@ -73,11 +73,6 @@ namespace Services.NuveiPayment
             httpResponse.EnsureSuccessStatusCode();
 
             var jsonResponse = await httpResponse.Content.ReadAsStringAsync();
-            // if (endpoint != "getSessionToken")
-            // {
-            //     throw new Exception($"nuvei response: ${jsonResponse}");
-            // }
-
             var response = JsonSerializer.Deserialize<T>(jsonResponse);
             if (response is null)
             {
@@ -193,7 +188,6 @@ namespace Services.NuveiPayment
 
             var returnDict = new JsonObject
             {
-                { "env", "int" },
                 { "sessionToken", sessionToken },
                 { "merchantId", _merchantId },
                 { "merchantSiteId", _merchantSiteId },
