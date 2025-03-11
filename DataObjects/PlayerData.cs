@@ -30,6 +30,7 @@ namespace DataObjects
         public DateTime? InstallDate { get; set; }
         public string? AttributionData { get; set; }
         public int AvatarId { get; set; }
+        public string? SavedNuveiPaymentToken { get; set; }
 
         //  [JsonIgnore]
         public List<SessionData> Sessions { get; set; }

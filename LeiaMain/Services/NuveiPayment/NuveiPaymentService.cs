@@ -8,10 +8,11 @@ namespace Services.NuveiPayment
 
     public interface INuveiPaymentService
     {
-        Task<string> ProcessPaymentWithCardDetailsAsync(decimal amount, string currency, Boolean? useInitPayment);
-        Task<string> ProcessPaymentWithTokenAsync(string userId, string userPaymentOptionId, decimal amount, string currency);
-        Task<string> ProcessRefundAsync(string nuveiPaymentId, decimal amount, string currency);
-        Task<string> ProcessPayoutAsync(string userId, string userPaymentOptionId, decimal amount, string currency);
+        Task<JsonObject> GetIframeCheckoutJsonObject(string userId, string clientUniqueId, double amount, string currencyCode, BillingAddressDetails billingAddressDetails);
+        Task<GetPaymentStatusResponse> GetPaymentStatus(string sessionToken);
+        Task<PaymentResponse> ProcessPaymentWithTokenAsync(Guid userId, string userPaymentOptionId, double amount, string currencyCode, Boolean? useInitPayment);
+        Task<RefundResponse> ProcessRefundAsync(string nuveiPaymentId, double amount, string currencyCode);
+        Task<PayoutResponse> ProcessPayoutAsync(string userId, string userPaymentOptionId, double amount, string currencyCode);
     }
 
     public class NuveiPaymentService : INuveiPaymentService
@@ -23,24 +24,13 @@ namespace Services.NuveiPayment
         private readonly HttpClient _httpClient;
         private const string NUVEI_TIMESTAMP_FORMAT = "yyyyMMddHHmmss";
 
-        public NuveiPaymentService()
+        public NuveiPaymentService(string apiBaseUrl, string merchantId, string merchantSiteId, string secretKey)
         {
             _httpClient = new HttpClient();
-
-            _apiBaseUrl = GetRequiredEnvironmentVariable("NUVEI_API_BASE_URL");
-            _merchantId = GetRequiredEnvironmentVariable("NUVEI_MERCHANT_ID");
-            _merchantSiteId = GetRequiredEnvironmentVariable("NUVEI_MERCHANT_SITE_ID");
-            _secretKey = GetRequiredEnvironmentVariable("NUVEI_SECRET_KEY");
-        }
-
-        private static string GetRequiredEnvironmentVariable(string key)
-        {
-            var value = Environment.GetEnvironmentVariable(key);
-            if (string.IsNullOrWhiteSpace(value))
-            {
-                throw new InvalidOperationException($"Environment variable {key} is not set or is empty.");
-            }
-            return value;
+            _apiBaseUrl = apiBaseUrl;
+            _merchantId = merchantId;
+            _merchantSiteId = merchantSiteId;
+            _secretKey = secretKey;
         }
 
         /// <summary>
@@ -73,10 +63,12 @@ namespace Services.NuveiPayment
             return new StringContent(jsonObj.ToJsonString(), Encoding.UTF8, "application/json");
         }
 
-        private async Task<T> PerformHttpPost<T>(BaseNuveiApiRequest<T> request, string endpoint, string? sessionToken) where T : BaseNuveiApiResponse
+        private async Task<T> PerformHttpPost<T>(BaseNuveiApiRequest<T> request, string endpoint, string? sessionToken, Boolean includeChecksum = true) where T : BaseNuveiApiResponse
         {
             var url = $"{_apiBaseUrl}/{endpoint}.do";
-            var content = GetRequestHttpContent(request, sessionToken);
+            var content = includeChecksum
+                ? GetRequestHttpContent(request, sessionToken)
+                : new StringContent(new JsonObject { ["sessionToken"] = sessionToken }.ToJsonString(), Encoding.UTF8, "application/json");
             var httpResponse = await _httpClient.PostAsync(url, content);
             httpResponse.EnsureSuccessStatusCode();
 
@@ -94,6 +86,11 @@ namespace Services.NuveiPayment
             return response;
         }
 
+        private string FormatPaymentAmount(double amount)
+        {
+            return Convert.ToInt32(Math.Floor(amount * 100)).ToString();
+        }
+
         private async Task<string> GetSessionToken()
         {
             var request = new GetSessionTokenRequest();
@@ -106,12 +103,23 @@ namespace Services.NuveiPayment
             return response.sessionToken;
         }
 
+        private async Task<OpenOrderResponse> OpenOrderAsync(OpenOrderRequest request, string sessionToken)
+        {
+            return await PerformHttpPost(request, "openOrder", sessionToken);
+        }
+
+        private async Task<GetPaymentStatusResponse> GetPaymentStatusAsync(string sessionToken)
+        {
+            GetPaymentStatusRequest request = new GetPaymentStatusRequest();
+            return await PerformHttpPost(request, "getPaymentStatus", sessionToken, false);
+        }
+
         private async Task<InitPaymentResponse> InitPaymentAsync(InitPaymentRequest request, string sessionToken)
         {
             return await PerformHttpPost(request, "initPayment", sessionToken);
         }
 
-        private async Task<PaymentResponse> PaymentAsync(InitPaymentRequest initPaymentRequest, string sessionToken, string relatedTransactionId)
+        private async Task<PaymentResponse> PaymentAsync(InitPaymentRequest initPaymentRequest, string relatedTransactionId, string sessionToken)
         {
             var request = new PaymentRequest
             {
@@ -134,7 +142,7 @@ namespace Services.NuveiPayment
             return await PerformHttpPost(request, "payment", sessionToken);
         }
 
-        private async Task<RefundResponse> RefundAsync(string nuveiPaymentId, decimal amount, string currency, string sessionToken)
+        private async Task<RefundResponse> RefundAsync(string nuveiPaymentId, double amount, string currency, string sessionToken)
         {
             var request = new RefundRequest()
             {
@@ -145,7 +153,7 @@ namespace Services.NuveiPayment
             return await PerformHttpPost(request, "refundTransaction", sessionToken);
         }
 
-        private async Task<PayoutResponse> PayoutAsync(string userId, string userPaymentOptionId, decimal amount, string currency, string sessionToken)
+        private async Task<PayoutResponse> PayoutAsync(string userId, string userPaymentOptionId, double amount, string currency, string sessionToken)
         {
             var request = new PayoutRequest()
             {
@@ -165,22 +173,52 @@ namespace Services.NuveiPayment
             return await PerformHttpPost(request, "payout", sessionToken);
         }
 
-        public async Task<string> ProcessPaymentWithCardDetailsAsync(decimal amount, string currency, Boolean? useInitPayment)
+        public async Task<JsonObject> GetIframeCheckoutJsonObject(string userId, string clientUniqueId, double amount, string currencyCode, BillingAddressDetails billingAddressDetails)
+        {
+            string sessionToken = await GetSessionToken();
+            OpenOrderRequest request = new OpenOrderRequest
+            {
+                clientUniqueId = clientUniqueId,
+                currency = currencyCode,
+                amount = FormatPaymentAmount(amount),
+                userTokenId = userId,
+            };
+            await OpenOrderAsync(request, sessionToken);
+            // PerformHttpPost already asserts "success" = true
+
+            var returnDict = new JsonObject
+            {
+                { "sessionToken", sessionToken },
+                { "merchantId", _merchantId },
+                { "merchantSiteId", _merchantSiteId },
+                { "amount", amount },
+                { "currency", currencyCode },
+                { "country", currencyCode == "JPY" ? "JP" : "US" },
+                { "billingAddress", billingAddressDetails.ToJsonNode() },
+                { "savePM", "force" },
+                { "alwaysCollectCvv", true }
+            };
+
+            return returnDict;
+        }
+
+        public async Task<GetPaymentStatusResponse> GetPaymentStatus(string sessionToken)
+        {
+            return await GetPaymentStatusAsync(sessionToken);
+        }
+
+        public async Task<PaymentResponse> ProcessPaymentWithTokenAsync(Guid userId, string userPaymentOptionId, double amount, string currencyCode, Boolean? useInitPayment)
         {
             var initPaymentRequest = new InitPaymentRequest()
             {
-                amount = amount.ToString(),
-                currency = currency,
+                userTokenId = userId.ToString(),
+                amount = FormatPaymentAmount(amount),
+                currency = currencyCode,
                 paymentOption = new PaymentOptionRoot
                 {
-                    card = new PaymentOptionCard
-                    {
-                        cardNumber = "4111111111111111",
-                        cardHolderName = "John Doe",
-                        expirationMonth = "12",
-                        expirationYear = "2030",
-                        CVV = "123"
-                    }
+                    userPaymentOptionId = userPaymentOptionId,
+                    // TODO: Ask and include the CVV in the flow unless Nuvei agrees to remove the requirement
+                    // card = new PaymentOptionCard { CVV = "123", }
                 },
                 billingAddress = new BillingAddressDetails
                 {
@@ -206,59 +244,30 @@ namespace Services.NuveiPayment
                 relatedTransactionId = initPaymentResponse.transactionId;
             }
 
-            var paymentResponse = await PaymentAsync(initPaymentRequest, sessionToken, relatedTransactionId);
+            PaymentResponse paymentResponse = await PaymentAsync(initPaymentRequest, relatedTransactionId, sessionToken);
             NuveiUtils.AssertValidResponse(paymentResponse);
 
-            return paymentResponse.transactionId;
+            return paymentResponse;
         }
 
-        public async Task<string> ProcessPaymentWithTokenAsync(string userId, string userPaymentOptionId, decimal amount, string currency)
-        {
-            var initPaymentRequest = new InitPaymentRequest()
-            {
-                userTokenId = userId,
-                amount = amount.ToString(),
-                currency = currency,
-                paymentOption = new PaymentOptionRoot
-                {
-                    userPaymentOptionId = userPaymentOptionId,
-                },
-                billingAddress = new BillingAddressDetails
-                {
-                    country = "IL",
-                    email = "hello@leia.games",
-                    firstName = "Leia",
-                    lastName = "Games",
-                },
-                deviceDetails = new DeviceDetails
-                {
-                    ipAddress = "0.0.0.0",
-                    deviceType = "SMARTPHONE",
-                },
-            };
-
-            string sessionToken = await GetSessionToken();
-            var initPaymentResponse = await InitPaymentAsync(initPaymentRequest, sessionToken);
-            string relatedTransactionId = initPaymentResponse.transactionId;
-
-            var paymentResponse = await PaymentAsync(initPaymentRequest, relatedTransactionId, sessionToken);
-            return paymentResponse.transactionId;
-        }
-
-        public async Task<string> ProcessRefundAsync(string nuveiPaymentId, decimal amount, string currency)
+        public async Task<RefundResponse> ProcessRefundAsync(string nuveiPaymentId, double amount, string currencyCode)
         {
             string sessionToken = await GetSessionToken();
-            var response = await RefundAsync(nuveiPaymentId, amount, currency, sessionToken);
+            string currency = currencyCode;
+            RefundResponse response = await RefundAsync(nuveiPaymentId, amount, currency, sessionToken);
             NuveiUtils.AssertValidResponse(response);
-            return response.transactionId;
+
+            return response;
         }
 
-        public async Task<string> ProcessPayoutAsync(string userId, string userPaymentOptionId, decimal amount, string currency)
+        public async Task<PayoutResponse> ProcessPayoutAsync(string userId, string userPaymentOptionId, double amount, string currencyCode)
         {
             string sessionToken = await GetSessionToken();
-            var response = await PayoutAsync(userId, userPaymentOptionId, amount, currency, sessionToken);
+            string currency = currencyCode;
+            PayoutResponse response = await PayoutAsync(userId, userPaymentOptionId, amount, currency, sessionToken);
             NuveiUtils.AssertValidResponse(response);
-            return response.transactionId;
+
+            return response;
         }
     }
 }

@@ -1,7 +1,5 @@
 ﻿namespace Services.NuveiPayment.Api
 {
-
-
     /// <summary>
     /// https://docs.nuvei.com/api/main/indexMain_v1_0.html?json=#getSessionToken
     /// </summary>

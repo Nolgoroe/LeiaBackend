@@ -3,6 +3,7 @@ using DAL;
 
 using Microsoft.EntityFrameworkCore;
 using Services.NuveiPayment;
+using Services.Emailer;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -23,7 +24,24 @@ builder.Services.AddDbContext<LeiaContext>(options =>
 builder.Services.AddScoped<ISuikaDbService, SuikaDbService>();
 builder.Services.AddScoped<IPostTournamentService, PostTournamentService>();
 builder.Services.AddSingleton<ITournamentService, TournamentService>();
-builder.Services.AddSingleton<INuveiPaymentService, NuveiPaymentService>();
+builder.Services.AddSingleton<INuveiPaymentService>(sp =>
+{
+    var apiBaseUrl = builder.Configuration.GetConnectionString("NuveiApiBaseUrl");
+    var merchantId = builder.Configuration.GetConnectionString("NuveiMerchantId");
+    var merchantSiteId = builder.Configuration.GetConnectionString("NuveiMerchantSiteId");
+    var secretKey = builder.Configuration.GetConnectionString("NuveiSecretKey");
+
+    return new NuveiPaymentService(apiBaseUrl, merchantId, merchantSiteId, secretKey);
+});
+builder.Services.AddSingleton<IEmailService>(sp =>
+{
+    var smtpFromAddress = builder.Configuration.GetConnectionString("SmtpFromAddress");
+    var smtpServer = builder.Configuration.GetConnectionString("SmtpServer");
+    var smtpUsername = builder.Configuration.GetConnectionString("SmtpUsername");
+    var smtpPassword = builder.Configuration.GetConnectionString("SmtpPassword");
+
+    return new EmailService(smtpFromAddress, smtpServer, smtpUsername, smtpPassword);
+});
 
 var app = builder.Build();
 using (var scope = app.Services.CreateScope())

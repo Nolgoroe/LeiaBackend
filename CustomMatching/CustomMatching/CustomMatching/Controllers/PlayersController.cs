@@ -1,17 +1,26 @@
 ﻿using System;
 using System.Data;
 using System.Diagnostics;
-
+using System.Runtime.CompilerServices;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using DataObjects;
 
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 using Services;
+using Services.Emailer;
 using Services.NuveiPayment;
-using static CustomMatching.Controllers.PlayersController;
+using Services.NuveiPayment.Api;
+using static CustomMatching.Constants;
 
 // For more information on enabling Web API for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
+
+public class CompletePaymentRequestBody
+{
+    public required string nuveiSimplyConnectResponse { get; set; }
+}
 
 namespace CustomMatching.Controllers
 {
@@ -33,19 +42,22 @@ namespace CustomMatching.Controllers
 
         }
 
+
         private readonly ILogger<MatchingController> _logger;
         private readonly ITournamentService _tournamentService;
         private readonly ISuikaDbService _suikaDbService;
         private readonly IPostTournamentService _postTournamentService;
         private readonly INuveiPaymentService _nuveiPaymentService;
+        private readonly IEmailService _emailService;
 
-        public PlayersController(ILogger<MatchingController> logger, INuveiPaymentService nuveiPaymentService, ITournamentService tournamentService, ISuikaDbService suikaDbService, IPostTournamentService postTournamentService)
+        public PlayersController(ILogger<MatchingController> logger, INuveiPaymentService nuveiPaymentService, ITournamentService tournamentService, ISuikaDbService suikaDbService, IPostTournamentService postTournamentService, IEmailService emailService)
         {
             _logger = logger;
             _tournamentService = tournamentService;
             _suikaDbService = suikaDbService;
             _postTournamentService = postTournamentService;
             _nuveiPaymentService = nuveiPaymentService;
+            _emailService = emailService;
         }
 
 
@@ -73,14 +85,223 @@ namespace CustomMatching.Controllers
             return Ok(player);
         }
 
-        [HttpPost, Route("MakePayment/{playerId}")]
-        public async Task<IActionResult> MakePayment(Guid playerId)
+        [HttpPost, Route("GetPaymentUrl/{playerId}/{currencyCode}/{paymentPackageId}")]
+        public async Task<IActionResult> GetPaymentUrl(Guid playerId, string currencyCode, string paymentPackageId)
         {
-            _logger.LogInformation("Received MakePayment request for playerId \"{PlayerId}\"", playerId);
-            var resp = await _nuveiPaymentService.ProcessPaymentWithCardDetailsAsync(200, "USD", false);
-            _logger.LogInformation($"Nuvei payment response {resp.ToString()}");
+            if (!CurrencyCodeToMultiplier.ContainsKey(currencyCode) || !PaymentPackages.ContainsKey(paymentPackageId))
+            {
+                return BadRequest("Invalid currency or payment option.");
+            }
+
+            var playerData = await _suikaDbService.GetPlayerById(playerId);
+            if (playerData is null)
+            {
+                return NotFound("Player was not found");
+            }
+            // TODO: After registration is implemented- verify that the user is registered + all of the relevant properties are present
+
+            Guid clientUniqueId = Guid.NewGuid();
+            PaymentPackage paymentPackage = PaymentPackages[paymentPackageId];
+            double amount = paymentPackage.AmountInUsd * CurrencyCodeToMultiplier[currencyCode];
+            PaymentDetails paymentDetails = new PaymentDetails
+            {
+                PaymentId = clientUniqueId,
+                PlayerId = playerId,
+                CreatedAt = DateTime.Now,
+                Amount = amount,
+                CurrencyCode = currencyCode,
+                PaymentPackageId = paymentPackage.ID,
+                ProcessorTransactionId = "",
+                Status = "PendingClient",
+            };
+
+            BillingAddressDetails billingAddressDetails = new BillingAddressDetails
+            {
+                country = "US",
+                email = "john.doe@email.com",
+                firstName = "John",
+                lastName = "Doe"
+            };
+            var returnObj = await _nuveiPaymentService.GetIframeCheckoutJsonObject(
+                playerId.ToString(),
+                clientUniqueId.ToString(),
+                amount,
+                currencyCode,
+                billingAddressDetails);
+            paymentDetails.ProcessorTransactionId = returnObj["sessionToken"]?.ToString() ?? "";
+            await _suikaDbService.CreatePaymentDetails(paymentDetails);
+
+            string returnObjString = JsonSerializer.Serialize(returnObj);
+            byte[] plainTextBytes = System.Text.Encoding.UTF8.GetBytes(returnObjString);
+            string data = Convert.ToBase64String(plainTextBytes);
+            // TODO: serve the HTML
+            string url = $"https://leiagames.com/ABCONTROLLER/SOMETHING?data={data}";
+
+            return Ok(new { url, paymentId = paymentDetails.PaymentId });
+        }
+
+        private async Task UpdatePlayerBalancePostDeposit(Guid playerId, string currencyCode, PaymentPackage paymentPackage)
+        {
+            // Hard-coded to the USD balance since the amount is normalized
+            int currencyId = 6;
+            double amountIncludingMultiplier = paymentPackage.AmountInUsd * CurrencyCodeToMultiplier[currencyCode];
+            await _suikaDbService.UpdatePlayerBalance(playerId, currencyId, amountIncludingMultiplier);
+
+            if (paymentPackage.BonusAmount > 0)
+            {
+
+                // Hard-coded to the USD balance since the amount is normalized
+                int bonusCurrencyId = 6;
+                double bonusAmountIncludingMultiplier = paymentPackage.BonusAmount * CurrencyCodeToMultiplier[currencyCode];
+                await _suikaDbService.UpdatePlayerBalance(playerId, bonusCurrencyId, bonusAmountIncludingMultiplier);
+            }
+        }
+
+        [HttpPost, Route("CompletePayment/{playerId}/{paymentId}")]
+        public async Task<IActionResult> CompletePayment(Guid playerId, Guid paymentId, [FromBody] CompletePaymentRequestBody completePaymentRequestBody)
+        {
+            var playerData = await _suikaDbService.GetPlayerById(playerId);
+            if (playerData is null)
+            {
+                return NotFound("Player was not found");
+            }
+            // TODO: After registration is available- verify that the user is registered + all of the relevant properties are present
+
+            var paymentDetails = await _suikaDbService.GetPaymentById(paymentId);
+            if (paymentDetails is null || paymentDetails.Status != "PendingClient")
+            {
+                return NotFound("Payment was not found");
+            }
+
+            GetPaymentStatusResponse resp = await _nuveiPaymentService.GetPaymentStatus(paymentDetails.ProcessorTransactionId);
+            _logger.LogInformation($"Nuvei payment response {resp}");
+
+            paymentDetails.ProcessorTransactionId = resp.transactionId;
+            paymentDetails.SimplyConnectResponse = completePaymentRequestBody.nuveiSimplyConnectResponse;
+            paymentDetails.ResponseBody = JsonSerializer.Serialize(resp, resp.GetType());
+            paymentDetails.Status = "Success";
+            await _suikaDbService.UpdatePaymentDetails(paymentDetails);
+
+            PaymentPackage paymentPackage = PaymentPackages[paymentDetails.PaymentPackageId];
+            await UpdatePlayerBalancePostDeposit(playerData.PlayerId, paymentDetails.CurrencyCode, paymentPackage);
+
+            var nuveiPaymentToken = resp.paymentOption.userPaymentOptionId;
+            await _suikaDbService.UpdatePlayerSavedNuveiPaymentToken(playerData.PlayerId, nuveiPaymentToken);
+
+            return Ok(new { nuveiPaymentToken });
+        }
+
+        [HttpPost, Route("MakePaymentWithSavedToken/{playerId}/{currencyCode}/{paymentPackageId}")]
+        public async Task<IActionResult> MakePaymentWithSavedToken(Guid playerId, string currencyCode, string paymentPackageId, [FromBody] string nuveiPaymentToken)
+        {
+            if (!CurrencyCodeToMultiplier.ContainsKey(currencyCode) || !PaymentPackages.ContainsKey(paymentPackageId))
+            {
+                return BadRequest("Invalid currency or payment option.");
+            }
+
+            var playerData = await _suikaDbService.GetPlayerById(playerId);
+            if (playerData is null)
+            {
+                return NotFound("Player was not found");
+            }
+            if (playerData.SavedNuveiPaymentToken is null || playerData.SavedNuveiPaymentToken == "" || playerData.SavedNuveiPaymentToken != nuveiPaymentToken)
+            {
+                return BadRequest("User does not have a saved payment token");
+            }
+
+            PaymentPackage paymentPackage = PaymentPackages[paymentPackageId];
+            double amount = paymentPackage.AmountInUsd * CurrencyCodeToMultiplier[currencyCode];
+            PaymentResponse resp = await _nuveiPaymentService.ProcessPaymentWithTokenAsync(playerData.PlayerId, playerData.SavedNuveiPaymentToken, amount, currencyCode, false);
+            _logger.LogInformation($"Nuvei saved-token payment response {resp}");
+
+            PaymentDetails paymentDetails = new PaymentDetails
+            {
+                PaymentId = Guid.NewGuid(),
+                PlayerId = playerData.PlayerId,
+                CreatedAt = DateTime.Now,
+                Amount = amount,
+                CurrencyCode = currencyCode,
+                ProcessorTransactionId = resp.transactionId,
+                PaymentPackageId = paymentPackage.ID,
+                ResponseBody = JsonSerializer.Serialize(resp, resp.GetType()),
+                Status = "Success",
+            };
+            await _suikaDbService.CreatePaymentDetails(paymentDetails);
+
+            await UpdatePlayerBalancePostDeposit(playerData.PlayerId, currencyCode, paymentPackage);
+
             dynamic response = new System.Dynamic.ExpandoObject();
-            response.Data = resp;
+            return Ok(response);
+        }
+
+        [HttpPost, Route("CreateWithdrawal/{playerId}/{currencyId}/{amount}")]
+        public async Task<IActionResult> MakeWithdraw(Guid playerId, string currencyCode, double amount)
+        {
+            if (!CurrencyCodeToMultiplier.ContainsKey(currencyCode) || amount <= 0)
+            {
+                return BadRequest("Invalid currency or amount.");
+            }
+
+            var playerData = await _suikaDbService.GetPlayerById(playerId);
+            if (playerData is null)
+            {
+                return NotFound("Player was not found");
+            }
+            // Hard-coded to the USD balance since the amount is normalized
+            int currencyId = 6;
+            var playerBalance = await _suikaDbService.GetPlayerBalance(playerData.PlayerId, currencyId);
+            if (playerBalance is null || amount > playerBalance)
+            {
+                return BadRequest("Not enough money in the balance. Please try a lower amount.");
+            }
+
+            var latestWithdrawal = await _suikaDbService.GetLatestWithdrawalDetails(playerData.PlayerId);
+            string[] finalWithdrawalStatuses = { "Success", "Denied" };
+            if (latestWithdrawal?.Status is not null && !finalWithdrawalStatuses.Contains(latestWithdrawal.Status))
+            {
+                return BadRequest("Only one withdrawal can be processed at a time.");
+            }
+
+            if (!await _suikaDbService.DoesPlayerHaveSuccessfulPayment(playerData.PlayerId))
+            {
+                return BadRequest("Only players with a successful payment can make a withdrawal.");
+            }
+
+            WithdrawalDetails withdrawalDetails = new WithdrawalDetails
+            {
+                WithdrawalId = Guid.NewGuid(),
+                PlayerId = playerData.PlayerId,
+                CreatedAt = DateTime.Now,
+                MutationToken = Guid.NewGuid(),
+                CurrencyCode = currencyCode,
+                Amount = amount,
+                Status = "EmailNotSent",
+            };
+            await _suikaDbService.CreateWithdrawalDetails(withdrawalDetails);
+
+            double amountToDeduct = amount / CurrencyCodeToMultiplier[currencyCode] * -1;
+            await _suikaDbService.UpdatePlayerBalance(playerData.PlayerId, currencyId, amountToDeduct);
+
+            string emailSubject = $"Withdrawal request from player \"{playerData.PlayerId}\"";
+            string approveLink = $"https://leiagames.com/Backoffice/ApproveWithdrawal/{playerId}/{withdrawalDetails.WithdrawalId}/{withdrawalDetails.MutationToken}";
+            string declineLink = $"https://leiagames.com/Backoffice/DeclineWithdrawal/{playerId}/{withdrawalDetails.WithdrawalId}/{withdrawalDetails.MutationToken}";
+            // TODO: add currency sign / code
+            string emailBody = $"Withdrawal request for {amount}<br />Player name: {playerData.Name}<br />Player ID: {playerData.PlayerId}<br /><br /><br /><a href=\"{approveLink}\">Approve the withdrawal</a><br /><br /><br /><a href=\"{declineLink}\">Decline the withdrawal</a>";
+            try
+            {
+                _logger.LogInformation($"Sending withdrawals email for player ID \"{playerData.PlayerId}\"");
+                _emailService.SendEmail("support@leia.games", emailSubject, emailBody);
+                await _suikaDbService.Log("Sent withdrawals email for player ID", playerData.PlayerId);
+            }
+            catch (Exception ex)
+            {
+                await _suikaDbService.Log(ex, playerData.PlayerId);
+            }
+
+            withdrawalDetails.Status = "PendingProcessing";
+            await _suikaDbService.UpdateWithdrawalDetails(withdrawalDetails);
+
+            dynamic response = new System.Dynamic.ExpandoObject();
             return Ok(response);
         }
 
