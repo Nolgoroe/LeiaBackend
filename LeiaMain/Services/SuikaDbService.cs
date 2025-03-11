@@ -82,7 +82,7 @@ namespace Services
         public Task Log(Exception ex);
         public Task Log(Exception ex, Guid playerId);
 
-        public async Task<(List<PlayerTournamentSession>, int)> LoadPlayerTournamentLeaderboard(LeiaContext context, Guid playerId, int tournamentId);
+        public Task<(List<PlayerTournamentSession>, int)> LoadPlayerTournamentLeaderboard(LeiaContext context, Guid playerId, int tournamentId);
 
 
         /// <summary>
