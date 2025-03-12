@@ -522,7 +522,7 @@ namespace Services
                 tournamentTypeMaxPlayers = tournamentType.NumberOfPlayers.Value,
                 currencyID = tournamentType.CurrenciesId,
                 entryFee = (float)tournamentType.EntryFee.Value,
-                isOpen = leaderBoard.Any(s => s.PlayerScore == null),
+                isOpen = leaderBoard.Count >= tournamentType.NumberOfPlayers.Value && leaderBoard.Any(s => s.PlayerScore == null),
                 rewards = tournamentType.Reward,
                 GameTypeId = gameTypeId
             };
