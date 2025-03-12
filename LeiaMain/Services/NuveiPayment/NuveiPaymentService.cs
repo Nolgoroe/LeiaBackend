@@ -28,10 +28,10 @@ namespace Services.NuveiPayment
         {
             _httpClient = new HttpClient();
 
-            _apiBaseUrl = GetRequiredEnvironmentVariable("NUVEI_API_BASE_URL");
-            _merchantId = GetRequiredEnvironmentVariable("NUVEI_MERCHANT_ID");
-            _merchantSiteId = GetRequiredEnvironmentVariable("NUVEI_MERCHANT_SITE_ID");
-            _secretKey = GetRequiredEnvironmentVariable("NUVEI_SECRET_KEY");
+            //_apiBaseUrl = GetRequiredEnvironmentVariable("NUVEI_API_BASE_URL");
+            //_merchantId = GetRequiredEnvironmentVariable("NUVEI_MERCHANT_ID");
+            //_merchantSiteId = GetRequiredEnvironmentVariable("NUVEI_MERCHANT_SITE_ID");
+            //_secretKey = GetRequiredEnvironmentVariable("NUVEI_SECRET_KEY");
         }
 
         private static string GetRequiredEnvironmentVariable(string key)

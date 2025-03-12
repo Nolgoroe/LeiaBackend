@@ -275,13 +275,15 @@ namespace Services
             {
                 throw new Exception($"Player has not enough balance for tournament type {tournamentTypeId}, need {tournamentType.EntryFee}, has {playerBalance}");
             }
+
+            var twoDaysAgo = DateTime.UtcNow.AddDays(-2);
+
             return await _leiaContext.Tournaments
                 .Where(
                     t => Math.Abs(t.Rating - playerRating) < maxRatingDrift &&         // Rating is in range
                                                                                        // t.TournamentData.TournamentTypeId == tournamentTypeId &&
                     t.GameTypeId == gameTypeId &&
-                                                                                       // t.TournamentData.EntryFeeCurrencyId == currencyId &&               // The currency Id is matching
-                    t.Players.Count < tournamentType.NumberOfPlayers &&
+                    t.StartTime > twoDaysAgo &&                                                                   // t.TournamentData.EntryFeeCurrencyId == currencyId &&               // The currency Id is matching                    
                     !t.Players.Select(p => p.PlayerId).Contains(playerId)
                     ) // Tournament is not full
                 .OrderBy(t => Math.Abs(t.Rating - playerRating))
