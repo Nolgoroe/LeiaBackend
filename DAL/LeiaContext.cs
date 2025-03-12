@@ -25,6 +25,8 @@ namespace DAL
         public DbSet<ConfigurationData> ConfigurationsData { get; set; }
         public DbSet<PlayerAuthToken> PlayerAuthToken { get; set; }
 
+        public DbSet<GameType> GameType { get; set; }
+
         public LeiaContext(DbContextOptions<LeiaContext> options) : base(options) { }
         public LeiaContext(/* string? connectionString*/)
         {
@@ -53,6 +55,7 @@ namespace DAL
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
+
 
             modelBuilder.Entity<Player>() // this is needed to configure a MtM connection type with a payload (like we made in the PlayerTournamentSession class. With out this we get an error)
                 .HasMany(p => p.TournamentSessions)
@@ -124,6 +127,16 @@ namespace DAL
                 .HasOne(pc => pc.Currencies)
                 .WithMany(c => c.PlayerCurrencies)
                 .HasForeignKey(pc => pc.CurrenciesId);
+            #endregion
+
+            #region Game Type
+            modelBuilder.Entity<GameType>().HasData(
+                new GameType { Id = 1, Name = "Object Match" }
+                );
+            modelBuilder.Entity<TournamentSession>()
+                .HasIndex(p => p.GameTypeId);
+            modelBuilder.Entity<PlayerActiveTournament>()
+                .HasIndex(p => p.GameTypeId);
             #endregion
         }
     }
