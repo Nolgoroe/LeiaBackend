@@ -517,15 +517,16 @@ namespace Services
                 joinTime = l.JoinTime,
             }).ToArray();
 
+            int tournamentTypeMaxPlayers = tournamentType.NumberOfPlayers.Value;
             return new HistoryDTO
             {
                 players = playerEntries,
                 tournamentID = tournamentSessionId,
                 tournamentTypeID = tournamentType.TournamentTypeId,
-                tournamentTypeMaxPlayers = tournamentType.NumberOfPlayers.Value,
+                tournamentTypeMaxPlayers = tournamentTypeMaxPlayers,
                 currencyID = tournamentType.CurrenciesId,
                 entryFee = (float)tournamentType.EntryFee.Value,
-                isOpen = leaderBoard.Count >= tournamentType.NumberOfPlayers.Value && leaderBoard.Any(s => s.PlayerScore == null),
+                isOpen = leaderBoard.Any(s => s.PlayerScore == null) || tournamentTypeMaxPlayers > leaderBoard.Count,
                 rewards = tournamentType.Reward,
                 GameTypeId = gameTypeId
             };
