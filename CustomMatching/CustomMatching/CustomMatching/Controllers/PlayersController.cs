@@ -7,6 +7,8 @@ using Microsoft.EntityFrameworkCore;
 
 using Services;
 using Services.NuveiPayment;
+using Services.PhoneNumberVerification;
+
 
 // For more information on enabling Web API for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
 
@@ -75,14 +77,16 @@ namespace CustomMatching.Controllers
         private readonly ISuikaDbService _suikaDbService;
         private readonly IPostTournamentService _postTournamentService;
         private readonly INuveiPaymentService _nuveiPaymentService;
+        private readonly IPhoneNumberVerificationService _phoneNumberVerificationService;
 
-        public PlayersController(ILogger<MatchingController> logger, INuveiPaymentService nuveiPaymentService, ITournamentService tournamentService, ISuikaDbService suikaDbService, IPostTournamentService postTournamentService)
+        public PlayersController(ILogger<MatchingController> logger, INuveiPaymentService nuveiPaymentService, ITournamentService tournamentService, ISuikaDbService suikaDbService, IPostTournamentService postTournamentService, IPhoneNumberVerificationService phoneNumberVerificationService)
         {
             _logger = logger;
             _tournamentService = tournamentService;
             _suikaDbService = suikaDbService;
             _postTournamentService = postTournamentService;
             _nuveiPaymentService = nuveiPaymentService;
+            _phoneNumberVerificationService = phoneNumberVerificationService;
         }
 
 
@@ -237,48 +241,103 @@ namespace CustomMatching.Controllers
         [HttpPost, Route("RegisterAsPayer")]
         public async Task<IActionResult> RegisterAsPayer([FromBody] RegistrationAsPayerData registrationData)
         {
-            // Get current player's data
-            // Assert that the player isn't already registered -> throw if IsRegistered
+            var playerData = await _suikaDbService.LoadPlayerByAuthToken(registrationData.authToken);
+            if (playerData == null)
+            {
+                return NotFound("PlayerId was not provided");
+            }
 
-            // Validate the registration data (phone number regex, email regex, minimal name checks, age from birthday)
-            // Verify that phone number and/or email aren't already in use by another player
+            if (!VerifyPayerRegistrationData(registrationData))
+            {
+                return BadRequest("Registration details aren't valid");
+            }
 
-            // Send SMS
-            // Save somewhere?
+            var playerByPhoneNumber = await _suikaDbService.GetPlayerByPhoneNumber(registrationData.phoneNumber);
+            if (playerByPhoneNumber is not null && playerByPhoneNumber.IsRegistered)
+            {
+                return BadRequest("Phone number is already associated to a user");
+            }
 
-            // Return to client
+            await _phoneNumberVerificationService.SendVerificationCode(registrationData.phoneNumber);
             return Ok();
         }
 
         [HttpPost, Route("LoginAsPayingUser")]
         public async Task<IActionResult> LoginAsPayingUser([FromBody] LoginAsPayerRequest request)
         {
-            // Get current player's data
-            // Assert that the phone number is different
+            var playerData = await _suikaDbService.LoadPlayerByAuthToken(request.authToken);
+            if (playerData == null)
+            {
+                return NotFound("PlayerId was not provided");
+            }
 
-            // Get the player by the phone number- verify that there is one
+            string phoneNumber = request.phoneNumber;
+            if (playerData.PhoneNumber is not null && playerData.PhoneNumber == phoneNumber)
+            {
+                return BadRequest("Already logged-in");
+            }
 
-            // Send SMS
-            // Save somewhere?
+            var playerDataByPhoneNumber = _suikaDbService.GetPlayerByPhoneNumber(phoneNumber);
+            if (playerDataByPhoneNumber is null)
+            {
+                return NotFound("Player was not found");
+            }
 
-            // Return to client
+            await _phoneNumberVerificationService.SendVerificationCode(phoneNumber);
             return Ok();
         }
 
         [HttpPost, Route("ConfirmPhoneNumber")]
         public async Task<IActionResult> ConfirmPhoneNumber([FromBody] ConfirmPhoneNumberRequest request)
         {
-            // Get current player's data
-            // Assert that the phone number is different
+            var playerData = await _suikaDbService.LoadPlayerByAuthToken(request.authToken);
+            if (playerData == null)
+            {
+                return NotFound("PlayerId was not provided");
+            }
 
-            // Get the player by the phone number- verify that there is one
+            if (playerData.PhoneNumber is not null && playerData.PhoneNumber == request.phoneNumber)
+            {
+                return BadRequest("Already logged-in"); // and registered
+            }
 
-            // Check that the SMS code matches
 
+            var registrationData = request.registrationAsPayerData;
+            var playerByPhoneNumber = await _suikaDbService.GetPlayerByPhoneNumber(request.phoneNumber);
             if (registrationData is null)
             {
-                throw new Exception("");
+                // Get the player by the phone number- verify that there is one
+                if (playerByPhoneNumber is null)
+                {
+                    return NotFound("Player was not found");
+                }
+
+                if (!await _phoneNumberVerificationService.VerifyReceivedCode(request.phoneNumber, request.code))
+                {
+                    return BadRequest("Bad code");
+                }
+
+                string newAuthTokenValue = GetNewAuthToken(playerData.PlayerId);
+                LoginResponse playerByPhoneNumberLoginResponse = await GetLoginResponse(playerByPhoneNumber, newAuthTokenValue);
+                return Ok(playerByPhoneNumberLoginResponse);
             }
+
+
+            if (!VerifyPayerRegistrationData(registrationData))
+            {
+                return BadRequest("Registration details aren't valid");
+            }
+
+            if (playerByPhoneNumber is not null)
+            {
+                return BadRequest("Phone number is already associated to a user");
+            }
+
+            if (!await _phoneNumberVerificationService.VerifyReceivedCode(request.phoneNumber, request.code))
+            {
+                return BadRequest("Bad code");
+            }
+
             DateOnly birthday;
             DateOnly.TryParseExact(
                 registrationData.birthday,
@@ -286,23 +345,17 @@ namespace CustomMatching.Controllers
                 System.Globalization.CultureInfo.InvariantCulture,
                 System.Globalization.DateTimeStyles.None,
                 out birthday);
-            // If the current user is un-registered + registrationData is provided
-            // Validate the registration data (phone number regex, email regex, minimal name checks, age from birthday)
-            // Verify that phone number and/or email aren't already in use by another player
-            // Update the user's data (incl. IsRegistered)
-            Player playerData = new Player();
             playerData.FirstName = registrationData.firstName;
             playerData.LastName = registrationData.lastName;
             playerData.RegistrationDate = DateTime.Now;
-            playerData.PhoneNumber = phoneNumber;
+            playerData.PhoneNumber = registrationData.phoneNumber;
             playerData.Email = registrationData.email;
             playerData.Country = registrationData.country;
             playerData.Birthday = birthday;
+            await _suikaDbService.UpdatePlayer(playerData);
 
-            // Assign the auth token
-
-            // Return to the client (what's expected from "GetPlayerByName")
-            return Ok();
+            LoginResponse loginResponse = await GetLoginResponse(playerData, request.authToken);
+            return Ok(loginResponse);
         }
 
         [HttpPost, Route("SetScore")]
@@ -446,6 +499,35 @@ namespace CustomMatching.Controllers
                 else return true;
             }
             else return false;
+        }
+
+        private bool VerifyPayerRegistrationData(RegistrationAsPayerData? registrationData)
+        {
+
+            if (registrationData is null)
+            {
+                return false;
+            }
+
+
+            if (string.IsNullOrWhiteSpace(registrationData.firstName) || string.IsNullOrEmpty(registrationData.firstName) || registrationData.firstName.Length < 2 ||
+                string.IsNullOrWhiteSpace(registrationData.lastName) || string.IsNullOrEmpty(registrationData.lastName) || registrationData.lastName.Length < 2)
+            {
+                return false;
+            }
+
+            // Regex for birthday + age verification
+            // Phone Number regex check
+            // -> Sanitize and validate phoneNumber according to regex-- Just US and Japan?
+            // Email regex check
+
+            // TODO: check against a list of country codes
+            if (string.IsNullOrWhiteSpace(registrationData.country) || registrationData.country.Length != 2)
+            {
+                return false;
+            }
+
+            return true;
         }
     }
 }
