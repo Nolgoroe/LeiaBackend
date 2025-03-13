@@ -129,6 +129,52 @@ namespace CustomMatching.Controllers
             return Ok(response);
         }
 
+        private string GetNewAuthToken(Guid playerId)
+        {
+            string newAuthTokenValue = Guid.NewGuid().ToString();
+            var authTokenItem = _suikaDbService.LeiaContext.PlayerAuthToken.Find(playerId);
+            if (authTokenItem != null)
+            {
+                authTokenItem.Token = newAuthTokenValue;
+            }
+            else
+            {
+                authTokenItem = new PlayerAuthToken { PlayerId = playerId, Token = newAuthTokenValue };
+                _suikaDbService.LeiaContext.PlayerAuthToken.Update(authTokenItem);
+            }
+            _suikaDbService.LeiaContext.SaveChanges();
+
+            return newAuthTokenValue;
+        }
+
+        private async Task<LoginResponse> GetLoginResponse(Player player, string AuthToken)
+        {
+            var activeMatchMakeRecord = await _suikaDbService.GetPlayerActiveMatchMakeRecord(player.PlayerId);
+            int? activeTournamentSeed = null;
+            if (activeMatchMakeRecord != null && !activeMatchMakeRecord.IsStillMatchmaking())
+            {
+                var tournament = await _suikaDbService.LeiaContext.Tournaments.FindAsync(activeMatchMakeRecord.TournamentId);
+                activeTournamentSeed = tournament.TournamentSeed;
+            }
+            else
+            {
+                activeMatchMakeRecord = null;
+            }
+
+            var activeTournamentType = await _suikaDbService.LeiaContext.TournamentTypes.FindAsync(activeMatchMakeRecord?.TournamentTypeId);
+
+            var loginResponse = new LoginResponse(player)
+            {
+                ActiveTournamentEntryTime = activeMatchMakeRecord?.JoinTournamentTime,
+                ActiveTournamentId = activeMatchMakeRecord?.TournamentId,
+                ActiveTournamentSeed = activeTournamentSeed,
+                ActiveTournamentType = activeTournamentType,
+                AuthToken = AuthToken,
+            };
+            await _suikaDbService.Log($"Player login {player.Name} id={player.PlayerId}, activeTournament?={activeMatchMakeRecord?.TournamentId}", player.PlayerId);
+            return loginResponse;
+        }
+
         /// <summary>
         /// Logs in or creates a player. Receives an accountSecret. If its null or empty, then a new player is created and the secret is returned
         /// </summary>
@@ -139,52 +185,15 @@ namespace CustomMatching.Controllers
         {
             var playerId = _suikaDbService.LeiaContext.PlayerAuthToken.First(s => s.Secret == request.accountSecret).PlayerId;
             var player = await _suikaDbService.LeiaContext.Players.FirstOrDefaultAsync(p => p.PlayerId == playerId);
-            if (player != null)
+            if (player is null)
             {
-                // Create new auth token
-                var newAuthTokenValue = Guid.NewGuid().ToString();
-                var authTokenItem = _suikaDbService.LeiaContext.PlayerAuthToken.Find(playerId);
-                if (authTokenItem != null)
-                {
-                    authTokenItem.Token = newAuthTokenValue;
-                }
-                else
-                {
-                    authTokenItem = new PlayerAuthToken { PlayerId = playerId, Token = newAuthTokenValue };
-                    _suikaDbService.LeiaContext.PlayerAuthToken.Update(authTokenItem);
-                }
-                _suikaDbService.LeiaContext.SaveChanges();
 
-                var activeMatchMakeRecord = await _suikaDbService.GetPlayerActiveMatchMakeRecord(player.PlayerId);
-                int? activeTournamentSeed = null;
-                if (activeMatchMakeRecord != null && !activeMatchMakeRecord.IsStillMatchmaking())
-                {
-                    var tournament = await _suikaDbService.LeiaContext.Tournaments.FindAsync(activeMatchMakeRecord.TournamentId);
-                    activeTournamentSeed = tournament.TournamentSeed;
-                }
-                else
-                {
-                    activeMatchMakeRecord = null;
-                }
-
-                var activeTournamentType = await _suikaDbService.LeiaContext.TournamentTypes.FindAsync(activeMatchMakeRecord?.TournamentTypeId);
-
-                var loginResponse = new LoginResponse(player)
-                {
-                    ActiveTournamentEntryTime = activeMatchMakeRecord?.JoinTournamentTime,
-                    ActiveTournamentId = activeMatchMakeRecord?.TournamentId,
-                    ActiveTournamentSeed = activeTournamentSeed,
-                    ActiveTournamentType = activeTournamentType,
-                    AuthToken = newAuthTokenValue,
-                };
-                await _suikaDbService.Log($"Player login {player.Name} id={player.PlayerId}, activeTournament?={activeMatchMakeRecord?.TournamentId}", player.PlayerId);
-                return Ok(loginResponse);
-            }
-            else
-            {
                 return NotFound($"Player: {playerId}, was not found");
             }
 
+            string newAuthTokenValue = GetNewAuthToken(playerId);
+            LoginResponse loginResponse = await GetLoginResponse(player, newAuthTokenValue);
+            return Ok(loginResponse);
         }
 
 
