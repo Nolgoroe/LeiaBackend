@@ -56,7 +56,6 @@ namespace Services
         public Task<(Player, PlayerAuthToken)> CreateNewPlayer(Player player);
         public Task<Player>? UpdatePlayer(Player player);
         public Task<Player?> GetPlayerById(Guid playerId);
-        public Task<Player?> GetPlayerByName(string playerName);
         public Task<Player?> LoadPlayerByAuthToken(string token);
         public Task<List<HistoryDTO>> GetPlayerTournaments(LeiaContext context, Guid playerId);
         public Task<Player?> GetPlayerByPhoneNumber(string phoneNumber);
@@ -500,21 +499,6 @@ namespace Services
             var player = await _leiaContext.Players.FindAsync(playerId);
 
             return player;
-        }
-
-        public async Task<Player?> GetPlayerByName(string playerName)
-        {
-            try
-            {
-                var player = /*await*/ _leiaContext.Players.FirstOrDefault(p => p.Name == playerName);
-                return player;
-
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine(ex.Message + "\n" + ex.InnerException?.Message);
-                throw;
-            }
         }
 
         public async Task<Player?> GetPlayerByPhoneNumber(string phoneNumber)
