@@ -10,6 +10,32 @@ using Services.NuveiPayment;
 
 // For more information on enabling Web API for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
 
+public class RegistrationAsPayerData
+{
+    public required string authToken { get; set; }
+    public required string phoneNumber { get; set; }
+    public required string firstName { get; set; }
+    public required string lastName { get; set; }
+    public required string country { get; set; }
+    public required string email { get; set; }
+    public required string birthday { get; set; }
+}
+
+public class LoginAsPayerRequest
+{
+    public required string authToken { get; set; }
+
+    public required string phoneNumber { get; set; }
+}
+
+public class ConfirmPhoneNumberRequest
+{
+    public required string authToken { get; set; }
+    public required string phoneNumber { get; set; }
+    public required string code { get; set; }
+    public RegistrationAsPayerData? registrationAsPayerData { get; set; }
+}
+
 namespace CustomMatching.Controllers
 {
 
@@ -199,6 +225,57 @@ namespace CustomMatching.Controllers
             });
         }
 
+        [HttpPost, Route("RegisterAsPayer")]
+        public async Task<IActionResult> RegisterAsPayer([FromBody] RegistrationAsPayerData registrationData)
+        {
+            // Get current player's data
+            // Assert that the player isn't already registered -> throw if IsRegistered
+
+            // Validate the registration data (phone number regex, email regex, minimal name checks, age from birthday)
+            // Verify that phone number and/or email aren't already in use by another player
+
+            // Send SMS
+            // Save somewhere?
+
+            // Return to client
+            return Ok();
+        }
+
+        [HttpPost, Route("LoginAsPayingUser")]
+        public async Task<IActionResult> LoginAsPayingUser([FromBody] LoginAsPayerRequest request)
+        {
+            // Get current player's data
+            // Assert that the phone number is different
+
+            // Get the player by the phone number- verify that there is one
+
+            // Send SMS
+            // Save somewhere?
+
+            // Return to client
+            return Ok();
+        }
+
+        [HttpPost, Route("ConfirmPhoneNumber")]
+        public async Task<IActionResult> ConfirmPhoneNumber([FromBody] ConfirmPhoneNumberRequest request)
+        {
+            // Get current player's data
+            // Assert that the phone number is different
+
+            // Get the player by the phone number- verify that there is one
+
+            // Check that the SMS code matches
+
+            // If the current user is un-registered + registrationData is provided
+            // Validate the registration data (phone number regex, email regex, minimal name checks, age from birthday)
+            // Verify that phone number and/or email aren't already in use by another player
+            // Update the user's data (incl. IsRegistered)
+
+            // Assign the auth token
+
+            // Return to the client (what's expected from "GetPlayerByName")
+            return Ok();
+        }
 
         [HttpPost, Route("SetScore")]
         public async Task<IActionResult> SetScore([FromBody] SetScoreRequest request)
