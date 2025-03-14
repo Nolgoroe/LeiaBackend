@@ -3,6 +3,7 @@ using DAL;
 
 using Microsoft.EntityFrameworkCore;
 using Services.NuveiPayment;
+using Services.PhoneNumberVerification;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -24,6 +25,15 @@ builder.Services.AddScoped<ISuikaDbService, SuikaDbService>();
 builder.Services.AddScoped<IPostTournamentService, PostTournamentService>();
 builder.Services.AddSingleton<ITournamentService, TournamentService>();
 builder.Services.AddSingleton<INuveiPaymentService, NuveiPaymentService>();
+builder.Services.AddSingleton<IPhoneNumberVerificationService>(sp =>
+{
+    var accountSid = builder.Configuration.GetConnectionString("TwilioAccountSid");
+    var authToken = builder.Configuration.GetConnectionString("TwilioAuthToken");
+    var serviceSid = builder.Configuration.GetConnectionString("TwilioServiceSid");
+
+    return new PhoneNumberVerificationService(accountSid, authToken, serviceSid);
+});
+
 
 var app = builder.Build();
 using (var scope = app.Services.CreateScope())
