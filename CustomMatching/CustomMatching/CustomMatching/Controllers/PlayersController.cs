@@ -9,6 +9,9 @@ using Services;
 using Services.NuveiPayment;
 using Services.PhoneNumberVerification;
 
+using System.Globalization;
+using System.Text.RegularExpressions;
+
 
 // For more information on enabling Web API for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
 
@@ -519,26 +522,65 @@ namespace CustomMatching.Controllers
 
         private bool VerifyPayerRegistrationData(RegistrationAsPayerData? registrationData)
         {
-
             if (registrationData is null)
             {
                 return false;
             }
 
-
-            if (string.IsNullOrWhiteSpace(registrationData.firstName) || string.IsNullOrEmpty(registrationData.firstName) || registrationData.firstName.Length < 2 ||
-                string.IsNullOrWhiteSpace(registrationData.lastName) || string.IsNullOrEmpty(registrationData.lastName) || registrationData.lastName.Length < 2)
+            // Validate first name and last name (non-empty, non-whitespace, and at least 2 characters long)
+            if (string.IsNullOrWhiteSpace(registrationData.firstName) || registrationData.firstName.Length < 2)
+            {
+                return false;
+            }
+            if (string.IsNullOrWhiteSpace(registrationData.lastName) || registrationData.lastName.Length < 2)
             {
                 return false;
             }
 
-            // Regex for birthday + age verification
-            // Phone Number regex check
-            // -> Sanitize and validate phoneNumber according to regex-- Just US and Japan?
-            // Email regex check
-
-            // TODO: check against a list of country codes
+            // Validate country: must be exactly 2 characters
             if (string.IsNullOrWhiteSpace(registrationData.country) || registrationData.country.Length != 2)
+            {
+                return false;
+            }
+
+            // Validate email using a regular expression
+            var emailRegex = new Regex("^[A-Z0-9._+-]+@[A-Z0-9._-]+\\.[A-Z]{2,}$", RegexOptions.IgnoreCase);
+            if (string.IsNullOrWhiteSpace(registrationData.email) || !emailRegex.IsMatch(registrationData.email))
+            {
+                return false;
+            }
+
+            // Validate birthday format using a regex for ISO format (yyyy-MM-dd)
+            var birthdayRegex = new Regex(@"^\d{4}-\d{2}-\d{2}$");
+            if (string.IsNullOrWhiteSpace(registrationData.birthday) || !birthdayRegex.IsMatch(registrationData.birthday))
+            {
+                return false;
+            }
+            // Try to parse the birthday.
+            if (!DateTime.TryParseExact(
+                    registrationData.birthday,
+                    "yyyy-MM-dd",
+                    CultureInfo.InvariantCulture,
+                    DateTimeStyles.None,
+                    out DateTime birthday))
+            {
+                return false;
+            }
+
+            // Verify the user is at least 18 years old (to the day)
+            DateTime today = DateTime.Today;
+            DateTime minBirthdate = today.AddYears(-18);
+            if (birthday > minBirthdate)
+            {
+                return false;
+            }
+
+            // Validate phone number:
+            // US: +1 followed by exactly 10 digits.
+            // Japan: +81 followed by 9 or 10 digits.
+            // Israel: +972 followed by 8 or 9 digits.
+            var phoneRegex = new Regex(@"^(\+1\d{10}|\+81\d{9,10}|\+972\d{8,9})$");
+            if (string.IsNullOrWhiteSpace(registrationData.phoneNumber) || !phoneRegex.IsMatch(registrationData.phoneNumber))
             {
                 return false;
             }
