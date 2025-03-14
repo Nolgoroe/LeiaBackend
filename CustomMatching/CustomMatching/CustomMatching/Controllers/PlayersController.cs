@@ -283,7 +283,15 @@ namespace CustomMatching.Controllers
                 return NotFound("Player was not found");
             }
 
-            await _phoneNumberVerificationService.SendVerificationCode(phoneNumber);
+            try
+            {
+
+                await _phoneNumberVerificationService.SendVerificationCode(phoneNumber);
+            }
+            catch
+            {
+                return BadRequest("Could not send a verification code. Please check the phone number and try again.");
+            }
             return Ok();
         }
 
@@ -333,9 +341,17 @@ namespace CustomMatching.Controllers
                 return BadRequest("Phone number is already associated to a user");
             }
 
-            if (!await _phoneNumberVerificationService.VerifyReceivedCode(request.phoneNumber, request.code))
+            try
             {
-                return BadRequest("Bad code");
+
+                if (!await _phoneNumberVerificationService.VerifyReceivedCode(request.phoneNumber, request.code))
+                {
+                    return BadRequest("Bad code");
+                }
+            }
+            catch
+            {
+                return BadRequest("Could not send a verification code. Please check the phone number and try again.");
             }
 
             DateOnly birthday;
