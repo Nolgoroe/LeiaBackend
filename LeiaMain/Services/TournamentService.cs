@@ -12,7 +12,8 @@ namespace Services
     {
         public event EventHandler PlayerAddedToTournament;
         public Dictionary<Guid?, int?[]> PlayersSeeds { get; set; }
-        public Task CheckTournamentStatus(ISuikaDbService dbService, int tournamentId, PlayerTournamentSession playerTournamentSession);
+        //public Task CheckTournamentStatus(ISuikaDbService dbService, int tournamentId, PlayerTournamentSession playerTournamentSession);
+        public Task CheckTournamentStatus(List<PlayerTournamentSession> sortedDataForFinalTournamentCalc, TournamentType tournamentType, ISuikaDbService dbService, int tournamentId, Player callingPlaeyr);
         public Task<PlayerCurrencies?> ChargePlayer(Guid playerId, int? tournamentId);
     }
 
@@ -276,7 +277,7 @@ namespace Services
             var tournament = new TournamentSession
             {
                 TournamentSeed = TournamentSeedRandom.Next(),
-                IsOpen = true,
+                //IsOpen = true,
                 StartTime = DateTime.UtcNow,
                 Rating = dbPlayers[0].Rating,
                 GameTypeId = gameTypeId,
@@ -324,7 +325,7 @@ namespace Services
                             await dbService.Log(message2, alreadyAddedPlayerId);
                             await dbService.RemovePlayerFromAnyActiveTournament(alreadyAddedPlayerId);
                         }
-                        savedTournament.Entity.IsOpen = false;
+                        //savedTournament.Entity.IsOpen = false;
                         await dbService?.LeiaContext?.SaveChangesAsync();
                         return null;
                     }
@@ -366,22 +367,28 @@ namespace Services
             throw new NotImplementedException();
         }
 
-        public async Task CheckTournamentStatus(ISuikaDbService dbService, int tournamentId, PlayerTournamentSession playerTournamentSession)
+        public async Task CheckTournamentStatus(List<PlayerTournamentSession> sortedDataForFinalTournamentCalc, TournamentType tournamentType, ISuikaDbService dbService, int tournamentId, Player callingPlayer/*, PlayerTournamentSession playerTournamentSession*/)
         {
             var context = dbService.LeiaContext;
             try
             {
-                var tournament = context.Tournaments
-     
-                    .Include(t => t.PlayerTournamentSessions)
-                    .Include(t => t.Players)
-                    .FirstOrDefault(t => t.TournamentSessionId == tournamentId);
-                if (tournament != null)
-                {
-                    var scores = context.PlayerTournamentSession.Where(pt => pt.TournamentSession.TournamentSessionId == tournamentId).Select(pt => pt.PlayerScore).ToList();
-                    if (scores.All(s => s != null) && scores.Count >= playerTournamentSession.TournamentType.NumberOfPlayers) await _postTournamentService.CloseTournament(tournament); // close tournament
+                //var tournament = context.Tournaments
 
-                }
+                //    .Include(t => t.PlayerTournamentSessions)
+                //    .Include(t => t.Players)
+                //    .FirstOrDefault(t => t.TournamentSessionId == tournamentId);
+
+                //if (tournament != null)
+                //{
+                    var scores = context.PlayerTournamentSession.Where(p => sortedDataForFinalTournamentCalc.Select(x => x.PlayerId).Contains(p.PlayerId)).Select(pt => pt.PlayerScore).ToList();
+
+                    if (/*scores.All(s => s != null) &&*/ scores.Count >= tournamentType.NumberOfPlayers) 
+                        await _postTournamentService.CloseTournament(sortedDataForFinalTournamentCalc, tournamentId, callingPlayer/*, tournament*/); // close tournament
+
+                    //if (/*scores.All(s => s != null) &&*/ scores.Count >= tournamentType.NumberOfPlayers) 
+                    //    await _postTournamentService.CloseTournament(tournament); // close tournament
+
+                //}
             }
             catch (Exception ex)
             {
