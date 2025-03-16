@@ -21,7 +21,7 @@ namespace Services
     public interface IPostTournamentService
     {
         //public Task CloseTournament(TournamentSession tournament);
-        public Task CloseTournament(List<PlayerTournamentSession> sortedDataForFinalTournamentCalc, int tournamentId, Player callingPlayer);
+        public Task CloseTournament(List<PlayerTournamentSession> sortedDataForFinalTournamentCalc, int tournamentId);
         public Task<(double?, bool?, double?)> GrantTournamentPrizes(TournamentSession? tournament, Player? player);
 
     }
@@ -295,7 +295,7 @@ namespace Services
             return result;
         }
 
-        public async Task CloseTournament(List<PlayerTournamentSession> sortedDataForFinalTournamentCalc, int tournamentId, Player callingPlayer/*, TournamentSession? tournament*/)
+        public async Task CloseTournament(List<PlayerTournamentSession> sortedDataForFinalTournamentCalc, int tournamentId/*, TournamentSession? tournament*/)
         {
             using (var context = new LeiaContext())
             {
@@ -330,7 +330,7 @@ namespace Services
                         if (saved > 0)
                         {
 
-                            var granted = await GrantTournamentEggs(sortedDataForFinalTournamentCalc, updatedPlayerTournament.Entity, callingPlayer);
+                            var granted = await GrantTournamentEggs(sortedDataForFinalTournamentCalc, updatedPlayerTournament.Entity);
                         }
                     }
                     catch (Exception ex)
@@ -380,7 +380,7 @@ namespace Services
             //}
         }
 
-        public async Task<List<double?>> GrantTournamentEggs(List<PlayerTournamentSession> sortedDataForFinalTournamentCalc, TournamentSession tournament, Player callingPlayer)
+        public async Task<List<double?>> GrantTournamentEggs(List<PlayerTournamentSession> sortedDataForFinalTournamentCalc, TournamentSession tournament)
         {
             if (tournament == null) return [];
 

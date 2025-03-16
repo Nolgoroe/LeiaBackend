@@ -383,7 +383,7 @@ namespace Services
                     var scores = context.PlayerTournamentSession.Where(p => sortedDataForFinalTournamentCalc.Select(x => x.PlayerId).Contains(p.PlayerId)).Select(pt => pt.PlayerScore).ToList();
 
                     if (/*scores.All(s => s != null) &&*/ scores.Count >= tournamentType.NumberOfPlayers) 
-                        await _postTournamentService.CloseTournament(sortedDataForFinalTournamentCalc, tournamentId, callingPlayer/*, tournament*/); // close tournament
+                        await _postTournamentService.CloseTournament(sortedDataForFinalTournamentCalc, tournamentId/*, tournament*/); // close tournament
 
                     //if (/*scores.All(s => s != null) &&*/ scores.Count >= tournamentType.NumberOfPlayers) 
                     //    await _postTournamentService.CloseTournament(tournament); // close tournament
