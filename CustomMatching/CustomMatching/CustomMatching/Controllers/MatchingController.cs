@@ -40,6 +40,7 @@ namespace CustomMatching.Controllers
             {
                 return NotFound($"Invalid auth token");
             }
+
             var tournamentType = _suikaDbService.LeiaContext.TournamentTypes.Find(request.tournamentTypeId);
             if (tournamentType == null)
             {
@@ -73,6 +74,11 @@ namespace CustomMatching.Controllers
                 }
                 else
                 {
+                    if (!player.IsRegistered)
+                    {
+                        return BadRequest("The player is not yet allowed to use real money! please register.");
+                    }
+
                     var currentCashBalance = await _suikaDbService.GetPlayerBalance(playerId, 6); //flag hardcoded
                     var currentBonusCashBalance = await _suikaDbService.GetPlayerBalance(playerId, 13); //flag hardcoded
 

@@ -579,7 +579,9 @@ namespace CustomMatching.Controllers
             // US: +1 followed by exactly 10 digits.
             // Japan: +81 followed by 9 or 10 digits.
             // Israel: +972 followed by 8 or 9 digits.
-            var phoneRegex = new Regex(@"^(\+1\d{10}|\+81\d{9,10}|\+972\d{8,9})$");
+
+
+            var phoneRegex = new Regex(@"^(\+1\d{10}|\+81\d{9,10}|\+972\d{8,10})$");
             if (string.IsNullOrWhiteSpace(registrationData.phoneNumber) || !phoneRegex.IsMatch(registrationData.phoneNumber))
             {
                 return false;
