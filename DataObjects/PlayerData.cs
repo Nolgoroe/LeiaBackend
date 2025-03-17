@@ -17,11 +17,16 @@ namespace DataObjects
         public Guid PlayerId { get; set; }
         public string? UserType { get; set; }
         public string? Name { get; set; }
+        public string? FirstName { get; set; }
+        public string? LastName { get; set; }
         public string? Email { get; set; }
+        [Phone]
+        public string? PhoneNumber { get; set; }
+        public string? Country { get; set; }
         public string? WalletAddress { get; set; }
         public DateTime? RegistrationDate { get; set; }
-        public int? Age { get; set; }
-        // public DateOnly Birthday { get; set; } // check if needed
+        public bool IsRegistered { get => RegistrationDate is not null && PhoneNumber is not null; }
+        public DateOnly? Birthday { get; set; }
         public int Level { get; set; }
         public string? DeviceType { get; set; }
         public string? OperatingSystemVersion { get; set; }

@@ -56,9 +56,9 @@ namespace Services
         public Task<(Player, PlayerAuthToken)> CreateNewPlayer(Player player);
         public Task<Player>? UpdatePlayer(Player player);
         public Task<Player?> GetPlayerById(Guid playerId);
-        public Task<Player?> GetPlayerByName(string playerName);
         public Task<Player?> LoadPlayerByAuthToken(string token);
         public Task<List<HistoryDTO>> GetPlayerTournaments(LeiaContext context, Guid playerId);
+        public Task<Player?> GetPlayerByPhoneNumber(string phoneNumber);
         public Task<double?> GetPlayerBalance(Guid? playerId, int? currencyId);
         public Task<List<PlayerCurrencies?>?> GetAllPlayerBalances(Guid playerId);
         public Task<PlayerCurrencies?> UpdatePlayerBalance(Guid? playerId, int? currencyId, double? amount);
@@ -501,22 +501,11 @@ namespace Services
             return player;
         }
 
-        public async Task<Player?> GetPlayerByName(string playerName)
+        public async Task<Player?> GetPlayerByPhoneNumber(string phoneNumber)
         {
-            try
-            {
-                var player = /*await*/ _leiaContext.Players.FirstOrDefault(p => p.Name == playerName);
-                return player;
-
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine(ex.Message + "\n" + ex.InnerException?.Message);
-                throw;
-            }
+            var player = await _leiaContext.Players.FirstOrDefaultAsync(p => p.PhoneNumber == phoneNumber);
+            return player;
         }
-
-
 
         /// Helper function of `GetPlayerTournaments`
         private HistoryDTO GetPlayerTournamentsCalcLeaderboard(Guid playerId, Dictionary<Guid, Player> allPlayersById, IEnumerable<PlayerTournamentSession> allPlayerSessions, TournamentType tournamentType, int tournamentSessionId, int gameTypeId)

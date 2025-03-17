@@ -7,8 +7,39 @@ using Microsoft.EntityFrameworkCore;
 
 using Services;
 using Services.NuveiPayment;
+using Services.PhoneNumberVerification;
+
+using System.Globalization;
+using System.Text.RegularExpressions;
+
 
 // For more information on enabling Web API for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
+
+public class RegistrationAsPayerData
+{
+    public required string authToken { get; set; }
+    public required string phoneNumber { get; set; }
+    public required string firstName { get; set; }
+    public required string lastName { get; set; }
+    public required string country { get; set; }
+    public required string email { get; set; }
+    public required string birthday { get; set; }
+}
+
+public class LoginAsPayerRequest
+{
+    public required string authToken { get; set; }
+
+    public required string phoneNumber { get; set; }
+}
+
+public class ConfirmPhoneNumberRequest
+{
+    public required string authToken { get; set; }
+    public required string phoneNumber { get; set; }
+    public required string code { get; set; }
+    public RegistrationAsPayerData? registrationAsPayerData { get; set; }
+}
 
 namespace CustomMatching.Controllers
 {
@@ -49,14 +80,16 @@ namespace CustomMatching.Controllers
         private readonly ISuikaDbService _suikaDbService;
         private readonly IPostTournamentService _postTournamentService;
         private readonly INuveiPaymentService _nuveiPaymentService;
+        private readonly IPhoneNumberVerificationService _phoneNumberVerificationService;
 
-        public PlayersController(ILogger<MatchingController> logger, INuveiPaymentService nuveiPaymentService, ITournamentService tournamentService, ISuikaDbService suikaDbService, IPostTournamentService postTournamentService)
+        public PlayersController(ILogger<MatchingController> logger, INuveiPaymentService nuveiPaymentService, ITournamentService tournamentService, ISuikaDbService suikaDbService, IPostTournamentService postTournamentService, IPhoneNumberVerificationService phoneNumberVerificationService)
         {
             _logger = logger;
             _tournamentService = tournamentService;
             _suikaDbService = suikaDbService;
             _postTournamentService = postTournamentService;
             _nuveiPaymentService = nuveiPaymentService;
+            _phoneNumberVerificationService = phoneNumberVerificationService;
         }
 
 
@@ -103,6 +136,52 @@ namespace CustomMatching.Controllers
             return Ok(response);
         }
 
+        private string GetNewAuthToken(Guid playerId)
+        {
+            string newAuthTokenValue = Guid.NewGuid().ToString();
+            var authTokenItem = _suikaDbService.LeiaContext.PlayerAuthToken.Find(playerId);
+            if (authTokenItem != null)
+            {
+                authTokenItem.Token = newAuthTokenValue;
+            }
+            else
+            {
+                authTokenItem = new PlayerAuthToken { PlayerId = playerId, Token = newAuthTokenValue };
+                _suikaDbService.LeiaContext.PlayerAuthToken.Update(authTokenItem);
+            }
+            _suikaDbService.LeiaContext.SaveChanges();
+
+            return newAuthTokenValue;
+        }
+
+        private async Task<LoginResponse> GetLoginResponse(Player player, string AuthToken)
+        {
+            var activeMatchMakeRecord = await _suikaDbService.GetPlayerActiveMatchMakeRecord(player.PlayerId);
+            int? activeTournamentSeed = null;
+            if (activeMatchMakeRecord != null && !activeMatchMakeRecord.IsStillMatchmaking())
+            {
+                var tournament = await _suikaDbService.LeiaContext.Tournaments.FindAsync(activeMatchMakeRecord.TournamentId);
+                activeTournamentSeed = tournament.TournamentSeed;
+            }
+            else
+            {
+                activeMatchMakeRecord = null;
+            }
+
+            var activeTournamentType = await _suikaDbService.LeiaContext.TournamentTypes.FindAsync(activeMatchMakeRecord?.TournamentTypeId);
+
+            var loginResponse = new LoginResponse(player)
+            {
+                ActiveTournamentEntryTime = activeMatchMakeRecord?.JoinTournamentTime,
+                ActiveTournamentId = activeMatchMakeRecord?.TournamentId,
+                ActiveTournamentSeed = activeTournamentSeed,
+                ActiveTournamentType = activeTournamentType,
+                AuthToken = AuthToken,
+            };
+            await _suikaDbService.Log($"Player login {player.Name} id={player.PlayerId}, activeTournament?={activeMatchMakeRecord?.TournamentId}", player.PlayerId);
+            return loginResponse;
+        }
+
         /// <summary>
         /// Logs in or creates a player. Receives an accountSecret. If its null or empty, then a new player is created and the secret is returned
         /// </summary>
@@ -113,52 +192,15 @@ namespace CustomMatching.Controllers
         {
             var playerId = _suikaDbService.LeiaContext.PlayerAuthToken.First(s => s.Secret == request.accountSecret).PlayerId;
             var player = await _suikaDbService.LeiaContext.Players.FirstOrDefaultAsync(p => p.PlayerId == playerId);
-            if (player != null)
+            if (player is null)
             {
-                // Create new auth token
-                var newAuthTokenValue = Guid.NewGuid().ToString();
-                var authTokenItem = _suikaDbService.LeiaContext.PlayerAuthToken.Find(playerId);
-                if (authTokenItem != null)
-                {
-                    authTokenItem.Token = newAuthTokenValue;
-                }
-                else
-                {
-                    authTokenItem = new PlayerAuthToken { PlayerId = playerId, Token = newAuthTokenValue };
-                    _suikaDbService.LeiaContext.PlayerAuthToken.Update(authTokenItem);
-                }
-                _suikaDbService.LeiaContext.SaveChanges();
 
-                var activeMatchMakeRecord = await _suikaDbService.GetPlayerActiveMatchMakeRecord(player.PlayerId);
-                int? activeTournamentSeed = null;
-                if (activeMatchMakeRecord != null && !activeMatchMakeRecord.IsStillMatchmaking())
-                {
-                    var tournament = await _suikaDbService.LeiaContext.Tournaments.FindAsync(activeMatchMakeRecord.TournamentId);
-                    activeTournamentSeed = tournament.TournamentSeed;
-                }
-                else
-                {
-                    activeMatchMakeRecord = null;
-                }
-
-                var activeTournamentType = await _suikaDbService.LeiaContext.TournamentTypes.FindAsync(activeMatchMakeRecord?.TournamentTypeId);
-
-                var loginResponse = new LoginResponse(player)
-                {
-                    ActiveTournamentEntryTime = activeMatchMakeRecord?.JoinTournamentTime,
-                    ActiveTournamentId = activeMatchMakeRecord?.TournamentId,
-                    ActiveTournamentSeed = activeTournamentSeed,
-                    ActiveTournamentType = activeTournamentType,
-                    AuthToken = newAuthTokenValue,
-                };
-                await _suikaDbService.Log($"Player login {player.Name} id={player.PlayerId}, activeTournament?={activeMatchMakeRecord?.TournamentId}", player.PlayerId);
-                return Ok(loginResponse);
-            }
-            else
-            {
                 return NotFound($"Player: {playerId}, was not found");
             }
 
+            string newAuthTokenValue = GetNewAuthToken(playerId);
+            LoginResponse loginResponse = await GetLoginResponse(player, newAuthTokenValue);
+            return Ok(loginResponse);
         }
 
 
@@ -199,6 +241,141 @@ namespace CustomMatching.Controllers
             });
         }
 
+        [HttpPost, Route("RegisterAsPayer")]
+        public async Task<IActionResult> RegisterAsPayer([FromBody] RegistrationAsPayerData registrationData)
+        {
+            var playerData = await _suikaDbService.LoadPlayerByAuthToken(registrationData.authToken);
+            if (playerData == null)
+            {
+                return NotFound("PlayerId was not provided");
+            }
+
+            if (!VerifyPayerRegistrationData(registrationData))
+            {
+                return BadRequest("Registration details aren't valid");
+            }
+
+            var playerByPhoneNumber = await _suikaDbService.GetPlayerByPhoneNumber(registrationData.phoneNumber);
+            if (playerByPhoneNumber is not null && playerByPhoneNumber.IsRegistered)
+            {
+                return BadRequest("Phone number is already associated to a user");
+            }
+
+            await _phoneNumberVerificationService.SendVerificationCode(registrationData.phoneNumber);
+            return Ok();
+        }
+
+        [HttpPost, Route("LoginAsPayingUser")]
+        public async Task<IActionResult> LoginAsPayingUser([FromBody] LoginAsPayerRequest request)
+        {
+            var playerData = await _suikaDbService.LoadPlayerByAuthToken(request.authToken);
+            if (playerData == null)
+            {
+                return NotFound("PlayerId was not provided");
+            }
+
+            string phoneNumber = request.phoneNumber;
+            if (playerData.PhoneNumber is not null && playerData.PhoneNumber == phoneNumber)
+            {
+                return BadRequest("Already logged-in");
+            }
+
+            var playerDataByPhoneNumber = _suikaDbService.GetPlayerByPhoneNumber(phoneNumber);
+            if (playerDataByPhoneNumber is null)
+            {
+                return NotFound("Player was not found");
+            }
+
+            try
+            {
+
+                await _phoneNumberVerificationService.SendVerificationCode(phoneNumber);
+            }
+            catch
+            {
+                return BadRequest("Could not send a verification code. Please check the phone number and try again.");
+            }
+            return Ok();
+        }
+
+        [HttpPost, Route("ConfirmPhoneNumber")]
+        public async Task<IActionResult> ConfirmPhoneNumber([FromBody] ConfirmPhoneNumberRequest request)
+        {
+            var playerData = await _suikaDbService.LoadPlayerByAuthToken(request.authToken);
+            if (playerData == null)
+            {
+                return NotFound("PlayerId was not provided");
+            }
+
+            if (playerData.PhoneNumber is not null && playerData.PhoneNumber == request.phoneNumber)
+            {
+                return BadRequest("Already logged-in"); // and registered
+            }
+
+
+            var registrationData = request.registrationAsPayerData;
+            var playerByPhoneNumber = await _suikaDbService.GetPlayerByPhoneNumber(request.phoneNumber);
+            if (registrationData is null)
+            {
+                // Get the player by the phone number- verify that there is one
+                if (playerByPhoneNumber is null)
+                {
+                    return NotFound("Player was not found");
+                }
+
+                if (!await _phoneNumberVerificationService.VerifyReceivedCode(request.phoneNumber, request.code))
+                {
+                    return BadRequest("Bad code");
+                }
+
+                string newAuthTokenValue = GetNewAuthToken(playerData.PlayerId);
+                LoginResponse playerByPhoneNumberLoginResponse = await GetLoginResponse(playerByPhoneNumber, newAuthTokenValue);
+                return Ok(playerByPhoneNumberLoginResponse);
+            }
+
+
+            if (!VerifyPayerRegistrationData(registrationData))
+            {
+                return BadRequest("Registration details aren't valid");
+            }
+
+            if (playerByPhoneNumber is not null)
+            {
+                return BadRequest("Phone number is already associated to a user");
+            }
+
+            try
+            {
+
+                if (!await _phoneNumberVerificationService.VerifyReceivedCode(request.phoneNumber, request.code))
+                {
+                    return BadRequest("Bad code");
+                }
+            }
+            catch
+            {
+                return BadRequest("Could not send a verification code. Please check the phone number and try again.");
+            }
+
+            DateOnly birthday;
+            DateOnly.TryParseExact(
+                registrationData.birthday,
+                "dd-MM-yyyy",
+                System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.None,
+                out birthday);
+            playerData.FirstName = registrationData.firstName;
+            playerData.LastName = registrationData.lastName;
+            playerData.RegistrationDate = DateTime.Now;
+            playerData.PhoneNumber = registrationData.phoneNumber;
+            playerData.Email = registrationData.email;
+            playerData.Country = registrationData.country;
+            playerData.Birthday = birthday;
+            await _suikaDbService.UpdatePlayer(playerData);
+
+            LoginResponse loginResponse = await GetLoginResponse(playerData, request.authToken);
+            return Ok(loginResponse);
+        }
 
         [HttpPost, Route("SetScore")]
         public async Task<IActionResult> SetScore([FromBody] SetScoreRequest request)
@@ -341,6 +518,74 @@ namespace CustomMatching.Controllers
                 else return true;
             }
             else return false;
+        }
+
+        private bool VerifyPayerRegistrationData(RegistrationAsPayerData? registrationData)
+        {
+            if (registrationData is null)
+            {
+                return false;
+            }
+
+            // Validate first name and last name (non-empty, non-whitespace, and at least 2 characters long)
+            if (string.IsNullOrWhiteSpace(registrationData.firstName) || registrationData.firstName.Length < 2)
+            {
+                return false;
+            }
+            if (string.IsNullOrWhiteSpace(registrationData.lastName) || registrationData.lastName.Length < 2)
+            {
+                return false;
+            }
+
+            // Validate country: must be exactly 2 characters
+            if (string.IsNullOrWhiteSpace(registrationData.country) || registrationData.country.Length != 2)
+            {
+                return false;
+            }
+
+            // Validate email using a regular expression
+            var emailRegex = new Regex("^[A-Z0-9._+-]+@[A-Z0-9._-]+\\.[A-Z]{2,}$", RegexOptions.IgnoreCase);
+            if (string.IsNullOrWhiteSpace(registrationData.email) || !emailRegex.IsMatch(registrationData.email))
+            {
+                return false;
+            }
+
+            // Validate birthday format using a regex for ISO format (yyyy-MM-dd)
+            var birthdayRegex = new Regex(@"^\d{4}-\d{2}-\d{2}$");
+            if (string.IsNullOrWhiteSpace(registrationData.birthday) || !birthdayRegex.IsMatch(registrationData.birthday))
+            {
+                return false;
+            }
+            // Try to parse the birthday.
+            if (!DateTime.TryParseExact(
+                    registrationData.birthday,
+                    "yyyy-MM-dd",
+                    CultureInfo.InvariantCulture,
+                    DateTimeStyles.None,
+                    out DateTime birthday))
+            {
+                return false;
+            }
+
+            // Verify the user is at least 18 years old (to the day)
+            DateTime today = DateTime.Today;
+            DateTime minBirthdate = today.AddYears(-18);
+            if (birthday > minBirthdate)
+            {
+                return false;
+            }
+
+            // Validate phone number:
+            // US: +1 followed by exactly 10 digits.
+            // Japan: +81 followed by 9 or 10 digits.
+            // Israel: +972 followed by 8 or 9 digits.
+            var phoneRegex = new Regex(@"^(\+1\d{10}|\+81\d{9,10}|\+972\d{8,9})$");
+            if (string.IsNullOrWhiteSpace(registrationData.phoneNumber) || !phoneRegex.IsMatch(registrationData.phoneNumber))
+            {
+                return false;
+            }
+
+            return true;
         }
     }
 }
