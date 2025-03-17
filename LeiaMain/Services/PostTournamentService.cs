@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Numerics;
 using System.Reflection.Metadata.Ecma335;
 using System.Text;
 using System.Threading.Tasks;
@@ -19,7 +20,8 @@ namespace Services
 {
     public interface IPostTournamentService
     {
-        public Task CloseTournament(TournamentSession tournament);
+        //public Task CloseTournament(TournamentSession tournament);
+        public Task CloseTournament(List<PlayerTournamentSession> sortedDataForFinalTournamentCalc, int tournamentId);
         public Task<(double?, bool?, double?)> GrantTournamentPrizes(TournamentSession? tournament, Player? player);
 
     }
@@ -72,54 +74,148 @@ namespace Services
             return CalculateLeaderboardForPlayer(requestingPlayerGuid, allPlayerTournamentSessions, tournamentType, tournamentId);
         }
 
-        public static List<PlayerTournamentSession> CalculateLeaderboardForPlayer(Guid requestingPlayerGuid, IEnumerable<PlayerTournamentSession> allPlayerTournamentSessions, TournamentType tournamentType, int tournamentId)
-        {
-            int tournamentTypeId = -1;
-            var playerSessionsByTournamentType = new Dictionary<int, List<PlayerTournamentSession>>();
+        //public static List<PlayerTournamentSession> CalculateLeaderboardForPlayer(Guid requestingPlayerGuid, IEnumerable<PlayerTournamentSession> allPlayerTournamentSessions, TournamentType tournamentType, int tournamentId)
+        //{
+        //    int tournamentTypeId = -1;
+        //    var playerSessionsByTournamentType = new Dictionary<int, List<PlayerTournamentSession>>();
 
-            foreach (var playerTournamentSession in allPlayerTournamentSessions)
-            {
-                var currentTournamentTypeId = playerTournamentSession.TournamentTypeId;
-                // If the player of this session is the reference player, then we build a leaderboard for this tournamentTypeId
-                if (playerTournamentSession.PlayerId == requestingPlayerGuid)
-                {
-                    tournamentTypeId = currentTournamentTypeId;
-                }
-                // Get or create the list containing all the player sessions for this type
-                if (!playerSessionsByTournamentType.TryGetValue(currentTournamentTypeId, out var allPlayerSessionsOfTournamentType))
-                {
-                    allPlayerSessionsOfTournamentType = new();
-                    playerSessionsByTournamentType[currentTournamentTypeId] = allPlayerSessionsOfTournamentType;
-                }
-                // Register this player session to the correct type
-                allPlayerSessionsOfTournamentType.Add(playerTournamentSession);
-            }
-            if (tournamentTypeId < 0)
+        //    foreach (var playerTournamentSession in allPlayerTournamentSessions)
+        //    {
+        //        var currentTournamentTypeId = playerTournamentSession.TournamentTypeId;
+        //        // If the player of this session is the reference player, then we build a leaderboard for this tournamentTypeId
+        //        if (playerTournamentSession.PlayerId == requestingPlayerGuid)
+        //        {
+        //            tournamentTypeId = currentTournamentTypeId;
+        //        }
+        //        // Get or create the list containing all the player sessions for this type
+        //        if (!playerSessionsByTournamentType.TryGetValue(currentTournamentTypeId, out var allPlayerSessionsOfTournamentType))
+        //        {
+        //            allPlayerSessionsOfTournamentType = new();
+        //            playerSessionsByTournamentType[currentTournamentTypeId] = allPlayerSessionsOfTournamentType;
+        //        }
+        //        // Register this player session to the correct type
+        //        allPlayerSessionsOfTournamentType.Add(playerTournamentSession);
+        //    }
+        //    if (tournamentTypeId < 0)
+        //    {
+        //        throw new Exception($"Could not find any player session for player {requestingPlayerGuid} in tournament {tournamentId}");
+        //    }
+        //    // Sort the player-sessions by player score for each tournament type
+        //    foreach (var playerSessions in playerSessionsByTournamentType.Values)
+        //    {
+        //        playerSessions.Sort();
+        //    }
+        //    if (tournamentType.NumberOfPlayers == null)
+        //    {
+        //        throw new Exception($"Tournament type {tournamentTypeId} has null `NumberOfPlayers`");
+        //    }
+        //    var maxLeaderboardPlayerCount = tournamentType.NumberOfPlayers.Value;
+        //    var leaderboardEntries = new List<PlayerTournamentSession>();
+        //    // First we add all the players of the same tournament type, there has to be at least one (requesting player)
+        //    leaderboardEntries.AddRange(playerSessionsByTournamentType[tournamentTypeId]);
+        //    // Calculate how many more players are needed for this leaderboard
+        //    var additionalNeededEntryCount = maxLeaderboardPlayerCount - leaderboardEntries.Count;
+        //    // Remove the player sessions we already added from our pool
+        //    playerSessionsByTournamentType.Remove(tournamentTypeId);
+        //    // Choose the highest ranking players from all other tournament types
+        //    leaderboardEntries.AddRange(playerSessionsByTournamentType.Values.SelectMany(l => l).OrderByDescending(l => l.SubmitScoreTime).Take(additionalNeededEntryCount));
+
+        //    if(leaderboardEntries.Count > maxLeaderboardPlayerCount)
+        //    {
+        //        // First, sort all entries by descending SubmitScoreTime.
+        //        var sortedEntries = leaderboardEntries.OrderByDescending(entry => entry.SubmitScoreTime).ToList();
+
+        //        // Find the requesting player's session. This assumes it exists.
+        //        var playerEntry = sortedEntries.First(e => e.PlayerId == requestingPlayerGuid);
+
+        //        // Check if the requesting player's session is within the top maxLeaderboardPlayerCount.
+        //        if (!sortedEntries.Take(maxLeaderboardPlayerCount).Any(e => e.PlayerId == requestingPlayerGuid))
+        //        {
+        //            // The player's session is not in the top list,
+        //            // so take one fewer entry from the top and add the player's session.
+        //            sortedEntries = sortedEntries.Take(maxLeaderboardPlayerCount - 1)
+        //                .Concat(new[] { playerEntry })
+        //                .OrderByDescending(entry => entry.SubmitScoreTime)
+        //                .ToList();
+        //        }
+        //        else
+        //        {
+        //            // Otherwise, just take the top entries.
+        //            sortedEntries = sortedEntries.Take(maxLeaderboardPlayerCount).ToList();
+        //        }
+
+        //        leaderboardEntries = leaderboardEntries.OrderByDescending(entry => entry.SubmitScoreTime).Take(maxLeaderboardPlayerCount).ToList();
+        //    }
+
+        //    leaderboardEntries.Sort();
+        //    leaderboardEntries.Reverse();
+        //    return leaderboardEntries;
+        //}
+
+        public static List<PlayerTournamentSession> CalculateLeaderboardForPlayer(Guid requestingPlayerGuid,IEnumerable<PlayerTournamentSession> allPlayerTournamentSessions,TournamentType tournamentType,int tournamentId)
+        {
+            // Retrieve the requesting player's session.
+            var requestingPlayerSession = allPlayerTournamentSessions
+                .FirstOrDefault(s => s.PlayerId == requestingPlayerGuid);
+            if (requestingPlayerSession == null)
             {
                 throw new Exception($"Could not find any player session for player {requestingPlayerGuid} in tournament {tournamentId}");
             }
-            // Sort the player-sessions by player score for each tournament type
-            foreach (var playerSessions in playerSessionsByTournamentType.Values)
-            {
-                playerSessions.Sort();
-            }
+
+            // Ensure tournament type has a valid player count.
             if (tournamentType.NumberOfPlayers == null)
             {
-                throw new Exception($"Tournament type {tournamentTypeId} has null `NumberOfPlayers`");
+                throw new Exception("Tournament type has null `NumberOfPlayers`");
             }
-            var maxLeaderboardPlayerCount = tournamentType.NumberOfPlayers.Value;
-            var leaderboardEntries = new List<PlayerTournamentSession>();
-            // First we add all the players of the same tournament type, there has to be at least one (requesting player)
-            leaderboardEntries.AddRange(playerSessionsByTournamentType[tournamentTypeId]);
-            // Calculate how many more players are needed for this leaderboard
-            var additionalNeededEntryCount = maxLeaderboardPlayerCount - leaderboardEntries.Count;
-            // Remove the player sessions we already added from our pool
-            playerSessionsByTournamentType.Remove(tournamentTypeId);
-            // Choose the highest ranking players from all other tournament types
-            leaderboardEntries.AddRange(playerSessionsByTournamentType.Values.SelectMany(l => l).OrderByDescending(l => l.SubmitScoreTime).Take(additionalNeededEntryCount));
-            leaderboardEntries.Sort();
-            leaderboardEntries.Reverse();
-            return leaderboardEntries;
+            int maxLeaderboardPlayerCount = tournamentType.NumberOfPlayers.Value;
+
+            // Exclude the requesting player's session and filter for sessions with a valid score.
+            var otherSessions = allPlayerTournamentSessions
+                .Where(s => s.PlayerId != requestingPlayerGuid && s.PlayerScore != null)
+                .ToList();
+
+            // Partition the other sessions into:
+            // - Those that submitted before the requesting player's submission.
+            // - Those that submitted at or after the requesting player's submission.
+            var beforeSessions = otherSessions
+                .Where(s => s.SubmitScoreTime < requestingPlayerSession.SubmitScoreTime)
+                .OrderByDescending(s => s.SubmitScoreTime) // The one closest before is highest among these.
+                .ToList();
+
+            var afterSessions = otherSessions
+                .Where(s => s.SubmitScoreTime >= requestingPlayerSession.SubmitScoreTime)
+                .OrderBy(s => s.SubmitScoreTime) // The one closest after is the lowest among these.
+                .ToList();
+
+            // Build the additional entries.
+            // Reserve one slot for the requesting player's session.
+            int remainingSlots = maxLeaderboardPlayerCount - 1;
+            var additionalEntries = new List<PlayerTournamentSession>();
+
+            if (remainingSlots > 0)
+            {
+                // If there are sessions that submitted before, choose them first.
+                if (beforeSessions.Any())
+                {
+                    additionalEntries.AddRange(beforeSessions.Take(remainingSlots));
+                }
+
+                remainingSlots = remainingSlots - additionalEntries.Count;
+
+                // If none submitted before, use sessions that submitted after.
+                if (afterSessions.Any())
+                {
+                    additionalEntries.AddRange(afterSessions.Take(remainingSlots));
+                }
+            }
+
+            // Final leaderboard always includes the requesting player's session plus the additional entries.
+            var finalLeaderboard = new List<PlayerTournamentSession> { requestingPlayerSession };
+            finalLeaderboard.AddRange(additionalEntries);
+
+            finalLeaderboard.Sort();
+            finalLeaderboard.Reverse();
+            return finalLeaderboard;
         }
 
 
@@ -127,28 +223,32 @@ namespace Services
         /// Calculates the new ranks for players according to their tournament leaderboard
         /// Uses the context to load data from the database
         /// </summary>
-        public Dictionary<Guid, int> CalculatePlayersRatingFromTournament(LeiaContext context, TournamentSession tournament)
+        public Dictionary<Guid, int> CalculatePlayersRatingFromTournament(LeiaContext context, List<PlayerTournamentSession> sortedDataForFinalTournamentCalc, TournamentSession tournament)
         {
             var allTournamentTypes = context.TournamentTypes.ToList();
-            return CalculatePlayersRatingFromTournament(tournament, allTournamentTypes);
+            //return CalculatePlayersRatingFromTournament(tournament, allTournamentTypes);
+            return CalculatePlayersRatingFromTournament(sortedDataForFinalTournamentCalc, tournament);
         }
 
         /// <summary>
         /// Calculates the new ranks for players according to their tournament leaderboard
         /// This function does not load data from the database - so it can be unit-tested
         /// </summary>
-        public Dictionary<Guid, int> CalculatePlayersRatingFromTournament(TournamentSession tournament, IEnumerable<TournamentType> allTournamentTypes)
+        public Dictionary<Guid, int> CalculatePlayersRatingFromTournament(List<PlayerTournamentSession> sortedDataForFinalTournamentCalc, TournamentSession tournament)
         {
             var result = new Dictionary<Guid, int>();
-            var allTournamentTypesById = allTournamentTypes.ToDictionary(tt => tt.TournamentTypeId);
+            //var allTournamentTypesById = allTournamentTypes.ToDictionary(tt => tt.TournamentTypeId);
             // Each session of a player has its own leaderboard according to the tournament type.
             // players in the same tournament type share the same leaderboard
             var leaderboardPerTournamentTypeId = new Dictionary<int, List<TournamentGlickoRatingCalculationEntry>>();
             // We will iterate the player sessions from best score to worst
-            var allPlayerSessionsSortedByScore = tournament.PlayerTournamentSessions.OrderByDescending(s => s.PlayerScore).ToList();
+            var allPlayerSessionsSortedByScore = sortedDataForFinalTournamentCalc.OrderByDescending(s => s.PlayerScore).ToList();
             // Cache players by GUID for quick access
             var allPlayerGuids = allPlayerSessionsSortedByScore.Select(s => s.PlayerId).ToHashSet();
-            var playerByGuid = tournament.Players.Where(p => allPlayerGuids.Contains(p.PlayerId)).ToDictionary(p => p.PlayerId);
+
+            var castSortedDataToActualPlayers = tournament.Players.Where(p => sortedDataForFinalTournamentCalc.Select(x => x.PlayerId).Contains(p.PlayerId)).ToList();
+
+            var playerByGuid = castSortedDataToActualPlayers.Where(p => allPlayerGuids.Contains(p.PlayerId)).ToDictionary(p => p.PlayerId);
             // Cache players as "Glicko players" for quick access
             var glickoPlayersByGuid = playerByGuid.Values.ToDictionary(p => p.PlayerId, p => ConvertPlayerToGlicko(p));
 
@@ -161,7 +261,7 @@ namespace Services
                 if (!leaderboardPerTournamentTypeId.TryGetValue(playerSession.TournamentTypeId, out var playerLeaderboard))
                 {
                     playerLeaderboard = CalculateLeaderboardForPlayer(playerSession.PlayerId, allPlayerSessionsSortedByScore, 
-                        allTournamentTypesById[playerSession.TournamentTypeId], playerSession.TournamentSessionId).Select(s =>
+                        playerSession.TournamentType, playerSession.TournamentSessionId).Select(s =>
                         {
                             return new TournamentGlickoRatingCalculationEntry
                             {
@@ -195,57 +295,106 @@ namespace Services
             return result;
         }
 
-        public async Task CloseTournament(TournamentSession? tournament)
+        public async Task CloseTournament(List<PlayerTournamentSession> sortedDataForFinalTournamentCalc, int tournamentId/*, TournamentSession? tournament*/)
         {
-
-            ArgumentNullException.ThrowIfNull(tournament);
-            if (tournament is null) Trace.WriteLine($"In PostTournamentService.CloseTournament, tournament: {tournament?.TournamentSessionId}, was null");
-
-            tournament.IsOpen = false;
-            tournament.Endtime = DateTime.UtcNow;
-            
-            var newPlayerRatings = CalculatePlayersRatingFromTournament(_suikaDbService.LeiaContext, tournament);
-            try
+            using (var context = new LeiaContext())
             {
-                _suikaDbService.LeiaContext.Entry(tournament).State = EntityState.Modified;
-                var updatedPlayerTournament = _suikaDbService.LeiaContext.Tournaments.Update(tournament);
-
-                foreach (var playerRaitingPair in newPlayerRatings)
+                try
                 {
-                    _suikaDbService.LeiaContext.Players.Find(playerRaitingPair.Key).Rating = playerRaitingPair.Value;
+                    var tournament = context.Tournaments
+
+                        .Include(t => t.PlayerTournamentSessions)
+                        .Include(t => t.Players)
+                        .FirstOrDefault(t => t.TournamentSessionId == tournamentId);
+
+                    ArgumentNullException.ThrowIfNull(tournament);
+                    if (tournament is null) Trace.WriteLine($"In PostTournamentService.CloseTournament, tournament: {tournament?.TournamentSessionId}, was null");
+
+                    //tournament.IsOpen = false;
+                    //tournament.Endtime = DateTime.UtcNow;
+
+
+                    var newPlayerRatings = CalculatePlayersRatingFromTournament(context, sortedDataForFinalTournamentCalc, tournament);
+                    try
+                    {
+                        context.Entry(tournament).State = EntityState.Modified;
+                        var updatedPlayerTournament = context.Tournaments.Update(tournament);
+
+                        foreach (var playerRaitingPair in newPlayerRatings)
+                        {
+                            context.Players.Find(playerRaitingPair.Key).Rating = playerRaitingPair.Value;
+                        }
+
+
+                        var saved = await context.SaveChangesAsync();
+                        if (saved > 0)
+                        {
+
+                            var granted = await GrantTournamentEggs(sortedDataForFinalTournamentCalc, updatedPlayerTournament.Entity);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Trace.WriteLine(ex.Message + "\n" + ex.InnerException?.Message);
+                        throw;
+                    }
+
                 }
-
-
-                var saved = await _suikaDbService.LeiaContext.SaveChangesAsync();
-                if (saved > 0)
+                catch (Exception ex)
                 {
-
-                    var granted = await GrantTournamentEggs(updatedPlayerTournament.Entity);
+                    Trace.WriteLine(ex.Message + "\n" + ex.InnerException?.Message);
+                    throw;
                 }
             }
-            catch (Exception ex)
-            {
-                Trace.WriteLine(ex.Message + "\n" + ex.InnerException?.Message);
-                throw;
-            }
+
+            //ArgumentNullException.ThrowIfNull(tournament);
+            //if (tournament is null) Trace.WriteLine($"In PostTournamentService.CloseTournament, tournament: {tournament?.TournamentSessionId}, was null");
+
+            ////tournament.IsOpen = false;
+            ////tournament.Endtime = DateTime.UtcNow;
+
+
+            //var newPlayerRatings = CalculatePlayersRatingFromTournament(_suikaDbService.LeiaContext, playerTournamentSessionData, tournament);
+            //try
+            //{
+            //    _suikaDbService.LeiaContext.Entry(tournament).State = EntityState.Modified;
+            //    var updatedPlayerTournament = _suikaDbService.LeiaContext.Tournaments.Update(tournament);
+
+            //    foreach (var playerRaitingPair in newPlayerRatings)
+            //    {
+            //        _suikaDbService.LeiaContext.Players.Find(playerRaitingPair.Key).Rating = playerRaitingPair.Value;
+            //    }
+
+
+            //    var saved = await _suikaDbService.LeiaContext.SaveChangesAsync();
+            //    if (saved > 0)
+            //    {
+
+            //        var granted = await GrantTournamentEggs(playerTournamentSessionData, updatedPlayerTournament.Entity);
+            //    }
+            //}
+            //catch (Exception ex)
+            //{
+            //    Trace.WriteLine(ex.Message + "\n" + ex.InnerException?.Message);
+            //    throw;
+            //}
         }
 
-        public async Task<List<double?>> GrantTournamentEggs(TournamentSession tournament)
+        public async Task<List<double?>> GrantTournamentEggs(List<PlayerTournamentSession> sortedDataForFinalTournamentCalc, TournamentSession tournament)
         {
             if (tournament == null) return [];
-            var playersByScore = tournament?.PlayerTournamentSessions.OrderByDescending(pt => pt.PlayerScore).Select(pt =>
+
+            var castSortedDataToActualPlayers = tournament.Players.Where(p => sortedDataForFinalTournamentCalc.Select(x => x.PlayerId).Contains(p.PlayerId)).ToList();
+
+            var playersByScore = sortedDataForFinalTournamentCalc.OrderByDescending(pt => pt.PlayerScore).Select(pt =>
             {
-                return tournament?.Players.FirstOrDefault(p => p.PlayerId == pt.PlayerId);
+                return castSortedDataToActualPlayers.FirstOrDefault(p => p.PlayerId == pt.PlayerId);
             }).ToList();
 
-            /*var firstReward = await _suikaDbService.LeiaContext.Rewards.FirstOrDefaultAsync( r => r.RewardName == "EggsFor1Place");
-            var secondReward = await _suikaDbService.LeiaContext.Rewards.FirstOrDefaultAsync( r => r.RewardName == "EggsFor2Place");
-
-            var rewards = new List<Reward>() {firstReward,secondReward};*/
             var rewards = _suikaDbService.LeiaContext.Rewards.Where(r => r.RewardName.Contains("Eggs")).OrderBy(r => r.ForPosition).ToList();
 
-            var updated = new List<double?>()
-                ;
+            var updated = new List<double?>();
+
             for (int i = 0; i < playersByScore?.Count; i++)
             {
                 var player = playersByScore[i];

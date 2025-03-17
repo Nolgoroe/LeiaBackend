@@ -203,9 +203,9 @@ namespace CustomMatching.Controllers
         [HttpPost, Route("SetScore")]
         public async Task<IActionResult> SetScore([FromBody] SetScoreRequest request)
         {
-            var player = await _suikaDbService.LoadPlayerByAuthToken(request.authToken);
-            if (player == null) return NotFound();
-            var playerId = player.PlayerId;
+            var callingPlayer = await _suikaDbService.LoadPlayerByAuthToken(request.authToken);
+            if (callingPlayer == null) return NotFound();
+            var playerId = callingPlayer.PlayerId;
             var score = request.score;
             var tournamentId = request.tournamentId;
             await _suikaDbService.Log($"Player {playerId} wants to set score {score} for tournament {tournamentId}", playerId);
@@ -217,7 +217,9 @@ namespace CustomMatching.Controllers
                     await _suikaDbService.Log(message, playerId);
                     return BadRequest("Could not submit result, player not in active tournament");
                 }
-                var tournament = _suikaDbService?.LeiaContext?.Tournaments.FirstOrDefault(t => t.TournamentSessionId == tournamentId && t.IsOpen == true);
+
+
+                var tournament = _suikaDbService?.LeiaContext?.Tournaments.FirstOrDefault(t => t.TournamentSessionId == tournamentId /*&& t.IsOpen == true*/);
                 if (tournament == null)
                 {
                     await _suikaDbService.Log($"Player {playerId} cannot set score, tournament={tournamentId} not found!", playerId);
@@ -229,6 +231,7 @@ namespace CustomMatching.Controllers
                 if (playerTournament != null)
                 {
                     playerTournament.PlayerScore = score;
+                    playerTournament.SubmitScoreTime = DateTime.UtcNow;
 
                     _suikaDbService.LeiaContext.Entry(playerTournament).State = EntityState.Modified;
                     var updatedPlayerTournament = _suikaDbService.LeiaContext.PlayerTournamentSession.Update(playerTournament);
@@ -237,7 +240,13 @@ namespace CustomMatching.Controllers
 
                     if (saved > 0)
                     {
-                        await _tournamentService.CheckTournamentStatus(_suikaDbService, updatedPlayerTournament.Entity.TournamentSession.TournamentSessionId, playerTournament);
+
+                        var allPlayerTournamentSessions = await _suikaDbService.LeiaContext.PlayerTournamentSession.Where(e => e.TournamentSessionId == tournamentId).ToListAsync();
+
+                        var sortedDataForFinalTournamentCalc = PostTournamentService.CalculateLeaderboardForPlayer(playerId, allPlayerTournamentSessions, playerTournament.TournamentType, tournamentId).ToList();
+
+                        //await _tournamentService.CheckTournamentStatus(_suikaDbService, updatedPlayerTournament.Entity.TournamentSession.TournamentSessionId, playerTournament);
+                        await _tournamentService.CheckTournamentStatus(sortedDataForFinalTournamentCalc, playerTournament.TournamentType, _suikaDbService, updatedPlayerTournament.Entity.TournamentSession.TournamentSessionId, callingPlayer);
                     }
                     return Ok(updatedPlayerTournament.Entity);
                 }

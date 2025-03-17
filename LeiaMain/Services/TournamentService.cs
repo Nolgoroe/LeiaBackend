@@ -5,6 +5,7 @@ using DataObjects;
 using Microsoft.EntityFrameworkCore;
 using DAL;
 using Microsoft.Extensions.DependencyInjection;
+using Azure.Core;
 
 namespace Services
 {
@@ -12,7 +13,8 @@ namespace Services
     {
         public event EventHandler PlayerAddedToTournament;
         public Dictionary<Guid?, int?[]> PlayersSeeds { get; set; }
-        public Task CheckTournamentStatus(ISuikaDbService dbService, int tournamentId, PlayerTournamentSession playerTournamentSession);
+        //public Task CheckTournamentStatus(ISuikaDbService dbService, int tournamentId, PlayerTournamentSession playerTournamentSession);
+        public Task CheckTournamentStatus(List<PlayerTournamentSession> sortedDataForFinalTournamentCalc, TournamentType tournamentType, ISuikaDbService dbService, int tournamentId, Player callingPlaeyr);
         public Task<PlayerCurrencies?> ChargePlayer(Guid playerId, int? tournamentId);
     }
 
@@ -97,13 +99,13 @@ namespace Services
 
         private async Task<TournamentSession> MatchPlayerIntoBestTournament(ISuikaDbService dbService, MatchQueueEntry waitingPlayer)
         {
-            var playerBalance = await dbService.GetPlayerBalance(waitingPlayer.Player.PlayerId, waitingPlayer.QueueEntry.CurrencyId);
-            if (playerBalance == null)
-            {
-                await dbService.RemovePlayerFromActiveMatchMaking(waitingPlayer.Player.PlayerId);
-                await dbService.Log("Player is waiting for tournament but has no balance", waitingPlayer.Player.PlayerId);
-                return null;
-            }
+            //var playerBalance = await dbService.GetPlayerBalance(waitingPlayer.Player.PlayerId, waitingPlayer.QueueEntry.CurrencyId);
+            //if (playerBalance == null)
+            //{
+            //    await dbService.RemovePlayerFromActiveMatchMaking(waitingPlayer.Player.PlayerId);
+            //    await dbService.Log("Player is waiting for tournament but has no balance", waitingPlayer.Player.PlayerId);
+            //    return null;
+            //}
   
 
             try
@@ -115,7 +117,7 @@ namespace Services
                     MAX_RATING_DRIFT,
                     waitingPlayer.QueueEntry.TournamentTypeId,
                     waitingPlayer.QueueEntry.CurrencyId,
-                    playerBalance.Value,
+                    //null,
                     1
                 );
                 var playerId = waitingPlayer.Player.PlayerId;
@@ -276,7 +278,7 @@ namespace Services
             var tournament = new TournamentSession
             {
                 TournamentSeed = TournamentSeedRandom.Next(),
-                IsOpen = true,
+                //IsOpen = true,
                 StartTime = DateTime.UtcNow,
                 Rating = dbPlayers[0].Rating,
                 GameTypeId = gameTypeId,
@@ -324,7 +326,7 @@ namespace Services
                             await dbService.Log(message2, alreadyAddedPlayerId);
                             await dbService.RemovePlayerFromAnyActiveTournament(alreadyAddedPlayerId);
                         }
-                        savedTournament.Entity.IsOpen = false;
+                        //savedTournament.Entity.IsOpen = false;
                         await dbService?.LeiaContext?.SaveChangesAsync();
                         return null;
                     }
@@ -366,22 +368,28 @@ namespace Services
             throw new NotImplementedException();
         }
 
-        public async Task CheckTournamentStatus(ISuikaDbService dbService, int tournamentId, PlayerTournamentSession playerTournamentSession)
+        public async Task CheckTournamentStatus(List<PlayerTournamentSession> sortedDataForFinalTournamentCalc, TournamentType tournamentType, ISuikaDbService dbService, int tournamentId, Player callingPlayer/*, PlayerTournamentSession playerTournamentSession*/)
         {
             var context = dbService.LeiaContext;
             try
             {
-                var tournament = context.Tournaments
-     
-                    .Include(t => t.PlayerTournamentSessions)
-                    .Include(t => t.Players)
-                    .FirstOrDefault(t => t.TournamentSessionId == tournamentId);
-                if (tournament != null)
-                {
-                    var scores = context.PlayerTournamentSession.Where(pt => pt.TournamentSession.TournamentSessionId == tournamentId).Select(pt => pt.PlayerScore).ToList();
-                    if (scores.All(s => s != null) && scores.Count >= playerTournamentSession.TournamentType.NumberOfPlayers) await _postTournamentService.CloseTournament(tournament); // close tournament
+                //var tournament = context.Tournaments
 
-                }
+                //    .Include(t => t.PlayerTournamentSessions)
+                //    .Include(t => t.Players)
+                //    .FirstOrDefault(t => t.TournamentSessionId == tournamentId);
+
+                //if (tournament != null)
+                //{
+                    var scores = context.PlayerTournamentSession.Where(p => sortedDataForFinalTournamentCalc.Select(x => x.PlayerId).Contains(p.PlayerId)).Select(pt => pt.PlayerScore).ToList();
+
+                    if (/*scores.All(s => s != null) &&*/ scores.Count >= tournamentType.NumberOfPlayers) 
+                        await _postTournamentService.CloseTournament(sortedDataForFinalTournamentCalc, tournamentId/*, tournament*/); // close tournament
+
+                    //if (/*scores.All(s => s != null) &&*/ scores.Count >= tournamentType.NumberOfPlayers) 
+                    //    await _postTournamentService.CloseTournament(tournament); // close tournament
+
+                //}
             }
             catch (Exception ex)
             {
@@ -426,19 +434,110 @@ namespace Services
 
                 if (dbTournament == null)
                 {
-                    var ex =  new Exception($"ChargePlayer: Could not charge player {playerId}, tournament '{tournamentId}' not found!");
+                    var ex = new Exception($"ChargePlayer: Could not charge player {playerId}, tournament '{tournamentId}' not found!");
                     await suikaDbService.Log(ex, playerId);
                     throw ex;
                 }
 
                 var tournamentType = playerTournamentSession.TournamentType;
 
-                var currencyId = tournamentType.CurrenciesId;
-                var fee = -tournamentType.EntryFee;
 
-                var updatedBalance = await suikaDbService.UpdatePlayerBalance(playerId, currencyId, fee);
-                return updatedBalance;
+                if(tournamentType.CurrenciesId == 10)
+                {
+                    var fee = -tournamentType.EntryFee;
+
+                    var updatedBalance = await suikaDbService.UpdatePlayerBalance(playerId, tournamentType.CurrenciesId, fee);
+
+                    return updatedBalance;
+                }
+                else
+                {
+                    double? idealCash = tournamentType?.EntryFee * 0.8;
+                    double? idealBonus = tournamentType?.EntryFee - idealCash;
+
+                    var currentCashBalance = await suikaDbService.GetPlayerBalance(playerId, 6); //flag hardcoded
+                    var currentBonusCashBalance = await suikaDbService.GetPlayerBalance(playerId, 13); //flag hardcoded
+
+                    // Rule 4: Check that the player has enough overall.
+                    if ((currentCashBalance ==null && currentBonusCashBalance == null) || currentCashBalance + currentBonusCashBalance < tournamentType?.EntryFee)
+                    {
+                        var ex = new Exception($"ChargePlayer: Insufficient funds for player {playerId}");
+                        await suikaDbService.Log(ex, playerId);
+                        throw ex;
+                    }
+
+                    double? cashToDeduct = idealCash;
+                    double? bonusToDeduct = idealBonus;
+
+                    // Rule 2 & 3: If one account lacks enough funds, use as much as possible and cover the rest from the other.
+                    if (currentCashBalance < idealCash)
+                    {
+                        cashToDeduct = currentCashBalance;
+                        bonusToDeduct = tournamentType?.EntryFee - cashToDeduct;
+                    }
+                    else if (currentBonusCashBalance < idealBonus)
+                    {
+                        bonusToDeduct = currentBonusCashBalance;
+                        cashToDeduct = tournamentType?.EntryFee - bonusToDeduct;
+                    }
+
+
+                    var updatedBalance = await suikaDbService.UpdatePlayerBalance(playerId, 6, -cashToDeduct);
+                    updatedBalance = await suikaDbService.UpdatePlayerBalance(playerId, 13, -bonusToDeduct);
+
+                    return updatedBalance;
+                }
             }
         }
+        //public async Task<PlayerCurrencies?> ChargePlayer(Guid playerId, int? tournamentId)
+        //{ // this 👇🏻 gets the current scope of the services that are Scoped.
+        //    // through it, we can get the actual service instance that is assigned in the scope. for example the suikaDbService instance that
+        //    // is associated with current HTTP call in the controller . this prevents collisions between scopes. for example if suikaDbService is
+        //    // called from PlayersController, and from MatchingController - each creates a different instance of suikaDbService. each of them is
+        //    // also  injected into the TournamentService in each Controller. which may result in 2 different suikaDbServices being injected into 
+        //    // TournamentService, depending on the Controller that makes the call to TournamentService. this results in 2 different Contexts for
+        //    // the 2 Controllers. which of course creates problems when a method in TournamentService that was called from PlayersController and
+        //    // then another method was called from MatchingController, cause the 2 different instances of the Context to collide.
+        //    // 
+        //    using (var scope = _scopeFactory.CreateScope())
+        //    {
+        //        var suikaDbService = scope.ServiceProvider.GetRequiredService<ISuikaDbService>();
+        //        var dbPlayer = await suikaDbService.GetPlayerById(playerId);
+        //        if (dbPlayer == null)
+        //        {
+        //            var ex = new Exception($"ChargePlayer: Could not load player {playerId}");
+        //            await suikaDbService.Log(ex, playerId);
+        //            throw ex;
+        //        }
+
+        //        var playerTournamentSession = await suikaDbService.LeiaContext.PlayerTournamentSession
+        //            .Include(pt => pt.TournamentType)
+        //            .FirstOrDefaultAsync(s => s.PlayerId == playerId && s.TournamentSession.TournamentSessionId == tournamentId);
+        //        if (playerTournamentSession == null)
+        //        {
+        //            var ex = new Exception($"ChargePlayer: Could not load player session {playerId} for tournament {tournamentId}");
+        //            await suikaDbService.Log(ex, playerId);
+        //            throw ex;
+        //        }
+
+        //        var dbTournament = suikaDbService.LeiaContext.Tournaments
+        //                .FirstOrDefault(t => t.TournamentSessionId == tournamentId);
+
+        //        if (dbTournament == null)
+        //        {
+        //            var ex = new Exception($"ChargePlayer: Could not charge player {playerId}, tournament '{tournamentId}' not found!");
+        //            await suikaDbService.Log(ex, playerId);
+        //            throw ex;
+        //        }
+
+        //        var tournamentType = playerTournamentSession.TournamentType;
+
+        //        var currencyId = tournamentType.CurrenciesId;
+        //        var fee = -tournamentType.EntryFee;
+
+        //        var updatedBalance = await suikaDbService.UpdatePlayerBalance(playerId, currencyId, fee);
+        //        return updatedBalance;
+        //    }
+        //}
     }
 }

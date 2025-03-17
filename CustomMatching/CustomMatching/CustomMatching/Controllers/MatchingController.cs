@@ -62,10 +62,25 @@ namespace CustomMatching.Controllers
                 var gameType = await _suikaDbService.LeiaContext.GameType.FindAsync(request.gameTypeId);
                 if (gameType == null) return NotFound("There is no such game Type");
 
-                var playerBalance = await _suikaDbService.GetPlayerBalance(playerId, dbTournamentType?.CurrenciesId/*currency*/);
-                if (playerBalance == null) return BadRequest("The player doesn't have a balance for this currency");
 
-                if (playerBalance < dbTournamentType?.EntryFee /* matchFee*/) return BadRequest(new { IsSuccess = false, ErrorMessage = "The player doesn't have enough of this currency to join this match", currencyId = dbTournamentType.CurrenciesId });
+                // If the currency is 10, use the normal (existing) charge logic.
+                if (dbTournamentType.CurrenciesId == 10) //10 = gems, the rest equals money (13 and 6)
+                {
+                    var playerBalance = await _suikaDbService.GetPlayerBalance(playerId, dbTournamentType?.CurrenciesId/*currency*/);
+                    if (playerBalance == null) return BadRequest("The player doesn't have a balance for this currency");
+
+                    if (playerBalance < dbTournamentType?.EntryFee) return BadRequest(new { IsSuccess = false, ErrorMessage = "The player doesn't have enough of this currency to join this match", currencyId = dbTournamentType.CurrenciesId });
+                }
+                else
+                {
+                    var currentCashBalance = await _suikaDbService.GetPlayerBalance(playerId, 6); //flag hardcoded
+                    var currentBonusCashBalance = await _suikaDbService.GetPlayerBalance(playerId, 13); //flag hardcoded
+
+                    if ((currentCashBalance == null && currentBonusCashBalance == null) || currentCashBalance + currentBonusCashBalance < dbTournamentType?.EntryFee)
+                    {
+                        return BadRequest(new { IsSuccess = false, ErrorMessage = "The player doesn't have enough of this currency to join this match", currencyId = dbTournamentType.CurrenciesId });
+                    }
+                }
 
                 #endregion
 

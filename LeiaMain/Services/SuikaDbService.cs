@@ -126,7 +126,7 @@ namespace Services
         /// <param name="playerBalance"></param>
         /// <param name="maxResults"></param>
         /// <returns></returns>
-        public Task<IEnumerable<TournamentSession>> FindSuitableTournamentForRating(Guid playerId, int gameTypeId, int playerRating, int maxRatingDrift, int tournamentTypeId, int currencyId, double playerBalance, int maxResults);
+        public Task<IEnumerable<TournamentSession>> FindSuitableTournamentForRating(Guid playerId, int gameTypeId, int playerRating, int maxRatingDrift, int tournamentTypeId, int currencyId/*, double? playerBalance*/, int maxResults);
         public LeiaContext LeiaContext { get; set; }
     }
 
@@ -154,6 +154,18 @@ namespace Services
                         PlayerId = player.PlayerId,
                         CurrenciesId = (int)currencies?.Find(c => c.CurrencyName == "Gems")?.CurrencyId,
                         CurrencyBalance = 1000
+                    },
+                    new ()
+                    {
+                        PlayerId = player.PlayerId,
+                        CurrenciesId = (int)currencies?.Find(c => c.CurrencyName == "USD")?.CurrencyId,
+                        CurrencyBalance = 0
+                    },
+                    new ()
+                    {
+                        PlayerId = player.PlayerId,
+                        CurrenciesId = (int)currencies?.Find(c => c.CurrencyName == "BonusCash")?.CurrencyId,
+                        CurrencyBalance = 0
                     },
                     new()
                     {
@@ -264,17 +276,17 @@ namespace Services
                    .ToListAsync();
         }
 
-        public async Task<IEnumerable<TournamentSession>> FindSuitableTournamentForRating(Guid playerId, int gameTypeId, int playerRating, int maxRatingDrift, int tournamentTypeId, int currencyId, double playerBalance, int maxResults)
+        public async Task<IEnumerable<TournamentSession>> FindSuitableTournamentForRating(Guid playerId, int gameTypeId, int playerRating, int maxRatingDrift, int tournamentTypeId, int currencyId/*, double? playerBalance*/, int maxResults)
         {
             var tournamentType = await _leiaContext.TournamentTypes.FindAsync(tournamentTypeId);
             if (tournamentType == null)
             {
                 throw new Exception($"Tournament type does not exist {tournamentTypeId}");
             }
-            if (tournamentType.EntryFee > playerBalance)
-            {
-                throw new Exception($"Player has not enough balance for tournament type {tournamentTypeId}, need {tournamentType.EntryFee}, has {playerBalance}");
-            }
+            //if (tournamentType.EntryFee > playerBalance)
+            //{
+            //    throw new Exception($"Player has not enough balance for tournament type {tournamentTypeId}, need {tournamentType.EntryFee}, has {playerBalance}");
+            //}
 
             var twoDaysAgo = DateTime.UtcNow.AddDays(-2);
 
