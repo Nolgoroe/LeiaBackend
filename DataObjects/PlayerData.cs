@@ -22,6 +22,7 @@ namespace DataObjects
         public string? Email { get; set; }
         [Phone]
         public string? PhoneNumber { get; set; }
+        public string? ZipCode { get; set; }
         public string? Country { get; set; }
         public string? WalletAddress { get; set; }
         public DateTime? RegistrationDate { get; set; }

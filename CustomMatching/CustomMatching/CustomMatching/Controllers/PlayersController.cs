@@ -24,6 +24,7 @@ public class RegistrationAsPayerData
     public required string country { get; set; }
     public required string email { get; set; }
     public required string birthday { get; set; }
+    public required string zipCode { get; set; }
 }
 
 public class LoginAsPayerRequest
@@ -360,7 +361,7 @@ namespace CustomMatching.Controllers
             DateOnly birthday;
             DateOnly.TryParseExact(
                 registrationData.birthday,
-                "dd-MM-yyyy",
+                "yyyy-MM-dd",
                 System.Globalization.CultureInfo.InvariantCulture,
                 System.Globalization.DateTimeStyles.None,
                 out birthday);
@@ -371,6 +372,7 @@ namespace CustomMatching.Controllers
             playerData.Email = registrationData.email;
             playerData.Country = registrationData.country;
             playerData.Birthday = birthday;
+            playerData.ZipCode = registrationData.zipCode;
             await _suikaDbService.UpdatePlayer(playerData);
 
             LoginResponse loginResponse = await GetLoginResponse(playerData, request.authToken);
@@ -533,6 +535,10 @@ namespace CustomMatching.Controllers
                 return false;
             }
             if (string.IsNullOrWhiteSpace(registrationData.lastName) || registrationData.lastName.Length < 2)
+            {
+                return false;
+            }
+            if (string.IsNullOrWhiteSpace(registrationData.lastName) || registrationData.zipCode.Length < 5)
             {
                 return false;
             }
