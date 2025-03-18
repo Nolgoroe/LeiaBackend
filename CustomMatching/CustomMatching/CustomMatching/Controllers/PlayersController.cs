@@ -360,7 +360,7 @@ namespace CustomMatching.Controllers
             DateOnly birthday;
             DateOnly.TryParseExact(
                 registrationData.birthday,
-                "dd-MM-yyyy",
+                "yyyy-MM-dd",
                 System.Globalization.CultureInfo.InvariantCulture,
                 System.Globalization.DateTimeStyles.None,
                 out birthday);
