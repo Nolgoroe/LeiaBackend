@@ -44,6 +44,12 @@ namespace DAL.Migrations
                 table: "Players",
                 type: "nvarchar(max)",
                 nullable: true);
+
+            migrationBuilder.AddColumn<string>(
+                name: "ZipCode",
+                table: "Players",
+                type: "nvarchar(max)",
+                nullable: true);
         }
 
         /// <inheritdoc />
@@ -67,6 +73,10 @@ namespace DAL.Migrations
 
             migrationBuilder.DropColumn(
                 name: "PhoneNumber",
+                table: "Players");
+
+            migrationBuilder.DropColumn(
+                name: "ZipCode",
                 table: "Players");
 
             migrationBuilder.AddColumn<int>(

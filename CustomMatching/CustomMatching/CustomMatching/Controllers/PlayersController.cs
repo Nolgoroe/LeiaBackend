@@ -538,7 +538,7 @@ namespace CustomMatching.Controllers
             {
                 return false;
             }
-            if (string.IsNullOrWhiteSpace(registrationData.lastName) || registrationData.zipCode.Length < 5)
+            if (string.IsNullOrWhiteSpace(registrationData.lastName)/* || registrationData.zipCode.Length < 5*/)
             {
                 return false;
             }
