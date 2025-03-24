@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Services
 {
     /// <summary>
-    /// Formally MatchRequest
+    /// Formally 'MatchRequest'
     /// A virtual object (not in db) that unifies several records related to a current match-make request of a
     /// specific player
     /// </summary>
@@ -153,7 +153,7 @@ namespace Services
                     {
                         PlayerId = player.PlayerId,
                         CurrenciesId = (int)currencies?.Find(c => c.CurrencyName == "Gems")?.CurrencyId,
-                        CurrencyBalance = 1000
+                        CurrencyBalance = 0
                     },
                     new ()
                     {
@@ -180,6 +180,8 @@ namespace Services
                         CurrencyBalance = 0
                     },
                 });
+
+                player.RegistrationDate = DateTime.UtcNow;
 
                 var league = await _leiaContext.League.FindAsync(player?.LeagueId);
                 if (league != null) player.League = league;
@@ -288,19 +290,39 @@ namespace Services
             //    throw new Exception($"Player has not enough balance for tournament type {tournamentTypeId}, need {tournamentType.EntryFee}, has {playerBalance}");
             //}
 
-            var twoDaysAgo = DateTime.UtcNow.AddDays(-2);
+            //var twoDaysAgo = DateTime.UtcNow.AddDays(-2);
 
-            return await _leiaContext.Tournaments
-                .Where(
-                    t => Math.Abs(t.Rating - playerRating) < maxRatingDrift &&         // Rating is in range
-                                                                                       // t.TournamentData.TournamentTypeId == tournamentTypeId &&
-                    t.GameTypeId == gameTypeId &&
-                    t.StartTime > twoDaysAgo &&                                                                   // t.TournamentData.EntryFeeCurrencyId == currencyId &&               // The currency Id is matching                    
-                    !t.Players.Select(p => p.PlayerId).Contains(playerId)
-                    ) // Tournament is not full
-                .OrderBy(t => Math.Abs(t.Rating - playerRating))
-                .Take(maxResults)
-                .ToListAsync();
+
+            //if your currency ID == 13 (real money) then change drift to look more upwards and return the touranment with the highest glicko rating from the possible touranments
+
+            if(currencyId != 10)
+            {
+                return await _leiaContext.Tournaments
+                    .Where(
+                        t => Math.Abs(t.Rating - playerRating) < maxRatingDrift &&         // Rating is in range
+                                                                                           // t.TournamentData.TournamentTypeId == tournamentTypeId &&
+                        t.GameTypeId == gameTypeId &&
+                        /*t.StartTime > twoDaysAgo &&*/                                                                   // t.TournamentData.EntryFeeCurrencyId == currencyId &&               // The currency Id is matching                    
+                        !t.Players.Select(p => p.PlayerId).Contains(playerId)
+                        ) // Tournament is not full
+                    .OrderByDescending(t => t.Rating)
+                    .Take(maxResults)
+                    .ToListAsync();
+            }
+            else
+            {
+                return await _leiaContext.Tournaments
+                    .Where(
+                        t => Math.Abs(t.Rating - playerRating) < maxRatingDrift &&         // Rating is in range
+                                                                                           // t.TournamentData.TournamentTypeId == tournamentTypeId &&
+                        t.GameTypeId == gameTypeId &&
+                        /*t.StartTime > twoDaysAgo &&*/                                                                   // t.TournamentData.EntryFeeCurrencyId == currencyId &&               // The currency Id is matching                    
+                        !t.Players.Select(p => p.PlayerId).Contains(playerId)
+                        ) // Tournament is not full
+                    .OrderBy(t => Math.Abs(t.Rating - playerRating))
+                    .Take(maxResults)
+                    .ToListAsync();
+            }
         }
 
         public async Task<List<PlayerCurrencies?>?> GetAllPlayerBalances(Guid playerId)

@@ -74,10 +74,10 @@ namespace CustomMatching.Controllers
                 }
                 else
                 {
-                    if (!player.IsRegistered)
-                    {
-                        return BadRequest("The player is not yet allowed to use real money! please register.");
-                    }
+                    //if (!player.IsRegistered)
+                    //{
+                    //    return BadRequest("The player is not yet allowed to use real money! please register.");
+                    //}
 
                     var currentCashBalance = await _suikaDbService.GetPlayerBalance(playerId, 6); //flag hardcoded
                     var currentBonusCashBalance = await _suikaDbService.GetPlayerBalance(playerId, 13); //flag hardcoded

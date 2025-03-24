@@ -20,7 +20,7 @@ namespace Services
 
     public class TournamentService : ITournamentService
     {
-        private const int MAX_RATING_DRIFT = 5000; 
+        private const int MAX_RATING_DRIFT = 300; 
         private const int MATCH_MAKER_INTERVAL = 500; // get these numbers from tournament DB or config file
         private readonly IPostTournamentService _postTournamentService;
         private readonly IServiceScopeFactory _scopeFactory;
