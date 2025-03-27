@@ -22,7 +22,8 @@ namespace Services
     {
         //public Task CloseTournament(TournamentSession tournament);
         public Task CloseTournament(List<PlayerTournamentSession> sortedDataForFinalTournamentCalc, int tournamentId);
-        public Task<(double?, bool?, double?)> GrantTournamentPrizes(TournamentSession? tournament, Player? player);
+        public Task<(double?, bool?, double?)> GrantTournamentPrizes(List<PlayerTournamentSession> tournamentLeaderboard, TournamentSession? tournament, Player? player);
+        //public Task<(double?, bool?, double?)> GrantTournamentPrizes(TournamentSession? tournament, Player? player);
 
     }
 
@@ -152,7 +153,7 @@ namespace Services
         //    return leaderboardEntries;
         //}
 
-        public static List<PlayerTournamentSession> CalculateLeaderboardForPlayer(Guid requestingPlayerGuid,IEnumerable<PlayerTournamentSession> allPlayerTournamentSessions,TournamentType tournamentType,int tournamentId)
+        public static List<PlayerTournamentSession> CalculateLeaderboardForPlayer(Guid requestingPlayerGuid, IEnumerable<PlayerTournamentSession> allPlayerTournamentSessions,TournamentType tournamentType,int tournamentId)
         {
             // Retrieve the requesting player's session.
             var requestingPlayerSession = allPlayerTournamentSessions
@@ -409,7 +410,7 @@ namespace Services
         }
 
         //turn this into an endpoint and get player as well
-        public async Task<(double?, bool?, double?)> GrantTournamentPrizes(TournamentSession? tournament, Player? player)
+        public async Task<(double?, bool?, double?)> GrantTournamentPrizes(List<PlayerTournamentSession> tournamentLeaderboard, TournamentSession? tournament, Player? player)
         {
             if (tournament == null || player == null)
             {
@@ -417,7 +418,7 @@ namespace Services
                 return (-1, false, -1);
             }
 
-            var playersByScore = tournament?.PlayerTournamentSessions.OrderByDescending(pt => pt.PlayerScore).Select(pt =>
+            var playersByScore = tournamentLeaderboard.OrderByDescending(pt => pt.PlayerScore).Select(pt =>
             {
                 return tournament?.Players.FirstOrDefault(p => p.PlayerId == pt.PlayerId);
             }).ToList();

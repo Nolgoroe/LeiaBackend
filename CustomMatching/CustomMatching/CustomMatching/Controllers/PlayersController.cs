@@ -469,7 +469,11 @@ namespace CustomMatching.Controllers
             if (player == null || tournament == null) return NotFound("Player or tournament were not found");
             if (tournament.PlayerTournamentSessions.FirstOrDefault(pt => pt.PlayerId == player.PlayerId && pt.TournamentSession.TournamentSessionId == tournamentId)?.DidClaim != null) return BadRequest("Player already claimed this prize");
 
-           var (amountClaimed, wasTournamentClaimed, PTclaimed ) =  await _postTournamentService.GrantTournamentPrizes(tournament, player);
+            var allPlayerTournamentSessions = await _suikaDbService.LeiaContext.PlayerTournamentSession.Where(e => e.TournamentSessionId == tournamentId).ToListAsync();
+
+            var leaderBoard = PostTournamentService.CalculateLeaderboardForPlayer(player.PlayerId, allPlayerTournamentSessions, playerTournamentSession.TournamentType, tournamentId).ToList();
+
+            var (amountClaimed, wasTournamentClaimed, PTclaimed ) =  await _postTournamentService.GrantTournamentPrizes(leaderBoard, tournament, player);
 
             if (amountClaimed == null || amountClaimed == -1) return StatusCode(500, $"Returned {amountClaimed}, Failed to claim prize");
             if (wasTournamentClaimed == null || wasTournamentClaimed == false) return StatusCode(500, $"Returned {wasTournamentClaimed}, Failed to claim tournament");
