@@ -161,6 +161,11 @@ namespace CustomMatching.Controllers
                     #region CHARGE PLAYER Part
                     // TODO: Lock inside a semaphore
 
+                    //give 1 egg when player enters a tournament - always
+                    int id = (int)_suikaDbService.LeiaContext.Currencies?.Where(c => c.CurrencyName == "Eggs").FirstOrDefault().CurrencyId;
+
+                    await _suikaDbService.UpdatePlayerBalance(playerId, id, 1); //flag hardcoded
+
                     var newBalance = await _tournamentService.ChargePlayer(playerId, tournament.TournamentSessionId); // we use IdAndSeed[0] to get tournament Id because it first int the array
                     if (newBalance != null)
                     {

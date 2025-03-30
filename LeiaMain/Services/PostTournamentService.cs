@@ -328,11 +328,10 @@ namespace Services
 
 
                         var saved = await context.SaveChangesAsync();
-                        if (saved > 0)
-                        {
-
-                            var granted = await GrantTournamentEggs(sortedDataForFinalTournamentCalc, updatedPlayerTournament.Entity);
-                        }
+                        //if (saved > 0)
+                        //{
+                        //    var granted = await GrantTournamentEggs(sortedDataForFinalTournamentCalc, updatedPlayerTournament.Entity);
+                        //}
                     }
                     catch (Exception ex)
                     {
@@ -430,11 +429,24 @@ namespace Services
                 return (-1, false, -1);
             }
 
-            var rewards = _suikaDbService.LeiaContext.TournamentTypes.Include(tt => tt.Reward).FirstOrDefault(tt => tt.TournamentTypeId == individualPlayerTournament.TournamentTypeId)?.Reward;
+            var tournamentType = _suikaDbService.LeiaContext.TournamentTypes.Include(tt => tt.Reward).FirstOrDefault(tt => tt.TournamentTypeId == individualPlayerTournament.TournamentTypeId);
+            var rewards = tournamentType?.Reward;
 
             var playerPosition = playersByScore?.IndexOf(player) + 1; // +1 because the index is 0 based and positions are 1 based
             if (playerPosition != -1) //if player position was found
             { //update with the corresponding reward
+
+                int Eggsid = (int)_suikaDbService.LeiaContext.Currencies?.Where(c => c.CurrencyName == "Eggs").FirstOrDefault().CurrencyId;
+
+                if (tournamentType.CurrenciesId != 10)
+                {
+                    //give eggs for position
+                    var updated = await _suikaDbService.UpdatePlayerBalance(player?.PlayerId, Eggsid, 2);
+                }
+                else
+                {
+                    var updated = await _suikaDbService.UpdatePlayerBalance(player?.PlayerId, Eggsid, 1);
+                }
 
                 // TODO make this compatible with multiple rewards per player position (send list of rewards to UpdateBalanceWithReward) 
                 var reward = rewards?.FirstOrDefault(r => r.ForPosition == playerPosition);
