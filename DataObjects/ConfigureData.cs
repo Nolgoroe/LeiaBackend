@@ -21,6 +21,7 @@ namespace DataObjects
         public string? ConfigName { get; set; }
         public string? AppVersion { get; set; }
         public string? BaseURL { get; set; }
+        public bool? IsOpenForPlayers { get; set; }
         
     }
 }
