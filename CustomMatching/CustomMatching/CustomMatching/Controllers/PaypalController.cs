@@ -146,22 +146,29 @@ public class PaypalController : ControllerBase
     [HttpPost("CreatePayment")]
     public async Task<IActionResult> CreatePayment([FromBody] Cart currentCart)
     {
-        // 1. Get access token
-        var accessToken = await GetAccessToken(clientId, secretKey, tokenEndpoint);
-        if (string.IsNullOrEmpty(accessToken))
+        try
         {
-            return StatusCode(500, "Error obtaining access token from PayPal");
-        }
+            // 1. Get access token
+            var accessToken = await GetAccessToken(clientId, secretKey, tokenEndpoint);
+            if (string.IsNullOrEmpty(accessToken))
+            {
+                return StatusCode(500, "Error obtaining access token from PayPal");
+            }
 
-        // 2. Create payment order
-        var orderResponse = await CreatePaymentOrder(currentCart, accessToken, orderEndpoint);
-        if (orderResponse == null)
+            // 2. Create payment order
+            var orderResponse = await CreatePaymentOrder(currentCart, accessToken, orderEndpoint);
+            if (orderResponse == null)
+            {
+                return StatusCode(500, "Error creating payment order");
+            }
+
+            // Return the approval URL to the client so that it can redirect the user to PayPal.
+            return Ok(orderResponse); //FLAG HARDCODED
+        }
+        catch (Exception ex)
         {
-            return StatusCode(500, "Error creating payment order");
+            return StatusCode(500, ex.Message);
         }
-
-        // Return the approval URL to the client so that it can redirect the user to PayPal.
-        return Ok(orderResponse); //FLAG HARDCODED
     }
 
 
@@ -174,35 +181,34 @@ public class PaypalController : ControllerBase
             return StatusCode(500, "Error obtaining access token from PayPal");
         }
 
-        using (client)
+        // Clear any previous headers if necessary.
+        client.DefaultRequestHeaders.Clear();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+        client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+
+        var response = await client.GetAsync(verifyLink);
+        if (!response.IsSuccessStatusCode)
         {
-            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
-            client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-
-            var response = await client.GetAsync(verifyLink);
-            if (!response.IsSuccessStatusCode)
-            {
-                return StatusCode((int)response.StatusCode, "Error fetching payment details from PayPal");
-            }
-
-            var responseContent = await response.Content.ReadAsStringAsync();
-            // Deserialize into your existing VerifyResponse model.
-            var verifyResponse = JsonSerializer.Deserialize<VerifyResponse>(responseContent, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-
-            // Build a simplified response.
-            PaymentStatusResponse statusResponse = new PaymentStatusResponse();
-            if (verifyResponse != null && verifyResponse.payer != null)
-            {
-                statusResponse.status = verifyResponse.payer.status;
-                statusResponse.payer_id = verifyResponse.payer.payer_info?.payer_id;
-            }
-            else
-            {
-                statusResponse.status = "UNKNOWN";
-            }
-
-            return Ok(statusResponse);
+            return StatusCode((int)response.StatusCode, "Error fetching payment details from PayPal");
         }
+
+        var responseContent = await response.Content.ReadAsStringAsync();
+        var verifyResponse = JsonSerializer.Deserialize<VerifyResponse>(responseContent,
+            new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+        // Build a simplified response.
+        PaymentStatusResponse statusResponse = new PaymentStatusResponse();
+        if (verifyResponse != null && verifyResponse.payer != null)
+        {
+            statusResponse.status = verifyResponse.payer.status;
+            statusResponse.payer_id = verifyResponse.payer.payer_info?.payer_id;
+        }
+        else
+        {
+            statusResponse.status = "UNKNOWN";
+        }
+
+        return Ok(statusResponse);
     }
 
     [HttpPost("ExecutePayment")]
@@ -232,6 +238,8 @@ public class PaypalController : ControllerBase
     private async Task<string> GetAccessToken(string clientId, string secretKey, string tokenEndpoint)
     {
         var authString = Convert.ToBase64String(Encoding.ASCII.GetBytes($"{clientId}:{secretKey}"));
+
+        client.DefaultRequestHeaders.Clear();
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", authString);
 
         var content = new FormUrlEncodedContent(new[]
@@ -258,6 +266,7 @@ public class PaypalController : ControllerBase
 
     private async Task<OrderResponse> CreatePaymentOrder(Cart currentCart, string accessToken, string orderEndpoint)
     {
+        client.DefaultRequestHeaders.Clear();
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
         client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
@@ -267,8 +276,11 @@ public class PaypalController : ControllerBase
         var response = await client.PostAsync(orderEndpoint, content);
         if (!response.IsSuccessStatusCode)
         {
-            // Log error details as needed
-            return null;
+            var errorContent = await response.Content.ReadAsStringAsync();
+            throw new Exception("Error creating payment order: " + errorContent);
+
+            //// Log error details as needed
+            //return null;
         }
 
         var responseContent = await response.Content.ReadAsStringAsync();
@@ -277,6 +289,7 @@ public class PaypalController : ControllerBase
 
     private async Task<object> ExecutePaymentAsync(PayerIdWrapper payerWrapper, string accessToken, string executeLink)
     {
+        client.DefaultRequestHeaders.Clear();
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
         client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
