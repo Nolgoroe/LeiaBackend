@@ -12,9 +12,21 @@ using Services.PhoneNumberVerification;
 using System.Globalization;
 using System.Text.RegularExpressions;
 
+using System.Net;
+using System.Net.Mail;
 
 // For more information on enabling Web API for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
 
+public class WithdrawEmailRequest
+{
+    public required string authToken { get; set; }
+
+    public int currencyID { get; set; }
+    public float currencyAmount { get; set; }
+
+    public string Subject { get; set; }
+    public string EmailBody { get; set; }
+}
 public class RegistrationAsPayerData
 {
     public required string authToken { get; set; }
@@ -264,6 +276,35 @@ namespace CustomMatching.Controllers
 
             await _phoneNumberVerificationService.SendVerificationCode(registrationData.phoneNumber);
             return Ok();
+        }
+        [HttpPost, Route("ForceRegisterUserManually")]
+        public async Task<IActionResult> ForceRegisterUserManually([FromBody] RegistrationAsPayerData registrationData)
+        {
+            var playerData = await _suikaDbService.LoadPlayerByAuthToken(registrationData.authToken);
+            if (playerData == null)
+            {
+                return NotFound("PlayerId was not provided");
+            }
+
+            DateOnly birthday;
+            DateOnly.TryParseExact(
+                registrationData.birthday,
+                "yyyy-MM-dd",
+                System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.None,
+                out birthday);
+            playerData.FirstName = registrationData.firstName;
+            playerData.LastName = registrationData.lastName;
+            playerData.RegistrationDate = DateTime.Now;
+            playerData.PhoneNumber = registrationData.phoneNumber;
+            playerData.Email = registrationData.email;
+            playerData.Country = registrationData.country;
+            playerData.Birthday = birthday;
+            playerData.ZipCode = registrationData.zipCode;
+            await _suikaDbService.UpdatePlayer(playerData);
+
+            LoginResponse loginResponse = await GetLoginResponse(playerData, registrationData.authToken);
+            return Ok(loginResponse);
         }
 
         [HttpPost, Route("LoginAsPayingUser")]
@@ -598,6 +639,63 @@ namespace CustomMatching.Controllers
             }
 
             return true;
+        }
+
+
+
+
+        [HttpPost, Route("SendWithdrawEmail")]
+        public async Task<IActionResult> SendWithdrawEmail([FromBody] WithdrawEmailRequest request)
+        {
+            var player = await _suikaDbService.LoadPlayerByAuthToken(request.authToken);
+            if (player == null) return NotFound("PlayerId was not provided");
+
+            // Validate input (in a real app you might perform more detailed validation)
+            if (request == null || string.IsNullOrEmpty(request.Subject) || string.IsNullOrEmpty(request.EmailBody)
+                || MathF.Abs(request.currencyAmount) <= 0 || request.currencyID <= 0)
+            {
+                return BadRequest("Please provide Subject, Body, currency ID and amount");
+            }
+
+            try
+            {
+                await SendEmailAsync(request.Subject, request.EmailBody);
+
+                await _suikaDbService.UpdatePlayerBalance(player?.PlayerId, request.currencyID, request.currencyAmount);
+
+
+                return Ok("Email sent successfully.");
+            }
+            catch (Exception ex)
+            {
+                // Return a 500 error with the exception message to display in Swagger.
+                return StatusCode(500, "Error sending email: " + ex.Message);
+            }
+        }
+        private async Task SendEmailAsync(string subject, string body)
+        {
+            string _smtpServer = "smtp.gmail.com";
+            int _port = 587;
+            bool _enableSsl = true;
+            string _username = "support@leia.games";
+            string _password = "togv woge urcg acgk";
+
+            using (var smtp = new SmtpClient(_smtpServer, _port))
+            {
+                smtp.EnableSsl = _enableSsl;
+                smtp.Credentials = new NetworkCredential(_username, _password);
+
+                MailMessage mailMessage = new MailMessage
+                {
+                    From = new MailAddress("support@leia.games"),
+                    Subject = subject,
+                    Body = body,
+                    IsBodyHtml = true
+                };
+
+                mailMessage.To.Add("support@leia.games");
+                await smtp.SendMailAsync(mailMessage);
+            }
         }
     }
 }
