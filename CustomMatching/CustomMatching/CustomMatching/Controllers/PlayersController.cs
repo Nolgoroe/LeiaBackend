@@ -133,6 +133,9 @@ namespace CustomMatching.Controllers
         public async Task<IActionResult> GetPlayerById(Guid playerId)
         {
             var player = await _suikaDbService.GetPlayerById(playerId);
+
+            var playerSecret = _suikaDbService.LeiaContext.PlayerAuthToken.First(s => s.PlayerId == player.PlayerId).Secret;
+
             return Ok(player);
         }
 
@@ -207,7 +210,6 @@ namespace CustomMatching.Controllers
             var player = await _suikaDbService.LeiaContext.Players.FirstOrDefaultAsync(p => p.PlayerId == playerId);
             if (player is null)
             {
-
                 return NotFound($"Player: {playerId}, was not found");
             }
 
@@ -311,6 +313,7 @@ namespace CustomMatching.Controllers
         public async Task<IActionResult> LoginAsPayingUser([FromBody] LoginAsPayerRequest request)
         {
             var playerData = await _suikaDbService.LoadPlayerByAuthToken(request.authToken);
+
             if (playerData == null)
             {
                 return NotFound("PlayerId was not provided");
@@ -323,7 +326,7 @@ namespace CustomMatching.Controllers
             }
 
             var playerDataByPhoneNumber = _suikaDbService.GetPlayerByPhoneNumber(phoneNumber);
-            if (playerDataByPhoneNumber is null)
+            if (playerDataByPhoneNumber.Result is null)
             {
                 return NotFound("Player was not found");
             }
@@ -370,9 +373,16 @@ namespace CustomMatching.Controllers
                     return BadRequest("Bad code");
                 }
 
+                var playerSecret = _suikaDbService.LeiaContext.PlayerAuthToken.First(s => s.PlayerId == playerByPhoneNumber.PlayerId).Secret;
+
                 string newAuthTokenValue = GetNewAuthToken(playerData.PlayerId);
                 LoginResponse playerByPhoneNumberLoginResponse = await GetLoginResponse(playerByPhoneNumber, newAuthTokenValue);
-                return Ok(playerByPhoneNumberLoginResponse);
+
+                return Ok(new
+                {
+                    LoginResponse = playerByPhoneNumberLoginResponse,
+                    newSecret = playerSecret
+                });
             }
 
 
