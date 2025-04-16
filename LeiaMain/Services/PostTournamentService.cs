@@ -577,6 +577,11 @@ namespace Services
                 }
             }*/
 
+            if(reward.CurrenciesId != 10)
+            {
+                var transaction = await _suikaDbService.AddTransactionRecordAsync(player.PlayerId, reward.CurrenciesId, (decimal)reward.RewardAmount, "Prize claimed");
+            }
+
             var updated = await _suikaDbService.UpdatePlayerBalance(player?.PlayerId, reward?.CurrenciesId, reward?.RewardAmount);
             if (updated != null) return updated?.CurrencyBalance;
             else

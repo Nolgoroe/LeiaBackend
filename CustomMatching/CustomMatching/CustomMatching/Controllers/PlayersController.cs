@@ -671,6 +671,9 @@ namespace CustomMatching.Controllers
             {
                 await SendEmailAsync(request.Subject, request.EmailBody);
 
+                //the currency amount is already sent here with minus from the client
+                var transaction = await _suikaDbService.AddTransactionRecordAsync(player.PlayerId, request.currencyID, (decimal)request.currencyAmount, "Withdraw request");
+
                 await _suikaDbService.UpdatePlayerBalance(player?.PlayerId, request.currencyID, request.currencyAmount);
 
 

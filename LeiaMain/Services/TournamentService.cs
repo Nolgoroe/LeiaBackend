@@ -441,8 +441,7 @@ namespace Services
 
                 var tournamentType = playerTournamentSession.TournamentType;
 
-
-                if(tournamentType.CurrenciesId == 10)
+                if (tournamentType.CurrenciesId == 10)
                 {
                     var fee = -tournamentType.EntryFee;
 
@@ -481,7 +480,8 @@ namespace Services
                         cashToDeduct = tournamentType?.EntryFee - bonusToDeduct;
                     }
 
-
+                    var transaction = await suikaDbService.AddTransactionRecordAsync(playerId, tournamentType.CurrenciesId, (decimal)-tournamentType.EntryFee, "Tournament Entry Fee");
+                    
                     var updatedBalance = await suikaDbService.UpdatePlayerBalance(playerId, 6, -cashToDeduct);
                     updatedBalance = await suikaDbService.UpdatePlayerBalance(playerId, 13, -bonusToDeduct);
 

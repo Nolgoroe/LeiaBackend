@@ -53,6 +53,7 @@ namespace Services
 
     public interface ISuikaDbService
     {
+        public Task<Transactions> AddTransactionRecordAsync(Guid playerId, int currenciesId, decimal? currencyAmount, string transactionTypeName);
         public Task<(Player, PlayerAuthToken)> CreateNewPlayer(Player player);
         public Task<Player>? UpdatePlayer(Player player);
         public Task<Player?> GetPlayerById(Guid playerId);
@@ -607,6 +608,42 @@ namespace Services
                 .Select(pat => pat.Player)
                 .FirstOrDefaultAsync();
         }
+
+
+        public async Task<Transactions> AddTransactionRecordAsync(Guid playerId, int currenciesId, decimal? currencyAmount, string transactionTypeName)
+        {
+            var transactionType = await _leiaContext.TransactionTypes.FirstOrDefaultAsync(t => t.TransactionTypeName == transactionTypeName);
+
+            if (transactionType == null)
+            {
+                transactionType = new TransactionType
+                {
+                    TransactionTypeName = transactionTypeName,
+                };
+                _leiaContext.TransactionTypes.Add(transactionType);
+                await _leiaContext.SaveChangesAsync();
+            }
+
+            // Create a new transaction record
+            var newTransaction = new Transactions
+            {
+                PlayerId = playerId,
+                TransactionDate = DateTime.UtcNow,
+                CurrenciesId = currenciesId,
+                CurrencyAmount = currencyAmount,
+                TransactionTypeId = transactionType.TransactionTypeId,
+                TransactionTypeName = transactionTypeName
+            };
+
+            // Add the transaction to the database context
+            _leiaContext.Transactions.Add(newTransaction);
+
+            // Save the changes to commit the transaction record
+            await _leiaContext.SaveChangesAsync();
+
+            return newTransaction;
+        }
+
     }
 
 }

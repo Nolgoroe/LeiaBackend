@@ -15,14 +15,14 @@ namespace DataObjects
         [Key]
         public int TransactionId { get; set; }
         public Guid PlayerId { get; set; }
-        public Player Player { get; set; } 
+        //public Player Player { get; set; } 
         public DateTime TransactionDate{ get; set; }
         public int CurrenciesId { get; set; }
-        public Currencies Currencies { get; set; }
-        public int CurrencyAmount { get; set; }
+        //public Currencies Currencies { get; set; }
+        public decimal? CurrencyAmount { get; set; }
         public int TransactionTypeId { get; set; }
-        public TransactionType TransactionType { get; set; }
-          
+        //public TransactionType TransactionType { get; set; }
+        public string TransactionTypeName { get; set; }
 
     }
 }
