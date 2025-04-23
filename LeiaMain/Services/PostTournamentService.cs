@@ -332,16 +332,21 @@ namespace Services
             var allPlayerSessionsSortedByScore = sortedDataForFinalTournamentCalc.OrderByDescending(s => s.PlayerScore).ToList();
             var playerByGuid = tournament.Players.Where(p => allPlayerGuids.Contains(p.PlayerId)).ToDictionary(p => p.PlayerId);
 
+            var tournamentTypes = await context.TournamentTypes
+                .ToDictionaryAsync(tt => tt.TournamentTypeId);
+
             for (var i = 0; i < allPlayerSessionsSortedByScore.Count(); i++)
             {
                 var playerSession = allPlayerSessionsSortedByScore[i];
 
                 if (!leaderboardPerTournamentTypeId.TryGetValue(playerSession.TournamentTypeId, out var playerLeaderboard))
                 {
+                    var tournamentType = tournamentTypes[playerSession.TournamentTypeId];
+
                     playerLeaderboard = CalculateLeaderboardForPlayer(
                         playerSession.PlayerId,
                         allPlayerSessionsSortedByScore,
-                        playerSession.TournamentType,
+                        tournamentType,
                         playerSession.TournamentSessionId).Select(s =>
                         {
                             return new TournamentGlickoRatingCalculationEntry
