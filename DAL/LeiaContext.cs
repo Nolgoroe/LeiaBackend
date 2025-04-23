@@ -24,6 +24,7 @@ namespace DAL
         public DbSet<League> League { get; set; }
         public DbSet<ConfigurationData> ConfigurationsData { get; set; }
         public DbSet<PlayerAuthToken> PlayerAuthToken { get; set; }
+        public DbSet<PlayerGameRating> PlayerGameRatings { get; set; }
 
         public DbSet<GameType> GameType { get; set; }
 

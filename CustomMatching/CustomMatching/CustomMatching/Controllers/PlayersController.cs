@@ -243,7 +243,7 @@ namespace CustomMatching.Controllers
             {
                 PlayerId = Guid.NewGuid(),
                 Name = request.name,
-                Rating = 1500, // TODO: To const
+                Rating = 0, // TODO: To const
             };
             if (!VerifyPlayer(player)) return BadRequest("Player details are incomplete");
             // check if tournaments with this id already exists

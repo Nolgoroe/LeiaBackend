@@ -53,6 +53,8 @@ namespace Services
 
     public interface ISuikaDbService
     {
+        public Task<PlayerGameRating?> GetPlayerGameRating(Guid playerId, int gameId);
+
         public Task<Transactions> AddTransactionRecordAsync(Guid playerId, int currenciesId, decimal? currencyAmount, string transactionTypeName);
         public Task<(Player, PlayerAuthToken)> CreateNewPlayer(Player player);
         public Task<Player>? UpdatePlayer(Player player);
@@ -644,6 +646,12 @@ namespace Services
             return newTransaction;
         }
 
+
+        public async Task<PlayerGameRating?> GetPlayerGameRating(Guid playerId, int gameId)
+        {
+            return await _leiaContext.PlayerGameRatings
+                .FirstOrDefaultAsync(r => r.PlayerId == playerId && r.GameId == gameId);
+        }
     }
 
 }

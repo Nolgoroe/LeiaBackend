@@ -48,10 +48,10 @@ namespace Services
         }
 
 
-        private static GlickoPlayer ConvertPlayerToGlicko(Player player)
-        {
-            return new GlickoPlayer(player.Rating, 100);
-        }
+        //private static GlickoPlayer ConvertPlayerToGlicko(Player player)
+        //{
+        //    return new GlickoPlayer(player.Rating, 100);
+        //}
 
 
         public async Task<List<PlayerTournamentSession>> LoadLeaderboardForPlayerFromDb(LeiaContext context, Guid requestingPlayerGuid, int tournamentId)
@@ -220,81 +220,164 @@ namespace Services
         }
 
 
-        /// <summary>
-        /// Calculates the new ranks for players according to their tournament leaderboard
-        /// Uses the context to load data from the database
-        /// </summary>
-        public Dictionary<Guid, int> CalculatePlayersRatingFromTournament(LeiaContext context, List<PlayerTournamentSession> sortedDataForFinalTournamentCalc, TournamentSession tournament)
-        {
-            var allTournamentTypes = context.TournamentTypes.ToList();
-            //return CalculatePlayersRatingFromTournament(tournament, allTournamentTypes);
-            return CalculatePlayersRatingFromTournament(sortedDataForFinalTournamentCalc, tournament);
-        }
+        ///// <summary>
+        ///// Calculates the new ranks for players according to their tournament leaderboard
+        ///// Uses the context to load data from the database
+        ///// </summary>
+        //public Dictionary<Guid, int> CalculatePlayersRatingFromTournament(LeiaContext context, List<PlayerTournamentSession> sortedDataForFinalTournamentCalc, TournamentSession tournament)
+        //{
+        //    var allTournamentTypes = context.TournamentTypes.ToList();
+        //    //return CalculatePlayersRatingFromTournament(tournament, allTournamentTypes);
+        //    return CalculatePlayersRatingFromTournament(sortedDataForFinalTournamentCalc, tournament);
+        //}
 
-        /// <summary>
-        /// Calculates the new ranks for players according to their tournament leaderboard
-        /// This function does not load data from the database - so it can be unit-tested
-        /// </summary>
-        public Dictionary<Guid, int> CalculatePlayersRatingFromTournament(List<PlayerTournamentSession> sortedDataForFinalTournamentCalc, TournamentSession tournament)
+        ///// <summary>
+        ///// Calculates the new ranks for players according to their tournament leaderboard
+        ///// This function does not load data from the database - so it can be unit-tested
+        ///// </summary>
+        //public Dictionary<Guid, int> CalculatePlayersRatingFromTournament(List<PlayerTournamentSession> sortedDataForFinalTournamentCalc, TournamentSession tournament)
+        //{
+        //    var result = new Dictionary<Guid, int>();
+        //    //var allTournamentTypesById = allTournamentTypes.ToDictionary(tt => tt.TournamentTypeId);
+        //    // Each session of a player has its own leaderboard according to the tournament type.
+        //    // players in the same tournament type share the same leaderboard
+        //    var leaderboardPerTournamentTypeId = new Dictionary<int, List<TournamentGlickoRatingCalculationEntry>>();
+        //    // We will iterate the player sessions from best score to worst
+        //    var allPlayerSessionsSortedByScore = sortedDataForFinalTournamentCalc.OrderByDescending(s => s.PlayerScore).ToList();
+        //    // Cache players by GUID for quick access
+        //    var allPlayerGuids = allPlayerSessionsSortedByScore.Select(s => s.PlayerId).ToHashSet();
+
+        //    var castSortedDataToActualPlayers = tournament.Players.Where(p => sortedDataForFinalTournamentCalc.Select(x => x.PlayerId).Contains(p.PlayerId)).ToList();
+
+        //    var playerByGuid = castSortedDataToActualPlayers.Where(p => allPlayerGuids.Contains(p.PlayerId)).ToDictionary(p => p.PlayerId);
+        //    // Cache players as "Glicko players" for quick access
+        //    var glickoPlayersByGuid = playerByGuid.Values.ToDictionary(p => p.PlayerId, p => ConvertPlayerToGlicko(p));
+
+        //    // Iterate all the sessions in the tournament
+        //    for (var i = 0; i < allPlayerSessionsSortedByScore.Count(); i++)
+        //    {
+        //        var playerSession = allPlayerSessionsSortedByScore[i];
+        //        var score = playerSession.PlayerScore.HasValue ? playerSession.PlayerScore.Value : 0;
+        //        // If the leaderboard for this tournament type is not cached, then cache it!
+        //        if (!leaderboardPerTournamentTypeId.TryGetValue(playerSession.TournamentTypeId, out var playerLeaderboard))
+        //        {
+        //            playerLeaderboard = CalculateLeaderboardForPlayer(playerSession.PlayerId, allPlayerSessionsSortedByScore,
+        //                playerSession.TournamentType, playerSession.TournamentSessionId).Select(s =>
+        //                {
+        //                    return new TournamentGlickoRatingCalculationEntry
+        //                    {
+        //                        score = s.PlayerScore.HasValue ? s.PlayerScore.Value : 0,
+        //                        player = playerByGuid[s.PlayerId],
+        //                        opponent = new GlickoOpponent(glickoPlayersByGuid[s.PlayerId], s.PlayerScore.HasValue ? s.PlayerScore.Value : 0)
+        //                    };
+        //                }).ToList();
+        //            leaderboardPerTournamentTypeId[playerSession.TournamentTypeId] = playerLeaderboard;
+        //        }
+        //        // Set up the player 'glicko result' which is either 0 or 1, where 0 is worse score than player, 1 is better score 
+        //        var isBetterThanCurrentPlayer = true;
+        //        foreach (var entry in playerLeaderboard)
+        //        {
+        //            if (entry.player.PlayerId == playerSession.PlayerId)
+        //            {
+        //                isBetterThanCurrentPlayer = false;
+        //            }
+        //            entry.opponent.Result = isBetterThanCurrentPlayer ? 0 : 1;
+        //        }
+        //        // Take all opponents from the current leaderboard except the current player
+        //        var opponents = playerLeaderboard.Where(e => e.player.PlayerId != playerSession.PlayerId).Select(e => e.opponent).ToList();
+
+        //        // Take the current player's glicko-player
+        //        var glickoPlayer = glickoPlayersByGuid[playerSession.PlayerId];
+        //        // Calculate current player's new rank according to the suitable leaderboard of their tournament type
+        //        var glicko = GlickoCalculator.CalculateRanking(glickoPlayer, opponents);
+        //        // Add to results
+        //        result.Add(playerSession.PlayerId, (int)Math.Round(glicko.Rating));
+        //    }
+        //    return result;
+        //}
+
+        public async Task CalculatePlayersRatingPerGame(LeiaContext context,List<PlayerTournamentSession> sortedDataForFinalTournamentCalc,TournamentSession tournament,int gameId)
         {
-            var result = new Dictionary<Guid, int>();
-            //var allTournamentTypesById = allTournamentTypes.ToDictionary(tt => tt.TournamentTypeId);
-            // Each session of a player has its own leaderboard according to the tournament type.
-            // players in the same tournament type share the same leaderboard
+            //var result = new Dictionary<Guid, GlickoPlayer>();
+
+            var allPlayerGuids = sortedDataForFinalTournamentCalc.Select(s => s.PlayerId).ToHashSet();
+
+            // Load or create Glicko players per game
+            var ratings = await context.PlayerGameRatings
+                .Where(r => allPlayerGuids.Contains(r.PlayerId) && r.GameId == gameId)
+                .ToDictionaryAsync(r => r.PlayerId);
+
+            foreach (var playerId in allPlayerGuids)
+            {
+                if (!ratings.ContainsKey(playerId))
+                {
+                    var newRating = new PlayerGameRating
+                    {
+                        PlayerId = playerId,
+                        GameId = gameId,
+                        Rating = 1500,
+                    };
+                    context.PlayerGameRatings.Add(newRating);
+                    ratings[playerId] = newRating;
+                }
+            }
+
+            var glickoPlayersByGuid = ratings.ToDictionary(
+                r => r.Key,
+                r => new GlickoPlayer(
+                    r.Value.Rating
+                ));
+
             var leaderboardPerTournamentTypeId = new Dictionary<int, List<TournamentGlickoRatingCalculationEntry>>();
-            // We will iterate the player sessions from best score to worst
             var allPlayerSessionsSortedByScore = sortedDataForFinalTournamentCalc.OrderByDescending(s => s.PlayerScore).ToList();
-            // Cache players by GUID for quick access
-            var allPlayerGuids = allPlayerSessionsSortedByScore.Select(s => s.PlayerId).ToHashSet();
+            var playerByGuid = tournament.Players.Where(p => allPlayerGuids.Contains(p.PlayerId)).ToDictionary(p => p.PlayerId);
 
-            var castSortedDataToActualPlayers = tournament.Players.Where(p => sortedDataForFinalTournamentCalc.Select(x => x.PlayerId).Contains(p.PlayerId)).ToList();
-
-            var playerByGuid = castSortedDataToActualPlayers.Where(p => allPlayerGuids.Contains(p.PlayerId)).ToDictionary(p => p.PlayerId);
-            // Cache players as "Glicko players" for quick access
-            var glickoPlayersByGuid = playerByGuid.Values.ToDictionary(p => p.PlayerId, p => ConvertPlayerToGlicko(p));
-
-            // Iterate all the sessions in the tournament
             for (var i = 0; i < allPlayerSessionsSortedByScore.Count(); i++)
             {
                 var playerSession = allPlayerSessionsSortedByScore[i];
-                var score = playerSession.PlayerScore.HasValue ? playerSession.PlayerScore.Value : 0;
-                // If the leaderboard for this tournament type is not cached, then cache it!
+
                 if (!leaderboardPerTournamentTypeId.TryGetValue(playerSession.TournamentTypeId, out var playerLeaderboard))
                 {
-                    playerLeaderboard = CalculateLeaderboardForPlayer(playerSession.PlayerId, allPlayerSessionsSortedByScore, 
-                        playerSession.TournamentType, playerSession.TournamentSessionId).Select(s =>
+                    playerLeaderboard = CalculateLeaderboardForPlayer(
+                        playerSession.PlayerId,
+                        allPlayerSessionsSortedByScore,
+                        playerSession.TournamentType,
+                        playerSession.TournamentSessionId).Select(s =>
                         {
                             return new TournamentGlickoRatingCalculationEntry
                             {
-                                score = s.PlayerScore.HasValue ? s.PlayerScore.Value : 0,
+                                score = s.PlayerScore ?? 0,
                                 player = playerByGuid[s.PlayerId],
-                                opponent = new GlickoOpponent(glickoPlayersByGuid[s.PlayerId], s.PlayerScore.HasValue ? s.PlayerScore.Value : 0)
+                                opponent = new GlickoOpponent(glickoPlayersByGuid[s.PlayerId], s.PlayerScore ?? 0)
                             };
                         }).ToList();
+
                     leaderboardPerTournamentTypeId[playerSession.TournamentTypeId] = playerLeaderboard;
                 }
-                // Set up the player 'glicko result' which is either 0 or 1, where 0 is worse score than player, 1 is better score 
-                var isBetterThanCurrentPlayer = true;
+
+                bool isBetterThanCurrentPlayer = true;
                 foreach (var entry in playerLeaderboard)
                 {
                     if (entry.player.PlayerId == playerSession.PlayerId)
-                    {
                         isBetterThanCurrentPlayer = false;
-                    }
+
                     entry.opponent.Result = isBetterThanCurrentPlayer ? 0 : 1;
                 }
-                // Take all opponents from the current leaderboard except the current player
+
+                var glickoPlayer = glickoPlayersByGuid[playerSession.PlayerId];
                 var opponents = playerLeaderboard.Where(e => e.player.PlayerId != playerSession.PlayerId).Select(e => e.opponent).ToList();
 
-                // Take the current player's glicko-player
-                var glickoPlayer = glickoPlayersByGuid[playerSession.PlayerId];
-                // Calculate current player's new rank according to the suitable leaderboard of their tournament type
-                var glicko = GlickoCalculator.CalculateRanking(glickoPlayer, opponents);
-                // Add to results
-                result.Add(playerSession.PlayerId, (int)Math.Round(glicko.Rating));
+                var updatedGlicko = GlickoCalculator.CalculateRanking(glickoPlayer, opponents);
+
+                var recordToUpdate = ratings[playerSession.PlayerId];
+                recordToUpdate.Rating = updatedGlicko.Rating;
+
+                //result[playerSession.PlayerId] = updatedGlicko;
             }
-            return result;
+
+            //return result;
         }
+
 
         public async Task CloseTournament(List<PlayerTournamentSession> sortedDataForFinalTournamentCalc, int tournamentId/*, TournamentSession? tournament*/)
         {
@@ -314,17 +397,30 @@ namespace Services
                     //tournament.IsOpen = false;
                     //tournament.Endtime = DateTime.UtcNow;
 
+                    var gameId = tournament.GameTypeId;
 
-                    var newPlayerRatings = CalculatePlayersRatingFromTournament(context, sortedDataForFinalTournamentCalc, tournament);
+                    //var newPlayerRatings = await CalculatePlayersRatingPerGame(context, sortedDataForFinalTournamentCalc, tournament, gameId);
+                    await CalculatePlayersRatingPerGame(context, sortedDataForFinalTournamentCalc, tournament, gameId);
+
+                    //var newPlayerRatings = CalculatePlayersRatingFromTournament(context, sortedDataForFinalTournamentCalc, tournament);
                     try
                     {
                         context.Entry(tournament).State = EntityState.Modified;
-                        var updatedPlayerTournament = context.Tournaments.Update(tournament);
+                        //var updatedPlayerTournament = context.Tournaments.Update(tournament);
+                        context.Tournaments.Update(tournament);
 
-                        foreach (var playerRaitingPair in newPlayerRatings)
-                        {
-                            context.Players.Find(playerRaitingPair.Key).Rating = playerRaitingPair.Value;
-                        }
+                        //foreach (var ratingPair in newPlayerRatings)
+                        //{
+                        //    var ratingRecord = await context.PlayerGameRatings
+                        //        .FirstAsync(r => r.PlayerId == ratingPair.Key && r.GameId == gameId);
+
+                        //    ratingRecord.Rating = ratingPair.Value.Rating;
+                        //}
+
+                        //foreach (var playerRaitingPair in newPlayerRatings)
+                        //{
+                        //    context.Players.Find(playerRaitingPair.Key).Rating = playerRaitingPair.Value;
+                        //}
 
 
                         var saved = await context.SaveChangesAsync();

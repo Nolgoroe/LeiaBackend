@@ -110,17 +110,22 @@ namespace Services
 
             try
             {
+                var playerId = waitingPlayer.Player.PlayerId;
+                var gameRating = await dbService.GetPlayerGameRating(playerId, waitingPlayer.QueueEntry.GameTypeId);
+                int playerGameRating = (int)(gameRating?.Rating ?? 1500);
+
+
                 var suitableTournaments = await dbService.FindSuitableTournamentForRating(
-                    waitingPlayer.Player.PlayerId,
+                    playerId,
                     waitingPlayer.QueueEntry.GameTypeId,
-                    waitingPlayer.Player.Rating,
+                    playerGameRating,
                     MAX_RATING_DRIFT,
                     waitingPlayer.QueueEntry.TournamentTypeId,
                     waitingPlayer.QueueEntry.CurrencyId,
                     //null,
                     1
                 );
-                var playerId = waitingPlayer.Player.PlayerId;
+                //var playerId = waitingPlayer.Player.PlayerId;
                 // ADD PLAYER TO TOURNAMENT
                 ///////////////////////////////
                 if (suitableTournaments.Any())
@@ -149,11 +154,16 @@ namespace Services
         {
             if (queueEntry != null)
             {
+                var playerId = queueEntry.Player.PlayerId;
+                var gameRating = await dbService.GetPlayerGameRating(playerId, queueEntry.QueueEntry.GameTypeId);
+                int playerGameRating = (int)(gameRating?.Rating ?? 1500);
+
+
                 var tournamentType = queueEntry.LoadTournamentType(dbService.LeiaContext);
                 var currency = queueEntry.LoadCurrency(dbService.LeiaContext);
                 var tournament = await SaveNewTournament(dbService, queueEntry.QueueEntry.GameTypeId, tournamentType.EntryFee.Value, currency.CurrencyId, tournamentType.TournamentTypeId, queueEntry.Player.PlayerId);
 
-                await dbService.Log($"Player: {queueEntry.Player?.PlayerId}, rating: {queueEntry.Player?.Rating}\n was added to tournament: {tournament.TournamentSessionId}.");
+                await dbService.Log($"Player: {queueEntry.Player?.PlayerId}, rating: {playerGameRating}\n was added to tournament: {tournament.TournamentSessionId}.");
 
                 return tournament;
             }
@@ -193,12 +203,16 @@ namespace Services
             // try to update the tournament in the database
             try
             {
+                var playerId = queueEntry.Player.PlayerId;
+                var gameRating = await dbService.GetPlayerGameRating(playerId, queueEntry.QueueEntry.GameTypeId);
+                int playerGameRating = (int)(gameRating?.Rating ?? 1500);
+
                 dbService.LeiaContext.Entry(dbTournament).State = EntityState.Detached;
 
                 var savedTournament = dbService?.LeiaContext?.Tournaments?.Update(dbTournament);
                 
 
-               await dbService.Log($"AddToExistingTournament: Player: {queueEntry.Player?.Rating}, rating: {queueEntry.Player?.Rating}, \n were added to tournament: {savedTournament?.Entity?.TournamentSessionId}.", dbPlayer.PlayerId);
+               await dbService.Log($"AddToExistingTournament: Player: {queueEntry.Player?.PlayerId}, rating: {playerGameRating}, \n were added to tournament: {savedTournament?.Entity?.TournamentSessionId}.", dbPlayer.PlayerId);
        
                 dbTournament?.Players.Add(queueEntry.Player);
                 dbTournament?.PlayerTournamentSessions?.Add(new PlayerTournamentSession
@@ -273,14 +287,18 @@ namespace Services
 
 
             dbService.LeiaContext.Entry(currency).State = EntityState.Detached;
-            
+
+            var gameRating = await dbService.LeiaContext.PlayerGameRatings
+                .FirstOrDefaultAsync(r => r.PlayerId == dbPlayers[0].PlayerId && r.GameId == gameTypeId);
+
+            var gameSpecificRating = gameRating?.Rating ?? 1500;
             // Create the tournament
             var tournament = new TournamentSession
             {
                 TournamentSeed = TournamentSeedRandom.Next(),
                 //IsOpen = true,
                 StartTime = DateTime.UtcNow,
-                Rating = dbPlayers[0].Rating,
+                Rating = (int)Math.Round(gameSpecificRating),
                 GameTypeId = gameTypeId,
             };
             var savedTournament = dbService?.LeiaContext?.Tournaments?.Add(tournament);
