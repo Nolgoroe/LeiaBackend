@@ -201,6 +201,8 @@ namespace DAL.Migrations
 
                     b.Property<string>("ZipCode")
                         .HasColumnType("nvarchar(max)");
+                    b.Property<string>("DeviceId")
+                       .HasColumnType("nvarchar(max)");
 
                     b.HasKey("PlayerId");
 

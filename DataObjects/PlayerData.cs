@@ -30,6 +30,7 @@ namespace DataObjects
         public DateOnly? Birthday { get; set; }
         public int Level { get; set; }
         public string? DeviceType { get; set; }
+        public string? DeviceId { get; set; }
         public string? OperatingSystemVersion { get; set; }
         public string? AppVersion { get; set; }
         public string? InstallSource { get; set; }
