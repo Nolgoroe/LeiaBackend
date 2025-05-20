@@ -691,7 +691,7 @@ namespace CustomMatching.Controllers
             int _port = 587;
             bool _enableSsl = true;
             string _username = "support@leia.games";
-            string _password = "togv woge urcg acgk";
+            string _password = "dngw eztv zmwu nfea";
 
             using (var smtp = new SmtpClient(_smtpServer, _port))
             {
