@@ -298,34 +298,80 @@ namespace Services
 
             //if your currency ID == 13 (real money) then change drift to look more upwards and return the touranment with the highest glicko rating from the possible touranments
 
-            if(currencyId != 10)
+            // Ensure you load related data
+            var baseQuery = _leiaContext.Tournaments
+                .Include(t => t.Players)
+                .Include(t => t.PlayerTournamentSessions)
+                .Where(t =>
+                    Math.Abs(t.Rating - playerRating) < maxRatingDrift &&
+                    t.GameTypeId == gameTypeId &&
+                    !t.Players.Select(p => p.PlayerId).Contains(playerId)
+                );
+
+            // DEBUG CHECK: See all tournaments and their players
+            List<TournamentSession> test1 = _leiaContext.Tournaments
+                .Include(t => t.Players)
+                .Include(t => t.PlayerTournamentSessions)
+                .ToList();
+
+            List<TournamentSession> test2 = baseQuery.ToList(); // Should now contain populated navigation properties
+
+            // STEP 1: Prefer tournaments with <10 players, sorted by oldest StartTime
+            var prioritizedTournaments = await baseQuery
+                .Where(t => t.Players.Count < 10)
+                .OrderBy(t => t.StartTime)
+                .Take(maxResults)
+                .ToListAsync();
+
+            if (prioritizedTournaments.Any())
             {
-                return await _leiaContext.Tournaments
-                    .Where(
-                        t => Math.Abs(t.Rating - playerRating) < maxRatingDrift &&         // Rating is in range
-                                                                                           // t.TournamentData.TournamentTypeId == tournamentTypeId &&
-                        t.GameTypeId == gameTypeId &&
-                        /*t.StartTime > twoDaysAgo &&*/                                                                   // t.TournamentData.EntryFeeCurrencyId == currencyId &&               // The currency Id is matching                    
-                        !t.Players.Select(p => p.PlayerId).Contains(playerId)
-                        ) // Tournament is not full
+                return prioritizedTournaments;
+            }
+
+            // STEP 2: Fallback by currency logic
+            if (currencyId != 10)
+            {
+                return await baseQuery
                     .OrderByDescending(t => t.Rating)
                     .Take(maxResults)
                     .ToListAsync();
             }
             else
             {
-                return await _leiaContext.Tournaments
-                    .Where(
-                        t => Math.Abs(t.Rating - playerRating) < maxRatingDrift &&         // Rating is in range
-                                                                                           // t.TournamentData.TournamentTypeId == tournamentTypeId &&
-                        t.GameTypeId == gameTypeId &&
-                        /*t.StartTime > twoDaysAgo &&*/                                                                   // t.TournamentData.EntryFeeCurrencyId == currencyId &&               // The currency Id is matching                    
-                        !t.Players.Select(p => p.PlayerId).Contains(playerId)
-                        ) // Tournament is not full
+                return await baseQuery
                     .OrderBy(t => Math.Abs(t.Rating - playerRating))
                     .Take(maxResults)
                     .ToListAsync();
             }
+
+            //if (currencyId != 10)
+            //{
+            //    return await _leiaContext.Tournaments
+            //        .Where(
+            //            t => Math.Abs(t.Rating - playerRating) < maxRatingDrift &&         // Rating is in range
+            //                                                                               // t.TournamentData.TournamentTypeId == tournamentTypeId &&
+            //            t.GameTypeId == gameTypeId &&
+            //            /*t.StartTime > twoDaysAgo &&*/                                                                   // t.TournamentData.EntryFeeCurrencyId == currencyId &&               // The currency Id is matching                    
+            //            !t.Players.Select(p => p.PlayerId).Contains(playerId)
+            //            ) // Tournament is not full
+            //        .OrderByDescending(t => t.Rating)
+            //        .Take(maxResults)
+            //        .ToListAsync();
+            //}
+            //else
+            //{
+            //    return await _leiaContext.Tournaments
+            //        .Where(
+            //            t => Math.Abs(t.Rating - playerRating) < maxRatingDrift &&         // Rating is in range
+            //                                                                               // t.TournamentData.TournamentTypeId == tournamentTypeId &&
+            //            t.GameTypeId == gameTypeId &&
+            //            /*t.StartTime > twoDaysAgo &&*/                                                                   // t.TournamentData.EntryFeeCurrencyId == currencyId &&               // The currency Id is matching                    
+            //            !t.Players.Select(p => p.PlayerId).Contains(playerId)
+            //            ) // Tournament is not full
+            //        .OrderBy(t => Math.Abs(t.Rating - playerRating))
+            //        .Take(maxResults)
+            //        .ToListAsync();
+            //}
         }
 
         public async Task<List<PlayerCurrencies?>?> GetAllPlayerBalances(Guid playerId)
