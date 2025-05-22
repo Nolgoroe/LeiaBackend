@@ -27,6 +27,27 @@ namespace DAL
         public DbSet<PlayerGameRating> PlayerGameRatings { get; set; }
 
         public DbSet<GameType> GameType { get; set; }
+        public DbSet<Achievement> Achievements { get; set; }
+        public DbSet<AchievementElement> AchievementElements { get; set; }
+
+        public DbSet<DailyReward> DailyRewards { get; set; }
+        public DbSet<PlayerDailyReward> PlayerDailyRewards { get; set; }
+
+        public DbSet<PlayerHourlyReward> PlayerHourlyRewards { get; set; }
+
+        public DbSet<EggReward> EggRewards { get; set; }
+
+        public DbSet<PlayerEggReward> PlayerEggRewards { get; set; }
+
+        public DbSet<GivenPlayerEggReward> GivenPlayerEggRewards { get; set; }
+        public DbSet<Feature> Features { get; set; }
+        public DbSet<PlayerFeature> PlayerFeatures { get; set; }
+
+        public DbSet<FTUE> FTUEs { get; set; }
+        public DbSet<PlayerExpByGameType> GameTypeToExp { get; set; }
+        public DbSet<LevelReward> LevelRewards { get; set; }
+        public DbSet<GivenPlayerLevelReward> GivenPlayerLevelRewards { get; set; }
+        public DbSet<PlayerProfileData> PlayerProfileData { get; set; }
 
         public LeiaContext(DbContextOptions<LeiaContext> options) : base(options) { }
         public LeiaContext(/* string? connectionString*/)

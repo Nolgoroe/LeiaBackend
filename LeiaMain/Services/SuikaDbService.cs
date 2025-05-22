@@ -8,6 +8,8 @@ using DAL;
 using DataObjects;
 
 using Microsoft.EntityFrameworkCore;
+using Services.Shared;
+
 
 namespace Services
 {
@@ -40,7 +42,6 @@ namespace Services
         public int GameTypeId { get; set; }
 
     }
-
 
     public record LeaderboardPlayerData
     {
@@ -130,6 +131,8 @@ namespace Services
         /// <param name="maxResults"></param>
         /// <returns></returns>
         public Task<IEnumerable<TournamentSession>> FindSuitableTournamentForRating(Guid playerId, int gameTypeId, int playerRating, int maxRatingDrift, int tournamentTypeId, int currencyId/*, double? playerBalance*/, int maxResults);
+        public Task<List<EggReward>> UpdateGivenPlayerEggRewards(int PlayerEggRewardId, List<EggReward> rewards);
+        public Task<PlayerEggReward> StartNewMonthlyEggCount(Guid playerId, int playerEggRewardId);
         public LeiaContext LeiaContext { get; set; }
     }
 
@@ -596,6 +599,7 @@ namespace Services
         }
      
 
+
         public async Task<League?> GetLeagueById(int leagueId)
         {
             var league = await _leiaContext.League.Include(l => l.Players)
@@ -651,6 +655,66 @@ namespace Services
         {
             return await _leiaContext.PlayerGameRatings
                 .FirstOrDefaultAsync(r => r.PlayerId == playerId && r.GameId == gameId);
+        }
+
+       public async Task<List<EggReward>> UpdateGivenPlayerEggRewards(int PlayerEggRewardId, List<EggReward> rewards)
+        {
+            try
+            {
+                foreach (var reward in rewards)
+                {
+                    GivenPlayerEggReward givenReward = new GivenPlayerEggReward();
+                    givenReward.PlayerEggRewardId = PlayerEggRewardId;
+                    givenReward.EggRewardId = reward.EggRewardId;
+                    var isAdded = _leiaContext.GivenPlayerEggRewards.Add(givenReward);
+                }
+                
+               
+                await _leiaContext.SaveChangesAsync();
+
+                return _leiaContext.GivenPlayerEggRewards.Where(r => r.PlayerEggRewardId == PlayerEggRewardId).ToList().Select(g => g.EggReward).ToList();
+               
+
+            }
+            catch (Exception ex)
+            {
+                Trace.WriteLine(ex.Message + "\n" + ex.InnerException?.Message);
+                throw;
+            }
+
+        }
+        public async Task<PlayerEggReward> StartNewMonthlyEggCount(Guid playerId, int playerEggRewardId)
+        {
+        
+            try
+            {
+                var balance = _leiaContext.PlayerCurrencies.Where(r => r.PlayerId == playerId && r.CurrenciesId == (int)Enums.CurrenciesEnum.Eggs).FirstOrDefault();
+                balance.CurrencyBalance = 0;
+                _leiaContext.Entry(balance).State = EntityState.Modified;
+                var updateBalance = _leiaContext.PlayerCurrencies.Update(balance);
+
+                var playerEggRewardToUpdate = _leiaContext.PlayerEggRewards.Where(p => p.PlayerEggRewardId == playerEggRewardId).FirstOrDefault();
+                playerEggRewardToUpdate.IsActive = false;
+                _leiaContext.Entry(playerEggRewardToUpdate).State = EntityState.Modified;
+                var updatePlayerEggReward = _leiaContext.PlayerEggRewards.Update(playerEggRewardToUpdate);
+
+                PlayerEggReward playerEggReward = new PlayerEggReward();
+                playerEggReward.StartDate = DateTime.UtcNow;
+                playerEggReward.PlayerId = playerId;
+                playerEggReward.IsActive = true;
+               var isAdded = _leiaContext.PlayerEggRewards.Add(playerEggReward);
+              
+                await _leiaContext.SaveChangesAsync();
+
+                return _leiaContext.PlayerEggRewards.Where(r => r.PlayerId == playerId && r.StartDate.Month == DateTime.UtcNow.Month).FirstOrDefault();
+
+
+            }
+            catch (Exception ex)
+            {
+                Trace.WriteLine(ex.Message + "\n" + ex.InnerException?.Message);
+                throw;
+            }
         }
     }
 

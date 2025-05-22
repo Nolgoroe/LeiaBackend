@@ -37,7 +37,9 @@ namespace DataObjects
         public DateTime? InstallDate { get; set; }
         public string? AttributionData { get; set; }
         public int AvatarId  { get; set; }
-      //  [JsonIgnore]
+        public string? UserCode { get; set; }
+        public int? TotalExp { get; set; }
+        //  [JsonIgnore]
         public List<SessionData> Sessions { get; set; }
         [JsonIgnore]
         public List<TournamentSession> TournamentSessions { get; } = [];

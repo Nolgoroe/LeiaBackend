@@ -201,8 +201,12 @@ namespace DAL.Migrations
 
                     b.Property<string>("ZipCode")
                         .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("DeviceId")
                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("UserCode")
+                      .HasColumnType("nvarchar(max)");
 
                     b.HasKey("PlayerId");
 
@@ -530,6 +534,182 @@ namespace DAL.Migrations
 
                     b.ToTable("Transactions");
                 });
+            modelBuilder.Entity("DataObjects.AchievementElement", b =>
+            {
+                b.Property<int>("AchievementsElementId")
+                    .ValueGeneratedOnAdd()
+                    .HasColumnType("int");
+
+                SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("AchievementsElementId"));
+
+                b.Property<int>("ElementNameId")
+                    .HasColumnType("int");
+
+                b.Property<int?>("AmountNeeded")
+                    .HasColumnType("int");
+
+                b.Property<int?>("CurrentAmount")
+                    .HasColumnType("int");
+
+                b.Property<bool?>("IsCompleted")
+                    .HasColumnType("bit");               
+
+                b.Property<int>("AchievementId")
+                    .HasColumnType("int");
+
+                b.HasKey("AchievementsElementId");
+
+                //b.HasIndex("AchievementId");
+
+                b.ToTable("AchievementElements");
+            });
+
+            modelBuilder.Entity("DataObjects.Achievement", b =>
+            {
+                b.Property<int>("AchievementId")
+                    .ValueGeneratedOnAdd()
+                    .HasColumnType("int");
+
+                SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("AchievementId"));
+
+                b.Property<string>("AchievementName")
+                    .HasColumnType("nvarchar(max)");
+
+                b.Property<Guid>("PlayerId")
+                    .HasColumnType("uniqueidentifier");
+
+                b.HasKey("AchievementId");
+
+                b.ToTable("Achievements");
+            });
+
+            modelBuilder.Entity("DataObjects.DailyReward", b =>
+            {
+                b.Property<int>("DailyRewardsId")
+                    .ValueGeneratedOnAdd()
+                    .HasColumnType("int");
+
+                SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("DailyRewardsId"));
+
+                b.Property<string>("Name")
+                    .HasColumnType("nvarchar(max)");
+
+                b.Property<int?>("Type")
+                   .HasColumnType("int");
+
+                b.Property<double?>("Amount")
+                        .HasColumnType("float");
+
+                b.Property<int>("CurrencyId")
+                    .HasColumnType("int");
+
+                b.HasKey("DailyRewardsId");
+
+                b.ToTable("DailyRewards");
+            });
+
+            modelBuilder.Entity("DataObjects.PlayerDailyReward", b =>
+            {
+                b.Property<int>("PlayerDailyRewardId")
+                    .ValueGeneratedOnAdd()
+                    .HasColumnType("int");
+
+                SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("PlayerDailyRewardId"));
+
+                b.Property<DateTime>("LastClaimDate")
+                       .HasColumnType("datetime2");
+
+                b.Property<int>("CurrentRewardDay")
+                    .HasColumnType("int");
+
+                b.Property<int>("ConsecutiveDays")
+                    .HasColumnType("int");
+
+                b.Property<Guid>("PlayerId")
+                    .HasColumnType("uniqueidentifier");
+
+                b.Property<int>("DailyRewardsId")
+                    .HasColumnType("int");
+                 
+                b.Property<bool>("IsActive")
+                    .HasColumnType("bit");
+                
+                b.HasKey("PlayerDailyRewardId");
+
+                b.ToTable("PlayerDailyRewards");
+            });
+
+            modelBuilder.Entity("DataObjects.PlayerHourlyReward", b =>
+            {
+                b.Property<int>("HourlyRewardId")
+                    .ValueGeneratedOnAdd()
+                    .HasColumnType("int");
+
+                SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("HourlyRewardId"));
+
+                b.Property<DateTime>("StartDate")
+                       .HasColumnType("datetime2");
+
+                b.Property<int>("DailyRewardsId")
+                    .HasColumnType("int");
+                                           
+                b.Property<bool>("IsActive")
+                    .HasColumnType("bit");
+
+                b.Property<Guid>("PlayerId")
+                   .HasColumnType("uniqueidentifier");
+
+                b.HasKey("HourlyRewardId");
+
+                b.ToTable("PlayerHourlyRewards");
+            });
+
+            modelBuilder.Entity("DataObjects.EggReward", b =>
+            {
+                b.Property<int>("EggRewardId")
+                    .ValueGeneratedOnAdd()
+                    .HasColumnType("int");
+
+                SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("EggRewardId"));
+              
+                b.Property<int>("Count")
+                   .HasColumnType("int");
+               
+                b.Property<int?>("CurrencyId")
+                    .HasColumnType("int");
+
+                b.Property<int?>("RewardAmount")
+                    .HasColumnType("int");
+
+                b.HasKey("EggRewardId");
+
+                b.ToTable("EggRewards");
+            });
+
+            modelBuilder.Entity("DataObjects.PlayerEggReward", b =>
+            {
+                b.Property<int>("PlayerEggRewardId")
+                    .ValueGeneratedOnAdd()
+                    .HasColumnType("int");
+
+                SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("PlayerEggRewardId"));
+
+                b.Property<DateTime>("StartDate")
+                       .HasColumnType("datetime2");
+
+                b.Property<int>("Amount")
+                    .HasColumnType("int");
+
+                b.Property<bool>("IsActive")
+                    .HasColumnType("bit");
+
+                b.Property<Guid>("PlayerId")
+                   .HasColumnType("uniqueidentifier");                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
+
+                b.HasKey("PlayerEggRewardId");
+
+                b.ToTable("PlayerEggRewards");
+            });
 
             modelBuilder.Entity("RewardTournamentType", b =>
                 {
