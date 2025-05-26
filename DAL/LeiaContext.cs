@@ -26,6 +26,8 @@ namespace DAL
         public DbSet<PlayerAuthToken> PlayerAuthToken { get; set; }
         public DbSet<PlayerGameRating> PlayerGameRatings { get; set; }
 
+        public DbSet<GeoLockLocation> GeoLockLocations { get; set; }
+
         public DbSet<GameType> GameType { get; set; }
 
         public LeiaContext(DbContextOptions<LeiaContext> options) : base(options) { }
@@ -138,6 +140,17 @@ namespace DAL
                 .HasIndex(p => p.GameTypeId);
             modelBuilder.Entity<PlayerActiveTournament>()
                 .HasIndex(p => p.GameTypeId);
+            #endregion
+
+            #region Geo lock
+            modelBuilder.Entity<GeoLockLocation>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.CountryCode)
+                      .IsRequired()
+                      .HasMaxLength(2)
+                      .IsFixedLength(true);
+            });
             #endregion
         }
     }

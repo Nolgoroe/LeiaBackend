@@ -203,10 +203,13 @@ namespace Services
 
                 remainingSlots = remainingSlots - additionalEntries.Count;
 
-                // If none submitted before, use sessions that submitted after.
-                if (afterSessions.Any())
+                if(remainingSlots > 0)
                 {
-                    additionalEntries.AddRange(afterSessions.Take(remainingSlots));
+                    // If none submitted before, use sessions that submitted after.
+                    if (afterSessions.Any())
+                    {
+                        additionalEntries.AddRange(afterSessions.Take(remainingSlots));
+                    }
                 }
             }
 
