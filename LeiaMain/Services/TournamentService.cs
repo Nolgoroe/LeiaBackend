@@ -185,11 +185,11 @@ namespace Services
                    .FirstOrDefaultAsync(t => t.TournamentSessionId == matchingTournament.TournamentSessionId);
 
             if (dbTournament == null) return null;
-            if (dbTournament.Players.Count >= maxPlayers)
-            {
-                await dbService.Log($"Tournament is full: {dbTournament.TournamentSessionId}", queueEntry.Player.PlayerId);
-                return null;
-            }
+            //if (dbTournament.Players.Count >= maxPlayers)
+            //{
+            //    await dbService.Log($"Tournament is full: {dbTournament.TournamentSessionId}", queueEntry.Player.PlayerId);
+            //    return null;
+            //}
 
             var dbPlayer = await dbService.LeiaContext.Players.FindAsync(queueEntry.Player.PlayerId);
             if (dbPlayer == null)
