@@ -139,6 +139,7 @@ namespace Services
         public Task<bool> UpdatePlayerDailyRewards(int playerDailyRewardId, int currentDay);
         public Task<bool> AddPlayerDailyRewards(Guid playerId, int consecutiveDays);
         public Task<bool> UpdatePlayerHourlyRewards(int hourlyRewardId);
+        public Task<bool> UpdatePlayerLevel(Guid playerId, int level);
         public LeiaContext LeiaContext { get; set; }
     }
 
@@ -854,6 +855,26 @@ namespace Services
                 throw;
             }
         }
+
+        public async Task<bool> UpdatePlayerLevel(Guid playerId, int level)
+        {
+            try
+            {
+                var toUpdate = _leiaContext.Players.Where(p => p.PlayerId == playerId).FirstOrDefault();
+                toUpdate.Level = level;
+                var updated = _leiaContext.Players.Update(toUpdate);
+                var saved = await _leiaContext.SaveChangesAsync();
+                return true;
+
+            }
+
+            catch (Exception ex)
+            {
+                Trace.WriteLine(ex.Message + "\n" + ex.InnerException?.Message);
+                throw;
+            }
+        }
+    }
     }
 
 }

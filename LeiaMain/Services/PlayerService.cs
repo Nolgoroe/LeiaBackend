@@ -24,6 +24,8 @@ namespace Services
         public Task<List<Feature>> CheckPlayerFeature(Guid playerId);
         public Task<List<int>> CheckPlayerFTUE(Guid playerId);
         public Task<List<LevelReward>> CheckPlayerLevelRewords(Guid playerId);
+        public Task<bool> CheckPlayerLevelByExp(Guid playerId);
+        public Task<PlayerProfileData> GetPlayerProfileData(Guid playerId);
 
     }
     public record AchievementDTO 
@@ -65,6 +67,26 @@ namespace Services
     {
         public string FeatureName { get; set; } 
         public int PlayerLevel { get; set; }
+
+    }
+
+    public record LevelRewardDTO
+    {
+
+        public string currency { get; set; }
+        public int rewardAmount { get; set; }
+        public int? FeatureId { get; set; }
+        public string FeatureName { get; set; }
+
+
+    }
+
+    public record ProfileDataDTO
+    {
+        public string PlayerId { get; set; }
+        public int? PlayerPictureId { get; set; }
+        public int? WinCounte { get; set; }
+        public int? FavoriteGameTypeId { get; set; }
     }
     public class PlayerService : IPlayerService
     {
@@ -371,6 +393,7 @@ namespace Services
         {
             try
             {
+                var check = await CheckPlayerLevelByExp(playerId);
                 int playerLevel = _suikaDbService.LeiaContext.Players.Where(p => p.PlayerId == playerId).Select(p => p.Level).FirstOrDefault();
                 var levelRewards = _suikaDbService.LeiaContext.LevelRewards.Where(l => l.Level <= playerLevel).OrderBy(l => l.Level).ToList();
                 var givenLevelRewards = _suikaDbService.LeiaContext.GivenPlayerLevelRewards.Where(g => g.PlayerId == playerId).ToList().Select(g => g.LevelReward).ToList();
@@ -405,13 +428,53 @@ namespace Services
 
         }
 
+        public async Task<bool> CheckPlayerLevelByExp(Guid playerId)
+        {
+            try
+            {
+                int playerLevel = _suikaDbService.LeiaContext.Players.Where(p => p.PlayerId == playerId).Select(p => p.Level).FirstOrDefault();               
+                var totalExp = _suikaDbService.LeiaContext.Players.Where(p => p.PlayerId == playerId).Select(p => p.TotalExp).FirstOrDefault();
+                int levelByExp = _suikaDbService.LeiaContext.UserMainProgression.Where(u => u.XPForUnity == totalExp).Select(u => u.UserLevel).FirstOrDefault();
+
+                if(playerLevel != levelByExp)
+                {
+                    var updated = _suikaDbService.UpdatePlayerLevel(playerId, levelByExp);
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+
+                Trace.WriteLine(ex.Message + "\n" + ex.InnerException?.Message);
+                throw;
+            }
+
+        }
+
+        public async Task<PlayerProfileData> GetPlayerProfileData(Guid playerId)
+        {
+            try
+            {
+               var userProfile = _suikaDbService.LeiaContext.PlayerProfileData.Where(p => p.PlayerId == playerId).FirstOrDefault();
+                return userProfile;             
+            }
+            catch (Exception ex)
+            {
+
+                Trace.WriteLine(ex.Message + "\n" + ex.InnerException?.Message);
+                throw;
+            }
+
+        }
+
         public string GenerateUserCode()
         {
 
              Random _randomNum = new Random();
              Random _randomStr = new Random();
             string randomNum = _randomNum.Next(0, 9999).ToString("D4");
-            const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+            const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0";
             string randomStr = new string(Enumerable.Repeat(chars, 4)
                 .Select(s => s[_randomStr.Next(s.Length)]).ToArray());
             return randomStr + randomNum;

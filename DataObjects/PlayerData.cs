@@ -38,7 +38,7 @@ namespace DataObjects
         public string? AttributionData { get; set; }
         public int AvatarId  { get; set; }
         public string? UserCode { get; set; }
-        public int? TotalExp { get; set; }
+        public double? TotalExp { get; set; }
         //  [JsonIgnore]
         public List<SessionData> Sessions { get; set; }
         [JsonIgnore]

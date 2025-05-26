@@ -11,7 +11,7 @@ namespace DataObjects
     public class PlayerProfileData
     {
         [Key]
-        public int PlayerLevelId { get; set; }
+        public int PlayerProfileId { get; set; }
         public int? PlayerPictureId { get; set; }
         public int? WinCounte { get; set; }
         public int? FavoriteGameTypeId { get; set; }

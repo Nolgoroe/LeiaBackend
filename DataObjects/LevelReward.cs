@@ -18,5 +18,7 @@ namespace DataObjects
         public Currencies Currencies { get; set; }
         public double RewardAmount { get; set; }
         public int? FeatureId { get; set; }
+        [ForeignKey(nameof(FeatureId))]
+        public Feature Features { get; set; }
     }
 }

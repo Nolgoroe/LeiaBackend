@@ -49,6 +49,7 @@ namespace DAL
         public DbSet<LevelReward> LevelRewards { get; set; }
         public DbSet<GivenPlayerLevelReward> GivenPlayerLevelRewards { get; set; }
         public DbSet<PlayerProfileData> PlayerProfileData { get; set; }
+        public DbSet<UserMainProgression> UserMainProgression { get; set; }
 
         public LeiaContext(DbContextOptions<LeiaContext> options) : base(options) { }
         public LeiaContext(/* string? connectionString*/)
