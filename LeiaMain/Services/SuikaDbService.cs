@@ -133,6 +133,12 @@ namespace Services
         public Task<IEnumerable<TournamentSession>> FindSuitableTournamentForRating(Guid playerId, int gameTypeId, int playerRating, int maxRatingDrift, int tournamentTypeId, int currencyId/*, double? playerBalance*/, int maxResults);
         public Task<List<EggReward>> UpdateGivenPlayerEggRewards(int PlayerEggRewardId, List<EggReward> rewards);
         public Task<PlayerEggReward> StartNewMonthlyEggCount(Guid playerId, int playerEggRewardId);
+        public Task<bool> UpdatePlayerFeatures(Guid playerId, List<Feature> features);
+        public Task<bool> UpdatePlayerFTUEs(Guid playerId, int ftueId);
+        public Task<bool> UpdatePlayerLevelRewards(Guid playerId, List<LevelReward> levelRewards);
+        public Task<bool> UpdatePlayerDailyRewards(int playerDailyRewardId, int currentDay);
+        public Task<bool> AddPlayerDailyRewards(Guid playerId, int consecutiveDays);
+        public Task<bool> UpdatePlayerHourlyRewards(int hourlyRewardId);
         public LeiaContext LeiaContext { get; set; }
     }
 
@@ -670,9 +676,9 @@ namespace Services
                 }
                 
                
-                await _leiaContext.SaveChangesAsync();
+              var saved = await _leiaContext.SaveChangesAsync();
 
-                return _leiaContext.GivenPlayerEggRewards.Where(r => r.PlayerEggRewardId == PlayerEggRewardId).ToList().Select(g => g.EggReward).ToList();
+              return _leiaContext.GivenPlayerEggRewards.Where(r => r.PlayerEggRewardId == PlayerEggRewardId).ToList().Select(g => g.EggReward).ToList();
                
 
             }
@@ -704,12 +710,144 @@ namespace Services
                 playerEggReward.IsActive = true;
                var isAdded = _leiaContext.PlayerEggRewards.Add(playerEggReward);
               
-                await _leiaContext.SaveChangesAsync();
+               var saved = await _leiaContext.SaveChangesAsync();
 
                 return _leiaContext.PlayerEggRewards.Where(r => r.PlayerId == playerId && r.StartDate.Month == DateTime.UtcNow.Month).FirstOrDefault();
 
 
             }
+            catch (Exception ex)
+            {
+                Trace.WriteLine(ex.Message + "\n" + ex.InnerException?.Message);
+                throw;
+            }
+        }
+
+        public async Task<bool> UpdatePlayerFeatures(Guid playerId, List<Feature> features)
+        {
+            try
+            {
+                foreach (var feature in features)
+                {
+                    PlayerFeature playerFeature = new PlayerFeature();
+                    playerFeature.PlayerId = playerId;
+                    playerFeature.Feature = feature;    
+                    var isAdded = _leiaContext.PlayerFeatures.Add(playerFeature);
+                }
+
+                var saved = await _leiaContext.SaveChangesAsync();
+                return true;
+
+            }
+            catch (Exception ex)
+            {
+                Trace.WriteLine(ex.Message + "\n" + ex.InnerException?.Message);
+                throw;
+            }
+
+        }
+
+        public async Task<bool> UpdatePlayerFTUEs(Guid playerId, int ftueId)
+        {
+            try
+            {
+               
+                    PlayerFtue playerFtue = new PlayerFtue();
+                    playerFtue.PlayerId = playerId;
+                    playerFtue.FtueId = ftueId;
+                    playerFtue.IsComplete = false;
+                    var isAdded = _leiaContext.PlayerFtues.Add(playerFtue);
+                
+                var saved = await _leiaContext.SaveChangesAsync();
+                return true;
+
+            }
+            catch (Exception ex)
+            {
+                Trace.WriteLine(ex.Message + "\n" + ex.InnerException?.Message);
+                throw;
+            }
+
+        }
+
+        public async Task<bool> UpdatePlayerLevelRewards(Guid playerId, List<LevelReward> levelRewards)
+        {
+            try
+            {
+                foreach (var reward in levelRewards)
+                {
+                    GivenPlayerLevelReward levelReward = new GivenPlayerLevelReward();
+                    levelReward.PlayerId = playerId;
+                    levelReward.LevelRewardId = reward.LevelRewardId;   
+                    var isAdded = _leiaContext.GivenPlayerLevelRewards.Add(levelReward);
+                }
+
+                var saved = await _leiaContext.SaveChangesAsync();
+                return true;
+
+            }
+            catch (Exception ex)
+            {
+                Trace.WriteLine(ex.Message + "\n" + ex.InnerException?.Message);
+                throw;
+            }
+        }
+
+        public async Task<bool> AddPlayerDailyRewards(Guid playerId, int consecutiveDays)
+        {
+            try
+            {
+
+                PlayerDailyReward dailyReward = new PlayerDailyReward();
+                dailyReward.PlayerId = playerId;
+                dailyReward.ConsecutiveDays = consecutiveDays;
+                dailyReward.IsActive = true;
+                var isAdded = _leiaContext.PlayerDailyRewards.Add(dailyReward);
+
+                var saved = await _leiaContext.SaveChangesAsync();
+                return true;
+
+            }
+            catch (Exception ex)
+            {
+                Trace.WriteLine(ex.Message + "\n" + ex.InnerException?.Message);
+                throw;
+            }
+        }
+        public async Task<bool> UpdatePlayerDailyRewards(int playerDailyRewardId, int currentRewardDay)
+        {
+            try
+            {
+                var toUpdate = _leiaContext.PlayerDailyRewards.Where(p => p.PlayerDailyRewardId == playerDailyRewardId).FirstOrDefault();
+                var reward = _leiaContext.DailyRewards.Where(r => r.SerialNumber == currentRewardDay).FirstOrDefault();
+                toUpdate.CurrentRewardDay = currentRewardDay;
+                toUpdate.DailyRewardsId = reward.DailyRewardsId;
+                toUpdate.LastClaimDate = DateTime.UtcNow;
+                var updated = _leiaContext.PlayerDailyRewards.Update(toUpdate);
+                var saved = await _leiaContext.SaveChangesAsync();
+                return true;
+
+            }
+
+            catch (Exception ex)
+            {
+                Trace.WriteLine(ex.Message + "\n" + ex.InnerException?.Message);
+                throw;
+            }
+        }
+
+        public async Task<bool> UpdatePlayerHourlyRewards(int hourlyRewardId)
+        {
+            try
+            {
+                var toUpdate = _leiaContext.PlayerHourlyRewards.Where(p => p.HourlyRewardId == hourlyRewardId).FirstOrDefault();                           
+                toUpdate.StartDate = DateTime.UtcNow;
+                var updated = _leiaContext.PlayerHourlyRewards.Update(toUpdate);
+                var saved = await _leiaContext.SaveChangesAsync();
+                return true;
+
+            }
+            
             catch (Exception ex)
             {
                 Trace.WriteLine(ex.Message + "\n" + ex.InnerException?.Message);

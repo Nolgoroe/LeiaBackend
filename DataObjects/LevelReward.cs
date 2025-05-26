@@ -12,6 +12,7 @@ namespace DataObjects
     {
         [Key]
         public int LevelRewardId { get; set; }
+        public int Level { get; set; }
         public int CurrencyId { get; set; }
         [ForeignKey(nameof(CurrencyId))]
         public Currencies Currencies { get; set; }

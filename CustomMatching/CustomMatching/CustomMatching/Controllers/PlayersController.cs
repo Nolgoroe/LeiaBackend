@@ -807,6 +807,63 @@ namespace CustomMatching.Controllers
                 }
             }
         }
+
+        [HttpPost, Route("CheckPlayerFeature")]
+        public async Task<IActionResult> CheckPlayerFeature([FromBody] BaseAccountRequest request)
+        {
+            using (var context = new LeiaContext())
+            {
+                var suikaDbService = new SuikaDbService(context);
+                var player = await suikaDbService.LoadPlayerByAuthToken(request.authToken);
+                if (player == null) return NotFound("Invalid session auth token");
+                var playerId = player.PlayerId;
+                var playerService = new PlayerService();
+                try
+                {
+                    var playerFeature = await playerService.CheckPlayerFeature(playerId);
+                    List<FeatureDTO> result = new List<FeatureDTO>();
+                    if (playerFeature != null)
+                    {
+                        foreach (var feature in playerFeature)
+                        {
+                            FeatureDTO featureDTO = new FeatureDTO();
+                            featureDTO.FeatureName = feature.Name;
+                            featureDTO.PlayerLevel = feature.PlayerLevel;
+                            result.Add(featureDTO);
+                        }
+                    }
+                    return Ok(result);
+                }
+                catch (Exception ex)
+                {
+                    await suikaDbService.Log(ex, playerId);
+                    return StatusCode(500, ex.Message + "\n" + ex.InnerException?.Message);
+                }
+            }
+        }
+
+        [HttpPost, Route("CheckPlayerFTUEs")]
+        public async Task<IActionResult> CheckPlayerFTUEs([FromBody] BaseAccountRequest request)
+        {
+            using (var context = new LeiaContext())
+            {
+                var suikaDbService = new SuikaDbService(context);
+                var player = await suikaDbService.LoadPlayerByAuthToken(request.authToken);
+                if (player == null) return NotFound("Invalid session auth token");
+                var playerId = player.PlayerId;
+                var playerService = new PlayerService();
+                try
+                {
+                    var playerFTUEs = await playerService.CheckPlayerFTUE(playerId);                    
+                    return Ok(playerFTUEs);
+                }
+                catch (Exception ex)
+                {
+                    await suikaDbService.Log(ex, playerId);
+                    return StatusCode(500, ex.Message + "\n" + ex.InnerException?.Message);
+                }
+            }
+        }
         private async Task SendEmailAsync(string subject, string body)
         {
             string _smtpServer = "smtp.gmail.com";

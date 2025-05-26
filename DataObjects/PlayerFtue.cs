@@ -8,17 +8,16 @@ using System.Threading.Tasks;
 
 namespace DataObjects
 {
-    public class PlayerHourlyReward
+    public class PlayerFtue
     {
         [Key]
-        public int HourlyRewardId { get; set; }
-        public DateTime StartDate { get; set; }       
-        public int? DailyRewardsId { get; set; }
-        [ForeignKey(nameof(DailyRewardsId))]
-        public DailyReward DailyReward { get; set; }
-        public bool IsActive { get; set; }
+        public int Id { get; set; }
+        public int FtueId { get; set; }
+        [ForeignKey(nameof(FtueId))]
+        public FTUE FTUEs { get; set; }
         public Guid PlayerId { get; set; }
         [ForeignKey(nameof(PlayerId))]
         public Player Player { get; set; }
+        public bool IsComplete { get; set; }
     }
 }

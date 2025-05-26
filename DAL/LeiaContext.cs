@@ -44,6 +44,7 @@ namespace DAL
         public DbSet<PlayerFeature> PlayerFeatures { get; set; }
 
         public DbSet<FTUE> FTUEs { get; set; }
+        public DbSet<PlayerFtue> PlayerFtues { get; set; }
         public DbSet<PlayerExpByGameType> GameTypeToExp { get; set; }
         public DbSet<LevelReward> LevelRewards { get; set; }
         public DbSet<GivenPlayerLevelReward> GivenPlayerLevelRewards { get; set; }

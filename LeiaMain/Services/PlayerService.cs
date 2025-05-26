@@ -9,6 +9,7 @@ using Azure.Core;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.ComponentModel.DataAnnotations;
 using Services.Shared;
+using System;
 
 namespace Services
 {
@@ -20,6 +21,9 @@ namespace Services
         public Task<Achievement> GetPlayerAchievements(Guid playerId);
        
         public Task<List<EggReward>> CheckPlayerEggReward(Guid playerId);
+        public Task<List<Feature>> CheckPlayerFeature(Guid playerId);
+        public Task<List<int>> CheckPlayerFTUE(Guid playerId);
+        public Task<List<LevelReward>> CheckPlayerLevelRewords(Guid playerId);
 
     }
     public record AchievementDTO 
@@ -57,6 +61,11 @@ namespace Services
 
     }
 
+    public record FeatureDTO
+    {
+        public string FeatureName { get; set; } 
+        public int PlayerLevel { get; set; }
+    }
     public class PlayerService : IPlayerService
     {
 
@@ -75,6 +84,7 @@ namespace Services
             {
 
                 //DateTime  today = DateTime.Today.AddHours(4.0);
+               
                 DateTime currDate = DateTime.UtcNow;
                 DateTime today = DateTime.UtcNow.Date;
                 DateTime startForDailyReward = today.AddHours(4);
@@ -83,46 +93,39 @@ namespace Services
                 PlayerDailyReward reward =  new PlayerDailyReward();
                 if (dailyReward != null)
                 {
-                    if(dailyReward.LastClaimDate != null)
-                    {
                         if (dailyReward.LastClaimDate?.Date == today)
                         {
                             reward.IsGiveReword = false;
-                            
                         }
                         else
                         {
                             if (currDate < startForDailyReward)
                             {
                                 reward.IsGiveReword = false;
-                               
                             }
                             else if (currDate > startForDailyReward && currDate < endForDailyReword)
+                            {
                                 reward.IsGiveReword = true;
+                                int lastRewardDay = dailyReward.CurrentRewardDay; ;
+                                int currentRewardDay = lastRewardDay != dailyReward.ConsecutiveDays ? lastRewardDay + 1 : 1;                             
+                                var updated = _suikaDbService.UpdatePlayerDailyRewards(dailyReward.PlayerDailyRewardId, currentRewardDay);
+                            }
+                               
                             else
                             {
+                                reward.IsGiveReword = true;
+                                var updated = _suikaDbService.UpdatePlayerDailyRewards(dailyReward.PlayerDailyRewardId, 1);
 
-                                reward.IsGiveReword = false;  
-
-                            }
                         }
-                        
-                    }
-                    else
-                    {
-                       
-                        reward.CurrentRewardDay = 1;
-                        reward.ConsecutiveDays = 7;
-                        reward.IsGiveReword = true; 
-                          
-                    }
-                   
+                        }
+                                   
                 }
                 else
                 {
                     reward.CurrentRewardDay = 1;
                     reward.ConsecutiveDays = 7;
                     reward.IsGiveReword = true;
+                    var added = _suikaDbService.AddPlayerDailyRewards(playerId, 7);
                 }
                 return reward;
             }
@@ -152,6 +155,7 @@ namespace Services
                     }
                     else
                     {
+                        var updated = _suikaDbService.UpdatePlayerHourlyRewards(hourlyReward.HourlyRewardId);
                         return true;
                     }
                 }
@@ -276,6 +280,142 @@ namespace Services
                 throw;
             }
         }
+
+        public async Task<List<Feature>> CheckPlayerFeature(Guid playerId)
+        {
+            try
+            {
+                int playerLevel = _suikaDbService.LeiaContext.Players.Where(p => p.PlayerId == playerId).Select(p => p.Level).FirstOrDefault();
+                var features = _suikaDbService.LeiaContext.Features.Where(f => f.PlayerLevel <= playerLevel).OrderBy(f => f.PlayerLevel).ToList();
+                var playerFeatures = _suikaDbService.LeiaContext.PlayerFeatures.Where(p =>  p.PlayerId == playerId).ToList().Select(p => p.Feature);
+                              
+                List<Feature> result = new List<Feature>();
+                foreach (var item in features)
+                {
+                    if(!playerFeatures.Contains(item))
+                    { 
+                        result.Add(item); 
+                    }
+                }
+
+                if (result.Count > 0) 
+                { 
+                    var added = _suikaDbService.UpdatePlayerFeatures(playerId, result);
+                   
+                }
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+
+                Trace.WriteLine(ex.Message + "\n" + ex.InnerException?.Message);
+                throw;
+            }
         
+    }
+        public async Task<List<int>> CheckPlayerFTUE(Guid playerId)
+        {
+
+            try
+            {
+                List<int> result = new List<int>();
+                
+                var ftues = _suikaDbService.LeiaContext.FTUEs.OrderBy(f => f.SerialNumber).ToList();
+                var playerFtues = _suikaDbService.LeiaContext.PlayerFtues.OrderByDescending(p => p.FTUEs.SerialNumber).Where(p => p.PlayerId == playerId).ToList();
+                if(playerFtues != null)
+                {
+                    var notCompleteFtues = playerFtues.Where(f => f.IsComplete == false).ToList();
+                    if (notCompleteFtues == null)
+                    {
+                        
+                        int lastNumber = playerFtues.First().FTUEs.SerialNumber;
+                        var nextFtue = ftues.Where(f => f.SerialNumber == lastNumber + 1).FirstOrDefault();
+                        if(nextFtue != null)
+                        {
+                            var added = _suikaDbService.UpdatePlayerFTUEs(playerId, nextFtue.FtueId);
+                            result.Add(nextFtue.FtueId);
+                        }
+
+                    }
+                    else
+                    {
+                        foreach (var ftue in notCompleteFtues)
+                        {
+                            result.Add(ftue.FtueId);
+                        }
+
+                    }
+                }
+
+                else
+                {
+                   int firstFtueId = ftues.First().FtueId;
+                    var added = _suikaDbService.UpdatePlayerFTUEs(playerId, firstFtueId);
+                    result.Add(firstFtueId);
+                }
+
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+
+                Trace.WriteLine(ex.Message + "\n" + ex.InnerException?.Message);
+                throw;
+            }
+
+        }
+
+        public async Task<List<LevelReward>> CheckPlayerLevelRewords(Guid playerId)
+        {
+            try
+            {
+                int playerLevel = _suikaDbService.LeiaContext.Players.Where(p => p.PlayerId == playerId).Select(p => p.Level).FirstOrDefault();
+                var levelRewards = _suikaDbService.LeiaContext.LevelRewards.Where(l => l.Level <= playerLevel).OrderBy(l => l.Level).ToList();
+                var givenLevelRewards = _suikaDbService.LeiaContext.GivenPlayerLevelRewards.Where(g => g.PlayerId == playerId).ToList().Select(g => g.LevelReward).ToList();
+
+                List<LevelReward> result = new List<LevelReward>();
+                if(givenLevelRewards != null && givenLevelRewards.Count > 0)
+                {
+                    foreach (var item in levelRewards)
+                    {
+                        if (!givenLevelRewards.Contains(item))
+                        {
+                            result.Add(item);
+                        }
+                    }
+
+                }
+
+                if (result.Count > 0)
+                {
+                    var added = _suikaDbService.UpdatePlayerLevelRewards(playerId, result);
+
+                }
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+
+                Trace.WriteLine(ex.Message + "\n" + ex.InnerException?.Message);
+                throw;
+            }
+
+        }
+
+        public string GenerateUserCode()
+        {
+
+             Random _randomNum = new Random();
+             Random _randomStr = new Random();
+            string randomNum = _randomNum.Next(0, 9999).ToString("D4");
+            const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+            string randomStr = new string(Enumerable.Repeat(chars, 4)
+                .Select(s => s[_randomStr.Next(s.Length)]).ToArray());
+            return randomStr + randomNum;
+
+        }
     }
 }

@@ -18,5 +18,6 @@ namespace DataObjects
         public int? CurrencyId { get; set; }
         [ForeignKey(nameof(CurrencyId))]
         public Currencies Currencies { get; set; }
+        public int? SerialNumber { get; set; }
     }
 }

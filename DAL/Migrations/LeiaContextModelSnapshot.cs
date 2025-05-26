@@ -603,6 +603,9 @@ namespace DAL.Migrations
                 b.Property<int>("CurrencyId")
                     .HasColumnType("int");
 
+                b.Property<int?>("SerialNumber")
+                  .HasColumnType("int");
+
                 b.HasKey("DailyRewardsId");
 
                 b.ToTable("DailyRewards");
