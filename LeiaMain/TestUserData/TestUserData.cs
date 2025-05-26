@@ -7,7 +7,7 @@ namespace TestUserData
     public class TestUserData
     {
         [Fact]
-        public void TestUserData()
+        public void TestUserDataFull()
         {
             Guid playerTestId = new Guid("4AB48AAC-FB8C-4343-B148-C8C262EDB3AD");
             var playerService = new PlayerService();
