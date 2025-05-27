@@ -8,10 +8,10 @@ using System.Threading.Tasks;
 
 namespace DataObjects
 {
-    public class PlayerEggReward
+    public class PlayerMonthlyEgg
     {
         [Key]
-        public int PlayerEggRewardId { get; set; }
+        public int ActivePlayerEggsId { get; set; }
         public DateTime StartDate { get; set; }
         public bool IsActive { get; set; }
         public Guid PlayerId { get; set; }

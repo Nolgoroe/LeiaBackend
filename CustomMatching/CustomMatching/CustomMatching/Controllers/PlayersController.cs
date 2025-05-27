@@ -701,9 +701,8 @@ namespace CustomMatching.Controllers
                 {
                     var dailyReward = await playerService.CheckForDailyReward(playerId);
                     DailyRewardDTO result = new DailyRewardDTO();
-                    result.isGiveReward = dailyReward.IsGiveReword;
-                    result.currentRewardDay = dailyReward.CurrentRewardDay; 
-                    result.consecutiveDays = dailyReward.ConsecutiveDays;   
+                    result.isGiveReward = dailyReward.CurrentRewardDay != 0 ? true: false;
+                    result.currentRewardDay = dailyReward.CurrentRewardDay;                    
                     return Ok(result);
                 }
                 catch (Exception ex)

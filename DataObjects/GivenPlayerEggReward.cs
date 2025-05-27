@@ -12,9 +12,9 @@ namespace DataObjects
     {
         [Key]
         public int GivenEggRewordId { get; set; }
-        public int PlayerEggRewardId { get; set; }
-        [ForeignKey(nameof(PlayerEggRewardId))]
-        public PlayerEggReward PlayerEggReward { get; set; }
+        public int ActivePlayerEggsId { get; set; }
+        [ForeignKey(nameof(ActivePlayerEggsId))]
+        public PlayerMonthlyEgg PlayerMonthlyEgg { get; set; }
         public int EggRewardId { get; set; }
         [ForeignKey(nameof(EggRewardId))]
         public EggReward EggReward { get; set; }

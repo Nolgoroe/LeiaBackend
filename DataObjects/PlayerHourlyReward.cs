@@ -12,7 +12,7 @@ namespace DataObjects
     {
         [Key]
         public int HourlyRewardId { get; set; }
-        public DateTime StartDate { get; set; }       
+        public DateTime LastClaimDate { get; set; }       
         public int? DailyRewardsId { get; set; }
         [ForeignKey(nameof(DailyRewardsId))]
         public DailyReward DailyReward { get; set; }

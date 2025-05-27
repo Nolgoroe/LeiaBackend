@@ -37,7 +37,7 @@ namespace DAL
 
         public DbSet<EggReward> EggRewards { get; set; }
 
-        public DbSet<PlayerEggReward> PlayerEggRewards { get; set; }
+        public DbSet<PlayerMonthlyEgg> PlayerMonthlyEggs { get; set; }
 
         public DbSet<GivenPlayerEggReward> GivenPlayerEggRewards { get; set; }
         public DbSet<Feature> Features { get; set; }
@@ -110,7 +110,7 @@ namespace DAL
 
             #region Configure PlayerAuthToken
             // Make sure auth tokens are unique
-            modelBuilder.Entity<PlayerAuthToken>()
+            modelBuilder.Entity<PlayerAuthToken>() 
                 .HasIndex(p => p.Token).IsUnique();
             modelBuilder.Entity<PlayerAuthToken>()
                 .HasIndex(p => p.Secret).IsUnique();

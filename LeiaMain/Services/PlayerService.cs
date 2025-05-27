@@ -10,6 +10,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 using System.ComponentModel.DataAnnotations;
 using Services.Shared;
 using System;
+using System.Text;
 
 namespace Services
 {
@@ -49,7 +50,7 @@ namespace Services
     {
 
         public int currentRewardDay { get; set; }
-        public int consecutiveDays { get; set; }
+        //public int consecutiveDays { get; set; }
         public bool isGiveReward { get; set; }
 
     }
@@ -103,53 +104,53 @@ namespace Services
         {
            
             try
-            {
-
-                //DateTime  today = DateTime.Today.AddHours(4.0);
-               
+            {                            
                 DateTime currDate = DateTime.UtcNow;
                 DateTime today = DateTime.UtcNow.Date;
-                DateTime startForDailyReward = today.AddHours(4);
-                DateTime endForDailyReword = startForDailyReward.AddHours(24);
-                var dailyReward = _suikaDbService.LeiaContext.PlayerDailyRewards.Where(r => r.PlayerId == playerId && r.IsActive == true).FirstOrDefault();
+                var dailyReward = _suikaDbService.LeiaContext.PlayerDailyRewards.Where(r => r.PlayerId == playerId && r.IsActive == true).FirstOrDefault();                                          
                 PlayerDailyReward reward =  new PlayerDailyReward();
                 if (dailyReward != null)
                 {
-                        if (dailyReward.LastClaimDate?.Date == today)
+                    DateTime startForDailyReward = (DateTime)dailyReward?.LastClaimDate?.Date.AddDays(1).AddHours(4);
+                    DateTime endForDailyReword = startForDailyReward.AddHours(24);
+
+                    if (dailyReward.LastClaimDate?.Date == today)
                         {
-                            reward.IsGiveReword = false;
+                        reward.CurrentRewardDay = 0;
                         }
+                    else
+                        {
+                        if (currDate < startForDailyReward)
+                        {
+                            reward.CurrentRewardDay = 0;
+                        }
+                        else if (currDate > startForDailyReward && currDate < endForDailyReword || dailyReward?.LastClaimDate?.TimeOfDay < TimeSpan.FromHours(4))
+                        {
+                           
+                            int lastRewardDay = dailyReward.CurrentRewardDay; ;
+                            int currentRewardDay = lastRewardDay != dailyReward.ConsecutiveDays ? lastRewardDay + 1 : 1;
+                            var updated = _suikaDbService.UpdatePlayerDailyRewards(dailyReward.PlayerDailyRewardId, currentRewardDay);
+                            reward.CurrentRewardDay = currentRewardDay;
+                            
+                        }
+
                         else
                         {
-                            if (currDate < startForDailyReward)
-                            {
-                                reward.IsGiveReword = false;
-                            }
-                            else if (currDate > startForDailyReward && currDate < endForDailyReword)
-                            {
-                                reward.IsGiveReword = true;
-                                int lastRewardDay = dailyReward.CurrentRewardDay; ;
-                                int currentRewardDay = lastRewardDay != dailyReward.ConsecutiveDays ? lastRewardDay + 1 : 1;                             
-                                var updated = _suikaDbService.UpdatePlayerDailyRewards(dailyReward.PlayerDailyRewardId, currentRewardDay);
-                            }
-                               
-                            else
-                            {
-                                reward.IsGiveReword = true;
-                                var updated = _suikaDbService.UpdatePlayerDailyRewards(dailyReward.PlayerDailyRewardId, 1);
+                            reward.CurrentRewardDay = 1;
+                            var updated = _suikaDbService.UpdatePlayerDailyRewards(dailyReward.PlayerDailyRewardId, 1);
 
                         }
-                        }
-                                   
+                       
+                    }
+
                 }
                 else
                 {
                     reward.CurrentRewardDay = 1;
-                    reward.ConsecutiveDays = 7;
-                    reward.IsGiveReword = true;
-                    var added = _suikaDbService.AddPlayerDailyRewards(playerId, 7);
+                    reward.ConsecutiveDays = 1;                   
+                    var added = _suikaDbService.AddPlayerDailyRewards(playerId);
                 }
-                return reward;
+               return reward;
             }
             catch (Exception ex)
             {              
@@ -164,14 +165,12 @@ namespace Services
             try
             {
 
-                //DateTime  today = DateTime.Today.AddHours(4.0);
                 DateTime currDate = DateTime.UtcNow;
-                DateTime today = DateTime.UtcNow.Date;               
-                DateTime endForHourlyReword = today.AddHours(24);
                 var hourlyReward = _suikaDbService.LeiaContext.PlayerHourlyRewards.Where(r => r.PlayerId == playerId && r.IsActive == true).FirstOrDefault();
                 if (hourlyReward != null)
                 {
-                    if (hourlyReward.StartDate > today && hourlyReward.StartDate < endForHourlyReword)
+                    DateTime startHourlyReword = hourlyReward.LastClaimDate.AddHours(24);
+                    if (currDate < startHourlyReword)
                     {
                         return false;
                     }
@@ -183,6 +182,7 @@ namespace Services
                 }
                 else
                 {
+                    var added = _suikaDbService.AddPlayerHourlyRewards(playerId);
                     return true;
                 }
                
@@ -226,15 +226,15 @@ namespace Services
                 List<EggReward> rewordsNotContained = new List<EggReward>();
                 int currMonth = DateTime.UtcNow.Month;
                 int playerEggRewardId = 0;
-                var playerEggReward = _suikaDbService.LeiaContext.PlayerEggRewards.Where(r => r.PlayerId == playerId && r.IsActive == true).FirstOrDefault();
+                var playerEggReward = _suikaDbService.LeiaContext.PlayerMonthlyEggs.Where(r => r.PlayerId == playerId && r.IsActive == true).FirstOrDefault();
                 if (playerEggReward.StartDate.Month == currMonth)
                 {
-                    playerEggRewardId = playerEggReward.PlayerEggRewardId;
+                    playerEggRewardId = playerEggReward.ActivePlayerEggsId;
                 }
                 else
                 {
-                    var startNewMonthly = _suikaDbService.StartNewMonthlyEggCount(playerId, playerEggReward.PlayerEggRewardId);
-                    playerEggRewardId = startNewMonthly.Result.PlayerEggRewardId;
+                    var startNewMonthly = _suikaDbService.StartNewMonthlyEggCount(playerId, playerEggReward.ActivePlayerEggsId);
+                    playerEggRewardId = startNewMonthly.Result.ActivePlayerEggsId;
                 }
                 var eggCount = _suikaDbService.LeiaContext.PlayerCurrencies.Where(r => r.PlayerId == playerId && r.CurrenciesId == (int)Enums.CurrenciesEnum.Eggs).FirstOrDefault();
                       
@@ -244,7 +244,7 @@ namespace Services
                     if(rewardsForCount != null && rewardsForCount.Result.Count > 0)
                     {
                         
-                            var givenEggRewards = _suikaDbService.LeiaContext.GivenPlayerEggRewards.Where(r => r.PlayerEggRewardId == playerEggReward.PlayerEggRewardId).ToList().Select(g => g.EggReward).ToList();
+                            var givenEggRewards = _suikaDbService.LeiaContext.GivenPlayerEggRewards.Where(r => r.ActivePlayerEggsId == playerEggReward.ActivePlayerEggsId).ToList().Select(g => g.EggReward).ToList();
                         //var rewards = givenEggRewards.Select(g => g.EggReward).ToList();
                         foreach (var rfc in rewardsForCount.Result) 
                         { 
@@ -253,7 +253,7 @@ namespace Services
                         }
                         if (rewordsNotContained.Count > 0)
                         {
-                            var update = _suikaDbService.UpdateGivenPlayerEggRewards(playerEggReward.PlayerEggRewardId, rewordsNotContained);
+                            var update = _suikaDbService.UpdateGivenPlayerEggRewards(playerEggReward.ActivePlayerEggsId, rewordsNotContained);
                             return update.Result;
                         }
                         else 
@@ -393,7 +393,7 @@ namespace Services
         {
             try
             {
-                var check = await CheckPlayerLevelByExp(playerId);
+                //var check = await CheckPlayerLevelByExp(playerId);
                 int playerLevel = _suikaDbService.LeiaContext.Players.Where(p => p.PlayerId == playerId).Select(p => p.Level).FirstOrDefault();
                 var levelRewards = _suikaDbService.LeiaContext.LevelRewards.Where(l => l.Level <= playerLevel).OrderBy(l => l.Level).ToList();
                 var givenLevelRewards = _suikaDbService.LeiaContext.GivenPlayerLevelRewards.Where(g => g.PlayerId == playerId).ToList().Select(g => g.LevelReward).ToList();
@@ -414,7 +414,6 @@ namespace Services
                 if (result.Count > 0)
                 {
                     var added = _suikaDbService.UpdatePlayerLevelRewards(playerId, result);
-
                 }
 
                 return result;
@@ -465,19 +464,6 @@ namespace Services
                 Trace.WriteLine(ex.Message + "\n" + ex.InnerException?.Message);
                 throw;
             }
-
-        }
-
-        public string GenerateUserCode()
-        {
-
-             Random _randomNum = new Random();
-             Random _randomStr = new Random();
-            string randomNum = _randomNum.Next(0, 9999).ToString("D4");
-            const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0";
-            string randomStr = new string(Enumerable.Repeat(chars, 4)
-                .Select(s => s[_randomStr.Next(s.Length)]).ToArray());
-            return randomStr + randomNum;
 
         }
     }

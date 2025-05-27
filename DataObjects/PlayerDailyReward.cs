@@ -24,7 +24,5 @@ namespace DataObjects
         [ForeignKey(nameof(PlayerId))]
         public Player Player { get; set; }
 
-        [JsonIgnore]
-        public bool IsGiveReword { get; set; }
     }
 }

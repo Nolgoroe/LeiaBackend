@@ -689,13 +689,13 @@ namespace DAL.Migrations
                 b.ToTable("EggRewards");
             });
 
-            modelBuilder.Entity("DataObjects.PlayerEggReward", b =>
+            modelBuilder.Entity("DataObjectsPlayerMonthlyEgg", b =>
             {
-                b.Property<int>("PlayerEggRewardId")
+                b.Property<int>("ActivePlayerEggsId")
                     .ValueGeneratedOnAdd()
                     .HasColumnType("int");
 
-                SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("PlayerEggRewardId"));
+                SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ActivePlayerEggsId"));
 
                 b.Property<DateTime>("StartDate")
                        .HasColumnType("datetime2");
@@ -709,9 +709,9 @@ namespace DAL.Migrations
                 b.Property<Guid>("PlayerId")
                    .HasColumnType("uniqueidentifier");                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
 
-                b.HasKey("PlayerEggRewardId");
+                b.HasKey("ActivePlayerEggsId");
 
-                b.ToTable("PlayerEggRewards");
+                b.ToTable("PlayerMonthlyEggs");
             });
 
             modelBuilder.Entity("RewardTournamentType", b =>
