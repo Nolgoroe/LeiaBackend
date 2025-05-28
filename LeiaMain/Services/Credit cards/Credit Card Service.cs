@@ -8,9 +8,9 @@ using System.Net;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Services.Credit_cards
+namespace Services.CreditCards
 {
-    public class Credit_Card_Service
+    public class CreditCardService
     {
         private const string CompanyNum = "5009523";
         private const string PersonalHashKey = "309NZOP5ZR";
@@ -18,7 +18,7 @@ namespace Services.Credit_cards
 
         private readonly HttpClient _httpClient;
 
-        public Credit_Card_Service()
+        public CreditCardService()
         {
             _httpClient = new HttpClient();
         }

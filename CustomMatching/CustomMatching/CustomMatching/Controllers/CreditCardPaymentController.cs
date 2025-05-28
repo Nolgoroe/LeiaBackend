@@ -1,11 +1,11 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using Services.Credit_cards;
+using Services.CreditCards;
 using Services.DTO;
 
 namespace CustomMatching.Controllers
 {
     [ApiController]
-    [Route("api/payments")]
+    [Route("payments")]
     public class CreditCardPaymentController:ControllerBase
     {
         [HttpPost("charge")]
@@ -13,7 +13,7 @@ namespace CustomMatching.Controllers
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
 
-            Credit_Card_Service creditCardService = new Credit_Card_Service();
+            CreditCardService creditCardService = new CreditCardService();
 
             var result = await creditCardService.ChargeAsync(req);
             return result.Reply == "000"
