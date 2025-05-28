@@ -8,12 +8,12 @@ namespace CustomMatching.Controllers
     [Route("payments")]
     public class CreditCardPaymentController:ControllerBase
     {
+        CreditCardService creditCardService = new CreditCardService();
+
         [HttpPost("charge")]
         public async Task<IActionResult> Charge([FromBody] CreditCardChargeRequest req)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
-
-            CreditCardService creditCardService = new CreditCardService();
 
             var result = await creditCardService.ChargeAsync(req);
             return result.Reply == "000"
@@ -28,6 +28,16 @@ namespace CustomMatching.Controllers
         {
             // TODO: update your DB with form["Reply"], form["TransID"], etc.
             return Ok();
+        }
+
+        [HttpGet("status")]
+        public async Task<IActionResult> GetStatus([FromQuery] string transId)
+        {
+            if (string.IsNullOrEmpty(transId))
+                return BadRequest("transId is required");
+
+            var result = await creditCardService.GetStatusByIdAsync(transId);
+            return Ok(result);
         }
     }
 }

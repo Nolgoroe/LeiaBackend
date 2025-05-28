@@ -95,5 +95,39 @@ namespace Services.CreditCards
                 Needs3DS = dict.GetValueOrDefault("Reply") == "553",
             };
         }
+
+
+        public async Task<CreditCardStatusByID> GetStatusByIdAsync(string transId)
+        {
+            var q = new Dictionary<string, string>
+            {
+                ["CompanyNum"] = CompanyNum,
+                ["TransID"] = transId
+            };
+
+            // Build GET URL
+            var form = new FormUrlEncodedContent(q);
+            var url = "https://process.b2bserve.com/member/getStatus.asp?"
+                     + await form.ReadAsStringAsync();
+
+            // Call gateway
+            var resp = await _httpClient.GetAsync(url);
+            resp.EnsureSuccessStatusCode();
+
+            var body = await resp.Content.ReadAsStringAsync();
+
+            // Parse
+            var dict = body
+                .Split('&', StringSplitOptions.RemoveEmptyEntries)
+                .Select(p => p.Split('=', 2))
+                .ToDictionary(kv => kv[0], kv => WebUtility.UrlDecode(kv[1]));
+
+            return new CreditCardStatusByID
+            {
+                Reply = dict.GetValueOrDefault("Reply"),
+                ReplyDesc = dict.GetValueOrDefault("ReplyDesc"),
+                TransID = dict.GetValueOrDefault("TransID")
+            };
+        }
     }
 }
