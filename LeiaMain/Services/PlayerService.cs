@@ -207,8 +207,13 @@ namespace Services
                     {
                         achievement.AchievementElements = achievementaElements; 
                     }
+                    return achievement;
                 }
-                return achievement;
+                else
+                {
+                    return new Achievement();
+
+                }
             }
             catch (Exception ex)
             {

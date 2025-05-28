@@ -750,17 +750,19 @@ namespace CustomMatching.Controllers
                 {
                     var achievement = await playerService.GetPlayerAchievements(playerId);
                     AchievementDTO result = new AchievementDTO();
-                    result.AchievementName = achievement.AchievementName;
-                    foreach (var element in achievement.AchievementElements)
+                    if (achievement != null)
                     {
-                        AchievementElementDTO achievementElement = new AchievementElementDTO();
-                        achievementElement.ElementNameId = element.ElementNameId;
-                        achievementElement.AmountNeeded = element.AmountNeeded;
-                        achievementElement.CurrentAmount = element.CurrentAmount;
-                        achievementElement.IsCompleted = element.IsCompleted;
-                        result.AchievementElements.Add(achievementElement);
+                        result.AchievementName = achievement.AchievementName;
+                        foreach (var element in achievement.AchievementElements)
+                        {
+                            AchievementElementDTO achievementElement = new AchievementElementDTO();
+                            achievementElement.ElementNameId = element.ElementNameId;
+                            achievementElement.AmountNeeded = element.AmountNeeded;
+                            achievementElement.CurrentAmount = element.CurrentAmount;
+                            achievementElement.IsCompleted = element.IsCompleted;
+                            result.AchievementElements.Add(achievementElement);
+                        }
                     }
-                      
                     return Ok(result);
                 }
                 catch (Exception ex)
@@ -770,8 +772,6 @@ namespace CustomMatching.Controllers
                 }
             }
         }
-
-        
 
         [HttpPost, Route("CheckEggRewards")]
         public async Task<IActionResult> CheckPlayerEggReward([FromBody] BaseAccountRequest request)
