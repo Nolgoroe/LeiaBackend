@@ -30,13 +30,16 @@ namespace DataObjects
         public DateOnly? Birthday { get; set; }
         public int Level { get; set; }
         public string? DeviceType { get; set; }
+        public string? DeviceId { get; set; }
         public string? OperatingSystemVersion { get; set; }
         public string? AppVersion { get; set; }
         public string? InstallSource { get; set; }
         public DateTime? InstallDate { get; set; }
         public string? AttributionData { get; set; }
         public int AvatarId  { get; set; }
-      //  [JsonIgnore]
+        public string? UserCode { get; set; }
+        public double? TotalExp { get; set; }
+        //  [JsonIgnore]
         public List<SessionData> Sessions { get; set; }
         [JsonIgnore]
         public List<TournamentSession> TournamentSessions { get; } = [];

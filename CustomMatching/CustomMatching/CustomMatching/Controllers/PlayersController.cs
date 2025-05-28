@@ -244,6 +244,7 @@ namespace CustomMatching.Controllers
                 PlayerId = Guid.NewGuid(),
                 Name = request.name,
                 Rating = 0, // TODO: To const
+                DeviceId = request.deviceId,
             };
             if (!VerifyPlayer(player)) return BadRequest("Player details are incomplete");
             // check if tournaments with this id already exists
@@ -683,6 +684,247 @@ namespace CustomMatching.Controllers
             {
                 // Return a 500 error with the exception message to display in Swagger.
                 return StatusCode(500, "Error sending email: " + ex.Message);
+            }
+        }
+
+        [HttpPost, Route("CheckForDailyReward")]
+        public async Task<IActionResult> CheckForDailyReward([FromBody] BaseAccountRequest request)
+        {
+            using (var context = new LeiaContext())
+            {
+                var suikaDbService = new SuikaDbService(context);
+                var player = await suikaDbService.LoadPlayerByAuthToken(request.authToken);
+                if (player == null) return NotFound("Invalid session auth token");
+                var playerId = player.PlayerId;
+                var playerService = new PlayerService();
+                try
+                {
+                    var dailyReward = await playerService.CheckForDailyReward(playerId);
+                    DailyRewardDTO result = new DailyRewardDTO();
+                    result.isGiveReward = dailyReward.CurrentRewardDay != 0 ? true: false;
+                    result.currentRewardDay = dailyReward.CurrentRewardDay;                    
+                    return Ok(result);
+                }
+                catch (Exception ex)
+                {
+                    await suikaDbService.Log(ex, playerId);
+                    return StatusCode(500, ex.Message + "\n" + ex.InnerException?.Message);
+                }
+            }
+        }
+
+        [HttpPost, Route("CheckForHourlyReward")]
+        public async Task<IActionResult> CheckForHourlyReward([FromBody] BaseAccountRequest request)
+        {
+            using (var context = new LeiaContext())
+            {
+                var suikaDbService = new SuikaDbService(context);
+                var player = await suikaDbService.LoadPlayerByAuthToken(request.authToken);
+                if (player == null) return NotFound("Invalid session auth token");
+                var playerId = player.PlayerId;
+                var playerService = new PlayerService();
+                try
+                {
+                    var result = await playerService.CheckForHourlyReward(playerId);                  
+                    return Ok(result);
+                }
+                catch (Exception ex)
+                {
+                    await suikaDbService.Log(ex, playerId);
+                    return StatusCode(500, ex.Message + "\n" + ex.InnerException?.Message);
+                }
+            }
+        }
+
+        [HttpPost, Route("GetPlayerAchievement")]
+        public async Task<IActionResult> GetPlayerAchievement([FromBody] BaseAccountRequest request)
+        {
+            using (var context = new LeiaContext())
+            {
+                var suikaDbService = new SuikaDbService(context);
+                var player = await suikaDbService.LoadPlayerByAuthToken(request.authToken);
+                if (player == null) return NotFound("Invalid session auth token");
+                var playerId = player.PlayerId;
+                var playerService = new PlayerService();
+                try
+                {
+                    var achievement = await playerService.GetPlayerAchievements(playerId);
+                    AchievementDTO result = new AchievementDTO();
+                    if (achievement != null)
+                    {
+                        result.AchievementName = achievement.AchievementName;
+                        foreach (var element in achievement.AchievementElements)
+                        {
+                            AchievementElementDTO achievementElement = new AchievementElementDTO();
+                            achievementElement.ElementNameId = element.ElementNameId;
+                            achievementElement.AmountNeeded = element.AmountNeeded;
+                            achievementElement.CurrentAmount = element.CurrentAmount;
+                            achievementElement.IsCompleted = element.IsCompleted;
+                            result.AchievementElements.Add(achievementElement);
+                        }
+                    }
+                    return Ok(result);
+                }
+                catch (Exception ex)
+                {
+                    await suikaDbService.Log(ex, playerId);
+                    return StatusCode(500, ex.Message + "\n" + ex.InnerException?.Message);
+                }
+            }
+        }
+
+        [HttpPost, Route("CheckEggRewards")]
+        public async Task<IActionResult> CheckPlayerEggReward([FromBody] BaseAccountRequest request)
+        {
+            using (var context = new LeiaContext())
+            {
+                var suikaDbService = new SuikaDbService(context);
+                var player = await suikaDbService.LoadPlayerByAuthToken(request.authToken);
+                if (player == null) return NotFound("Invalid session auth token");
+                var playerId = player.PlayerId;
+                var playerService = new PlayerService();
+                try
+                {
+                    var playerEggRewards = await playerService.CheckPlayerEggReward(playerId);
+                    List<EggRewardDTO> result = new List<EggRewardDTO>();
+                    if (playerEggRewards != null)
+                    {
+                        foreach (var element in playerEggRewards)
+                        {
+                            EggRewardDTO eggReward = new EggRewardDTO();
+                            eggReward.rewardAmount = (int)element.RewardAmount;
+                            eggReward.currency = element.Currencies.CurrencyName;
+                            result.Add(eggReward);
+                        }
+                    }
+                    return Ok(result);
+                }
+                catch (Exception ex)
+                {
+                    await suikaDbService.Log(ex, playerId);
+                    return StatusCode(500, ex.Message + "\n" + ex.InnerException?.Message);
+                }
+            }
+        }
+
+        [HttpPost, Route("CheckPlayerFeature")]
+        public async Task<IActionResult> CheckPlayerFeature([FromBody] BaseAccountRequest request)
+        {
+            using (var context = new LeiaContext())
+            {
+                var suikaDbService = new SuikaDbService(context);
+                var player = await suikaDbService.LoadPlayerByAuthToken(request.authToken);
+                if (player == null) return NotFound("Invalid session auth token");
+                var playerId = player.PlayerId;
+                var playerService = new PlayerService();
+                try
+                {
+                    var playerFeature = await playerService.CheckPlayerFeature(playerId);
+                    List<FeatureDTO> result = new List<FeatureDTO>();
+                    if (playerFeature != null)
+                    {
+                        foreach (var feature in playerFeature)
+                        {
+                            FeatureDTO featureDTO = new FeatureDTO();
+                            featureDTO.FeatureName = feature.Name;
+                            featureDTO.PlayerLevel = feature.PlayerLevel;
+                            result.Add(featureDTO);
+                        }
+                    }
+                    return Ok(result);
+                }
+                catch (Exception ex)
+                {
+                    await suikaDbService.Log(ex, playerId);
+                    return StatusCode(500, ex.Message + "\n" + ex.InnerException?.Message);
+                }
+            }
+        }
+
+        [HttpPost, Route("CheckPlayerFTUEs")]
+        public async Task<IActionResult> CheckPlayerFTUEs([FromBody] BaseAccountRequest request)
+        {
+            using (var context = new LeiaContext())
+            {
+                var suikaDbService = new SuikaDbService(context);
+                var player = await suikaDbService.LoadPlayerByAuthToken(request.authToken);
+                if (player == null) return NotFound("Invalid session auth token");
+                var playerId = player.PlayerId;
+                var playerService = new PlayerService();
+                try
+                {
+                    var playerFTUEs = await playerService.CheckPlayerFTUE(playerId);                    
+                    return Ok(playerFTUEs);
+                }
+                catch (Exception ex)
+                {
+                    await suikaDbService.Log(ex, playerId);
+                    return StatusCode(500, ex.Message + "\n" + ex.InnerException?.Message);
+                }
+            }
+        }
+
+        [HttpPost, Route("CheckLevelRewards")]
+        public async Task<IActionResult> CheckLevelRewards([FromBody] BaseAccountRequest request)
+        {
+            using (var context = new LeiaContext())
+            {
+                var suikaDbService = new SuikaDbService(context);
+                var player = await suikaDbService.LoadPlayerByAuthToken(request.authToken);
+                if (player == null) return NotFound("Invalid session auth token");
+                var playerId = player.PlayerId;
+                var playerService = new PlayerService();
+                try
+                {
+                    var playerLevelRewards = await playerService.CheckPlayerLevelRewords(playerId);
+                    List<LevelRewardDTO> result = new List<LevelRewardDTO>();
+                    if (playerLevelRewards != null)
+                    {
+                        foreach (var element in playerLevelRewards)
+                        {
+                            LevelRewardDTO levelReward = new LevelRewardDTO();
+                            levelReward.rewardAmount = (int)element.RewardAmount;
+                            levelReward.currency = element.Currencies.CurrencyName;
+                            levelReward.FeatureId = element.FeatureId;
+                            levelReward.FeatureName = element.Features.Name;
+                            result.Add(levelReward);
+                        }
+                    }
+                    return Ok(result);
+                }
+                catch (Exception ex)
+                {
+                    await suikaDbService.Log(ex, playerId);
+                    return StatusCode(500, ex.Message + "\n" + ex.InnerException?.Message);
+                }
+            }
+        }
+
+        [HttpPost, Route("GetUserProfileData")]
+        public async Task<IActionResult> GetUserProfileData([FromBody] BaseAccountRequest request)
+        {
+            using (var context = new LeiaContext())
+            {
+                var suikaDbService = new SuikaDbService(context);
+                var player = await suikaDbService.LoadPlayerByAuthToken(request.authToken);
+                if (player == null) return NotFound("Invalid session auth token");
+                var playerId = player.PlayerId;
+                var playerService = new PlayerService();
+                try
+                {
+                    var playerProileData = await playerService.GetPlayerProfileData(playerId);
+                    ProfileDataDTO result = new ProfileDataDTO();
+                    result.PlayerId = playerProileData.PlayerId.ToString();
+                    result.PlayerPictureId = playerProileData.PlayerPictureId;
+                    result.WinCounte = playerProileData.WinCounte;  
+                    result.FavoriteGameTypeId = playerProileData.FavoriteGameTypeId;
+                    return Ok(result);
+                }
+                catch (Exception ex)
+                {
+                    await suikaDbService.Log(ex, playerId);
+                    return StatusCode(500, ex.Message + "\n" + ex.InnerException?.Message);
+                }
             }
         }
         private async Task SendEmailAsync(string subject, string body)
