@@ -808,6 +808,7 @@ namespace Services
                 dailyReward.DailyRewardsId = reward.DailyRewardsId;
                 dailyReward.PlayerId = playerId;
                 dailyReward.LastClaimDate = DateTime.UtcNow;
+                dailyReward.CurrentRewardDay = 1;
                 dailyReward.ConsecutiveDays = 1;
                 dailyReward.IsActive = true;
                 var isAdded = _leiaContext.PlayerDailyRewards.Add(dailyReward);
