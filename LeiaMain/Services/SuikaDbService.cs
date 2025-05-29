@@ -693,9 +693,11 @@ namespace Services
         }
         public async Task<PlayerMonthlyEgg> StartNewMonthlyEggCount(Guid playerId, int playerEggRewardId)
         {
-        
+
             try
             {
+                if (playerEggRewardId != 0) 
+                { 
                 var balance = _leiaContext.PlayerCurrencies.Where(r => r.PlayerId == playerId && r.CurrenciesId == (int)Enums.CurrenciesEnum.Eggs).FirstOrDefault();
                 balance.CurrencyBalance = 0;
                 _leiaContext.Entry(balance).State = EntityState.Modified;
@@ -705,6 +707,7 @@ namespace Services
                 playerEggRewardToUpdate.IsActive = false;
                 _leiaContext.Entry(playerEggRewardToUpdate).State = EntityState.Modified;
                 var updatePlayerEggReward = _leiaContext.PlayerMonthlyEggs.Update(playerEggRewardToUpdate);
+                }
 
                 PlayerMonthlyEgg playerEggReward = new PlayerMonthlyEgg();
                 playerEggReward.StartDate = DateTime.UtcNow;

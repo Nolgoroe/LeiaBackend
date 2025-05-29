@@ -232,16 +232,25 @@ namespace Services
                 int currMonth = DateTime.UtcNow.Month;
                 int playerEggRewardId = 0;
                 var playerEggReward = _suikaDbService.LeiaContext.PlayerMonthlyEggs.Where(r => r.PlayerId == playerId && r.IsActive == true).FirstOrDefault();
-                if (playerEggReward.StartDate.Month == currMonth)
+                if (playerEggReward != null)
                 {
-                    playerEggRewardId = playerEggReward.ActivePlayerEggsId;
+                    if (playerEggReward.StartDate.Month == currMonth)
+                    {
+                        playerEggRewardId = playerEggReward.ActivePlayerEggsId;
+                    }
+                    else
+                    {
+                        var startNewMonthly = _suikaDbService.StartNewMonthlyEggCount(playerId, playerEggReward.ActivePlayerEggsId);
+                        playerEggRewardId = startNewMonthly.Result.ActivePlayerEggsId;
+                    }
                 }
                 else
                 {
-                    var startNewMonthly = _suikaDbService.StartNewMonthlyEggCount(playerId, playerEggReward.ActivePlayerEggsId);
+                    var startNewMonthly = _suikaDbService.StartNewMonthlyEggCount(playerId, 0);
                     playerEggRewardId = startNewMonthly.Result.ActivePlayerEggsId;
+
                 }
-                var eggCount = _suikaDbService.LeiaContext.PlayerCurrencies.Where(r => r.PlayerId == playerId && r.CurrenciesId == (int)Enums.CurrenciesEnum.Eggs).FirstOrDefault();
+                    var eggCount = _suikaDbService.LeiaContext.PlayerCurrencies.Where(r => r.PlayerId == playerId && r.CurrenciesId == (int)Enums.CurrenciesEnum.Eggs).FirstOrDefault();
                       
                 if (eggCount != null && eggCount.CurrencyBalance > 0)
                 {
@@ -249,7 +258,7 @@ namespace Services
                     if(rewardsForCount != null && rewardsForCount.Result.Count > 0)
                     {
                         
-                            var givenEggRewards = _suikaDbService.LeiaContext.GivenPlayerEggRewards.Where(r => r.ActivePlayerEggsId == playerEggReward.ActivePlayerEggsId).ToList().Select(g => g.EggReward).ToList();
+                            var givenEggRewards = _suikaDbService.LeiaContext.GivenPlayerEggRewards.Where(r => r.ActivePlayerEggsId == playerEggRewardId).ToList().Select(g => g.EggReward).ToList();
                         //var rewards = givenEggRewards.Select(g => g.EggReward).ToList();
                         foreach (var rfc in rewardsForCount.Result) 
                         { 
