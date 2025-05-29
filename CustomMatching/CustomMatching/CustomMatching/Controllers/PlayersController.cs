@@ -26,6 +26,7 @@ public class WithdrawEmailRequest
 
     public string Subject { get; set; }
     public string EmailBody { get; set; }
+    public string playerEmail { get; set; }
 }
 public class RegistrationAsPayerData
 {
@@ -640,9 +641,11 @@ namespace CustomMatching.Controllers
             // US: +1 followed by exactly 10 digits.
             // Japan: +81 followed by 9 or 10 digits.
             // Israel: +972 followed by 8 or 9 digits.
+            // Germany:+49  followed by 10 or 11 digits.
+            // France: +33  followed by exactly 9 digits.
+            // England:+44  followed by exactly 10 digits.
 
-
-            var phoneRegex = new Regex(@"^(\+1\d{10}|\+81\d{9,10}|\+972\d{8,10})$");
+            var phoneRegex = new Regex(@"^(?:\+1\d{10}|\+81\d{9,10}|\+972\d{8,10}|\+49\d{10,11}|\+33\d{9}|\+44\d{10})$");
             if (string.IsNullOrWhiteSpace(registrationData.phoneNumber) || !phoneRegex.IsMatch(registrationData.phoneNumber))
             {
                 return false;
@@ -669,7 +672,7 @@ namespace CustomMatching.Controllers
 
             try
             {
-                await SendEmailAsync(request.Subject, request.EmailBody);
+                await SendEmailAsync(request.Subject, request.EmailBody, request.playerEmail);
 
                 //the currency amount is already sent here with minus from the client
                 var transaction = await _suikaDbService.AddTransactionRecordAsync(player.PlayerId, request.currencyID, (decimal)request.currencyAmount, "Withdraw request");
@@ -926,7 +929,7 @@ namespace CustomMatching.Controllers
                 }
             }
         }
-        private async Task SendEmailAsync(string subject, string body)
+        private async Task SendEmailAsync(string subject, string body, string playerEmail)
         {
             string _smtpServer = "smtp.gmail.com";
             int _port = 587;
@@ -948,6 +951,7 @@ namespace CustomMatching.Controllers
                 };
 
                 mailMessage.To.Add("support@leia.games");
+                mailMessage.To.Add(playerEmail);
                 await smtp.SendMailAsync(mailMessage);
             }
         }
