@@ -197,7 +197,7 @@ namespace Services
                 });
 
                 player.RegistrationDate = DateTime.UtcNow;
-                player.UserCode = GenerateUserCode();
+                //player.UserCode = GenerateUserCode();
 
                 var league = await _leiaContext.League.FindAsync(player?.LeagueId);
                 if (league != null) player.League = league;
@@ -311,7 +311,7 @@ namespace Services
             
             var winRate = await ComputeWinRate(playerId);
 
-            Func<TournamentSession, bool> ratingPred;
+            Expression<Func<TournamentSession, bool>> ratingPred;
             if (winRate >= 0.5)
             {
                 // you're winning at least half your matches
@@ -335,21 +335,21 @@ namespace Services
 
 
             var baseQuery = _leiaContext.Tournaments
-                   .Include(t => t.Players)
-                   .Include(t => t.PlayerTournamentSessions)
-                   .Where(t =>
-                       t.GameTypeId == gameTypeId &&
-                       !t.Players.Select(p => p.PlayerId).Contains(playerId) &&
-                       ratingPred(t)
-                   );
-
-            // DEBUG CHECK: See all tournaments and their players
-            List<TournamentSession> test1 = _leiaContext.Tournaments
                 .Include(t => t.Players)
                 .Include(t => t.PlayerTournamentSessions)
-                .ToList();
+                .Where(t => t.GameTypeId == gameTypeId)
+                // filter out tournaments where the player already has a session
+                .Where(t => !t.PlayerTournamentSessions.Any(ps => ps.PlayerId == playerId))
+                // apply your dynamic rating predicate
+                .Where(ratingPred);
 
-            List<TournamentSession> test2 = baseQuery.ToList(); // Should now contain populated navigation properties
+            // DEBUG CHECK: See all tournaments and their players
+            //List<TournamentSession> test1 = _leiaContext.Tournaments
+            //    .Include(t => t.Players)
+            //    .Include(t => t.PlayerTournamentSessions)
+            //    .ToList();
+
+            //List<TournamentSession> test2 = baseQuery.ToList(); // Should now contain populated navigation properties
 
             // STEP 1: Prefer tournaments with <10 players, sorted by oldest StartTime
             var prioritized = await baseQuery
@@ -382,43 +382,33 @@ namespace Services
 
         private async Task<double> ComputeWinRate(Guid playerId)
         {
+            // pull the whole history in one go
             var history = await GetPlayerTournaments(_leiaContext, playerId);
 
-            // if the player has player less than 5 tournaments, return a default value
             if (history.Count <= 5)
-                return 0.425; // middle between 0.5 and 0.35
-
-            int total = history.Count;
+                return 0.425;
 
             int wins = history.Count(dto =>
             {
-                int actualPlayers = dto.players.Length;
-                int minPlayers = dto.tournamentTypeMaxPlayers;
-                if (actualPlayers < minPlayers)
+                if (dto.players.Length < dto.tournamentTypeMaxPlayers)
                     return false;
 
-                // Find your 1-based rank in that event
                 var sorted = dto.players
                     .OrderByDescending(p => p.score)
                     .ToArray();
 
-                int rank = Array.FindIndex(sorted, p => p.id == playerId.ToString()) + 1; 
-                
-                if (rank <= 0)
-                    return false;  // safety check
+                int rank = Array.FindIndex(sorted, p => p.id == playerId.ToString()) + 1;
+                if (rank <= 0) return false;
 
-                // Determine the worst position that still pays out
-                // e.g. if rewards.ForPosition = [1,2,3], then cutoff = 3
                 int cutoff = dto.rewards
                     .Select(r => r.ForPosition)
                     .DefaultIfEmpty(0)
                     .Max();
 
-                // If you finished at or above that position, it’s a “win”
                 return rank <= cutoff;
             });
 
-            return (double)wins / total;
+            return (double)wins / history.Count;
         }
 
         public async Task<List<PlayerCurrencies?>?> GetAllPlayerBalances(Guid playerId)
@@ -664,30 +654,71 @@ namespace Services
 
         public async Task<List<HistoryDTO>> GetPlayerTournaments(LeiaContext context, Guid playerId)
         {
-            // We load all the tournament types and 100 of the most recent sessions of the current player
-            var allTournamentTypesById = await context.TournamentTypes.Include(t => t.Reward).ToDictionaryAsync(t => t.TournamentTypeId);
-            var allSessionsOfCurrentPlayer = context.PlayerTournamentSession
+            // 1) Load tournament-type metadata (with rewards)
+            var allTournamentTypesById = await context.TournamentTypes
+                .AsNoTracking()
+                .Include(t => t.Reward)
+                .ToDictionaryAsync(t => t.TournamentTypeId);
+
+            // 2) Load the last 100 sessions *of this player*
+            var allSessionsOfCurrentPlayer = await context.PlayerTournamentSession
+                .AsNoTracking()
                 .Where(s => s.PlayerId == playerId)
                 .OrderByDescending(s => s.SubmitScoreTime)
                 .Take(100)
+                .ToListAsync();
+
+            var playerTournamentIds = allSessionsOfCurrentPlayer
+                .Select(s => s.TournamentSessionId)
                 .ToList();
-            // We load the rest of the sessions of other players in the 100 last tournaments of the current player
-            // We arrange these sessions into groups and save the groups to a dictionary with tournamentId as the key
-            var playerTournamentIds = allSessionsOfCurrentPlayer.Select(s => s.TournamentSessionId).ToList();
-            var allOtherSessionsByTournamentId = context.PlayerTournamentSession.Where(s => playerTournamentIds.Contains(s.TournamentSessionId))
+
+            // 3) Load *all* sessions in those tournaments (other players too)
+            var allOtherSessions = await context.PlayerTournamentSession
+                .AsNoTracking()
+                .Where(s => playerTournamentIds.Contains(s.TournamentSessionId))
+                .ToListAsync();
+
+            // group them by tournament ID
+            var allOtherSessionsByTournamentId = allOtherSessions
                 .GroupBy(s => s.TournamentSessionId)
-                .ToDictionary(group => group.Key, group => group.ToList());
-            var allPlayerIds = allOtherSessionsByTournamentId.SelectMany(kv => kv.Value).Select(s => s.PlayerId).Distinct().ToList();
-            var allPlayersById = context.Players.Where(p => allPlayerIds.Contains(p.PlayerId)).ToDictionary(p => p.PlayerId);
-            var allTournamentsById = context.Tournaments.Where(p => playerTournamentIds.Contains(p.TournamentSessionId)).ToDictionary(t => t.TournamentSessionId);
-            // We convert and sort the sessions to leaderboards using the mixed-trounament leaderboard calculator
-            return allSessionsOfCurrentPlayer.Select(s =>
-            {
-                return GetPlayerTournamentsCalcLeaderboard(s.PlayerId, allPlayersById, allOtherSessionsByTournamentId[s.TournamentSessionId], allTournamentTypesById[s.TournamentTypeId], s.TournamentSessionId,
-                    allTournamentsById[s.TournamentSessionId].GameTypeId);
-            }).ToList();
+                .ToDictionary(g => g.Key, g => g.ToList());
+
+            // 4) Load the Player entities for everyone involved
+            var allPlayerIds = allOtherSessions
+                .Select(s => s.PlayerId)
+                .Distinct()
+                .ToList();
+
+            var allPlayersById = (await context.Players
+                .AsNoTracking()
+                .Where(p => allPlayerIds.Contains(p.PlayerId))
+                .ToListAsync())
+                .ToDictionary(p => p.PlayerId);
+
+            // 5) Load the TournamentSession metadata for those IDs
+            var allTournamentsById = (await context.Tournaments
+                .AsNoTracking()
+                .Where(t => playerTournamentIds.Contains(t.TournamentSessionId))
+                .ToListAsync())
+                .ToDictionary(t => t.TournamentSessionId);
+
+            // 6) Now that everything’s in memory, build your HistoryDTO list
+            var history = allSessionsOfCurrentPlayer
+                .Select(s =>
+                    GetPlayerTournamentsCalcLeaderboard(
+                        s.PlayerId,
+                        allPlayersById,
+                        allOtherSessionsByTournamentId[s.TournamentSessionId],
+                        allTournamentTypesById[s.TournamentTypeId],
+                        s.TournamentSessionId,
+                        allTournamentsById[s.TournamentSessionId].GameTypeId
+                    )
+                )
+                .ToList();
+
+            return history;
         }
-     
+
         public async Task<League?> GetLeagueById(int leagueId)
         {
             var league = await _leiaContext.League.Include(l => l.Players)
