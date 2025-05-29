@@ -138,11 +138,8 @@ namespace Services
                         {
                             reward.CurrentRewardDay = 1;
                             var updated = _suikaDbService.UpdatePlayerDailyRewards(dailyReward.PlayerDailyRewardId, 1);
-
                         }
-                       
                     }
-
                 }
                 else
                 {
@@ -198,7 +195,7 @@ namespace Services
         {
 
             try
-            {              
+            {                  
                 var achievement = _suikaDbService.LeiaContext.Achievements.Where(r => r.PlayerId == playerId).FirstOrDefault();
                 if (achievement != null)
                 {
@@ -324,23 +321,32 @@ namespace Services
                 int playerLevel = _suikaDbService.LeiaContext.Players.Where(p => p.PlayerId == playerId).Select(p => p.Level).FirstOrDefault();
                 var features = _suikaDbService.LeiaContext.Features.Where(f => f.PlayerLevel <= playerLevel).OrderBy(f => f.PlayerLevel).ToList();
                 var playerFeatures = _suikaDbService.LeiaContext.PlayerFeatures.Where(p =>  p.PlayerId == playerId).ToList().Select(p => p.Feature);
-                              
-                List<Feature> result = new List<Feature>();
-                foreach (var item in features)
+
+                if (playerFeatures == null) 
                 {
-                    if(!playerFeatures.Contains(item))
-                    { 
-                        result.Add(item); 
+                    var added = _suikaDbService.UpdatePlayerFeatures(playerId, features);
+                    return features;
+                }
+                else
+                {
+                    List<Feature> result = new List<Feature>();
+                    foreach (var item in features)
+                    {
+                        if (!playerFeatures.Contains(item))
+                        {
+                            result.Add(item);
+                        }
                     }
-                }
 
-                if (result.Count > 0) 
-                { 
-                    var added = _suikaDbService.UpdatePlayerFeatures(playerId, result);
+                    if (result.Count > 0)
+                    {
+                        var added = _suikaDbService.UpdatePlayerFeatures(playerId, result);
+
+                    }
+
+                    return result;
+                }
                    
-                }
-
-                return result;
             }
             catch (Exception ex)
             {
@@ -349,7 +355,7 @@ namespace Services
                 throw;
             }
         
-    }
+        }
         public async Task<List<int>> CheckPlayerFTUE(Guid playerId)
         {
 
@@ -411,26 +417,39 @@ namespace Services
                 int playerLevel = _suikaDbService.LeiaContext.Players.Where(p => p.PlayerId == playerId).Select(p => p.Level).FirstOrDefault();
                 var levelRewards = _suikaDbService.LeiaContext.LevelRewards.Where(l => l.Level <= playerLevel).OrderBy(l => l.Level).ToList();
                 var givenLevelRewards = _suikaDbService.LeiaContext.GivenPlayerLevelRewards.Where(g => g.PlayerId == playerId).ToList().Select(g => g.LevelReward).ToList();
-
                 List<LevelReward> result = new List<LevelReward>();
-                if(givenLevelRewards != null && givenLevelRewards.Count > 0)
+                if (levelRewards.Count > 0)
                 {
-                    foreach (var item in levelRewards)
+                    if(givenLevelRewards != null)
                     {
-                        if (!givenLevelRewards.Contains(item))
+                        
+                        if (givenLevelRewards.Count > 0)
                         {
-                            result.Add(item);
+                            
+                            foreach (var item in levelRewards)
+                            {
+                                if (!givenLevelRewards.Contains(item))
+                                {
+                                    result.Add(item);
+                                }
+                            }
+
                         }
+                        if (result.Count > 0)
+                        {
+                            var added = _suikaDbService.UpdatePlayerLevelRewards(playerId, result);
+                        }
+                        
                     }
-
+                    else
+                    {
+                        var added = _suikaDbService.UpdatePlayerLevelRewards(playerId, levelRewards);
+                        result = levelRewards;
+                    }
+                  
                 }
-
-                if (result.Count > 0)
-                {
-                    var added = _suikaDbService.UpdatePlayerLevelRewards(playerId, result);
-                }
-
                 return result;
+                
             }
             catch (Exception ex)
             {

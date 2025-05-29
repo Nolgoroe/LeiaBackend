@@ -903,8 +903,7 @@ namespace Services
                 throw;
             }
         }
-
-
+       
 
         public string GenerateUserCode()
         {
