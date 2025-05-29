@@ -50,6 +50,7 @@ namespace Services.CreditCards
                 ["ExpMonth"] = req.ExpMonth,
                 ["ExpYear"] = req.ExpYear,
                 ["Member"] = req.Member,
+                ["CVV2"] = req.CVV,
                 ["Email"] = req.Email,
                 ["ClientIP"] = req.ClientIP,
                 ["Signature"] = sig

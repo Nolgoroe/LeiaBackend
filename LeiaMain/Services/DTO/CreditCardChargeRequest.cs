@@ -17,6 +17,7 @@ namespace Services.DTO
         [Required] public decimal Amount { get; set; }
         [Required] public string Currency { get; set; }
         [Required] public string Member { get; set; }
+        [Required] public string CVV { get; set; }
         [EmailAddress] public string Email { get; set; }
         [Required] public string ClientIP { get; set; }
         [Url] public string RetURL { get; set; }

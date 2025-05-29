@@ -437,7 +437,8 @@ namespace Services
             try
             {
                 int playerLevel = _suikaDbService.LeiaContext.Players.Where(p => p.PlayerId == playerId).Select(p => p.Level).FirstOrDefault();               
-                var totalExp = _suikaDbService.LeiaContext.Players.Where(p => p.PlayerId == playerId).Select(p => p.TotalExp).FirstOrDefault();
+                //var totalExp = _suikaDbService.LeiaContext.Players.Where(p => p.PlayerId == playerId).Select(p => p.TotalExp).FirstOrDefault();
+                var totalExp = 0;
                 int levelByExp = _suikaDbService.LeiaContext.UserMainProgression.Where(u => u.XPForUnity == totalExp).Select(u => u.UserLevel).FirstOrDefault();
 
                 if(playerLevel != levelByExp)
