@@ -25,7 +25,6 @@ namespace Services.CreditCards
 
         public async Task<CreditCardPaymentResponse> ChargeAsync(CreditCardChargeRequest req)
         {
-            // 1) Build the signature (empty refTransId for a straight SALE)
             var sig = CreditCardPaymentSignature.BuildSignature(
                 CompanyNum,
                 "0",                   // TransType = SALE
@@ -37,7 +36,6 @@ namespace Services.CreditCards
                 PersonalHashKey
             );
 
-            // 2) Assemble query parameters
             var parameters = new Dictionary<string, string>
             {
                 ["CompanyNum"] = CompanyNum,
@@ -62,16 +60,10 @@ namespace Services.CreditCards
             if (!string.IsNullOrEmpty(req.NotificationUrl))
                 parameters["notification_url"] = req.NotificationUrl;
 
-            // 3) Build full request URL
-            var form = new FormUrlEncodedContent(parameters);
-            string qs = await form.ReadAsStringAsync();
-            string url = $"{BaseUrl}?{qs}";
-
-            // 4) Execute the request
-            var response = await _httpClient.GetAsync(url);
+            using var form = new FormUrlEncodedContent(parameters);
+            var response = await _httpClient.PostAsync(BaseUrl, form);
             var rawResponse = await response.Content.ReadAsStringAsync();
 
-            // 5) Parse the "key=value&…" body
             var dict = rawResponse
                     .Split('&', StringSplitOptions.RemoveEmptyEntries)
                     .Select(p => p.Split('=', 2))
