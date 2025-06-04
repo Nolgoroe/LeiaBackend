@@ -16,8 +16,6 @@ namespace DataObjects
         public int? AmountNeeded{ get; set; }
         public int? CurrentAmount { get; set; }
         public bool IsCompleted { get; set; }
-        public int AchievementId { get; set; }
-        [ForeignKey(nameof(AchievementId))]
-        public Achievement Achievement { get; set; }
+        
     }
 }

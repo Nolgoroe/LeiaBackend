@@ -29,7 +29,7 @@ namespace DAL
         public DbSet<GameType> GameType { get; set; }
         public DbSet<Achievement> Achievements { get; set; }
         public DbSet<AchievementElement> AchievementElements { get; set; }
-
+        public DbSet<GivenPlayerAchievement> GivenPlayerAchievements { get; set; }
         public DbSet<DailyReward> DailyRewards { get; set; }
         public DbSet<PlayerDailyReward> PlayerDailyRewards { get; set; }
 
