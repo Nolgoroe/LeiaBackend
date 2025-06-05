@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Hosting;
 using Services.CreditCards;
 using Services.DTO;
 
@@ -10,7 +11,7 @@ namespace CustomMatching.Controllers
     {
         CreditCardService creditCardService = new CreditCardService();
 
-        [HttpPost("charge")]
+        [HttpPost("Charge")]
         public async Task<IActionResult> Charge([FromBody] CreditCardChargeRequest req)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
@@ -21,6 +22,17 @@ namespace CustomMatching.Controllers
               : result.Needs3DS
                 ? Ok(result)
                 : BadRequest(new { error = result.ReplyDesc });
+        }
+
+        [HttpPost("Redirect")]
+        public IActionResult Redirect([FromBody] CreditCardRedirectRequest req)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            string redirectUrl = creditCardService.GetHostedRedirectUrl(req);
+
+            return Redirect(redirectUrl);
         }
 
         [HttpPost("notification")]

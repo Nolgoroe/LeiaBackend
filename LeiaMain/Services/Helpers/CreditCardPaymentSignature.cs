@@ -10,16 +10,7 @@ namespace Services.Helpers
 {
     public class CreditCardPaymentSignature
     {
-        public static string BuildSignature(
-          string companyNum,
-          string transType,
-          string typeCredit,
-          string amount,
-          string currency,
-          string cardNum,
-          string refTransId,
-          string personalHashKey
-        )
+        public static string BuildSignature(string companyNum,string transType,string typeCredit,string amount,string currency,string cardNum,string refTransId,string personalHashKey)
         {
             var raw = $"{companyNum}{transType}{typeCredit}{amount}{currency}{cardNum}{refTransId}{personalHashKey}";
 

@@ -15,6 +15,7 @@ namespace Services.CreditCards
         private const string CompanyNum = "5009523";
         private const string PersonalHashKey = "309NZOP5ZR";
         private const string BaseUrl = "https://process.b2bserve.com/member/remote_charge.asp";
+        private const string BaseUrlRedirect = "https://uiservices.b2bserve.com/hosted/";
 
         private readonly HttpClient _httpClient;
 
@@ -89,7 +90,10 @@ namespace Services.CreditCards
             };
         }
 
-
+        public string GetHostedRedirectUrl(CreditCardRedirectRequest req)
+        {
+            return CreditCardRedirectSignature.BuildHostedUrl(req);
+        }
         public async Task<CreditCardStatusByID> GetStatusByIdAsync(string transId)
         {
             var q = new Dictionary<string, string>
