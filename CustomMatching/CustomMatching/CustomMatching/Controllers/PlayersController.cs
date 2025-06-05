@@ -638,14 +638,15 @@ namespace CustomMatching.Controllers
             }
 
             // Validate phone number:
-            // US: +1 followed by exactly 10 digits.
-            // Japan: +81 followed by 9 or 10 digits.
+            // US:     +1   followed by exactly 10 digits.
+            // Japan:  +81  followed by 9 or 10 digits.
             // Israel: +972 followed by 8 or 9 digits.
             // Germany:+49  followed by 10 or 11 digits.
             // France: +33  followed by exactly 9 digits.
             // England:+44  followed by exactly 10 digits.
+            // Nigeria:+234 followed by exactly 10 digits.
 
-            var phoneRegex = new Regex(@"^(?:\+1\d{10}|\+81\d{9,10}|\+972\d{8,10}|\+49\d{10,11}|\+33\d{9}|\+44\d{10})$");
+            var phoneRegex = new Regex(@"^(?:\+1\d{10}|\+81\d{9,10}|\+972\d{8,10}|\+49\d{10,11}|\+33\d{9}|\+44\d{10}|\+234\d{10})$");
             if (string.IsNullOrWhiteSpace(registrationData.phoneNumber) || !phoneRegex.IsMatch(registrationData.phoneNumber))
             {
                 return false;
