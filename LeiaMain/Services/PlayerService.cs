@@ -11,6 +11,7 @@ using System.ComponentModel.DataAnnotations;
 using Services.Shared;
 using System;
 using System.Text;
+using Microsoft.EntityFrameworkCore.Migrations.Operations;
 
 namespace Services
 {
@@ -199,10 +200,10 @@ namespace Services
                 var achievement = _suikaDbService.LeiaContext.Achievements.Where(r => r.PlayerId == playerId).FirstOrDefault();
                 if (achievement != null)
                 {
-                    var achievementaElements = _suikaDbService.LeiaContext.AchievementElements.Where(r => r.AchievementId == achievement.AchievementId).ToList();
-                    if(achievementaElements.Count > 0)
+                    var achievementElements = _suikaDbService.LeiaContext.GivenPlayerAchievements.Where(r => r.AchievementId == achievement.AchievementId).ToList();
+                    if(achievementElements.Count > 0)
                     {
-                        achievement.AchievementElements = achievementaElements; 
+                        achievement.GivenPlayerAchievements = achievementElements; 
                     }
                     return achievement;
                 }
@@ -319,9 +320,10 @@ namespace Services
             try
             {
                 int playerLevel = _suikaDbService.LeiaContext.Players.Where(p => p.PlayerId == playerId).Select(p => p.Level).FirstOrDefault();
-                var features = _suikaDbService.LeiaContext.Features.Where(f => f.PlayerLevel <= playerLevel).OrderBy(f => f.PlayerLevel).ToList();
+                var closedFeatures = await _suikaDbService.CheckObjectTimeForOpen(playerId, (int)Enums.CategoriesObjectsEnum.Features);
+                var features = _suikaDbService.LeiaContext.Features.Where(f => f.PlayerLevel <= playerLevel && !closedFeatures.Contains(f.FeatureId)).OrderBy(f => f.PlayerLevel).ToList();
                 var playerFeatures = _suikaDbService.LeiaContext.PlayerFeatures.Where(p =>  p.PlayerId == playerId).ToList().Select(p => p.Feature);
-
+                
                 if (playerFeatures == null) 
                 {
                     var added = _suikaDbService.UpdatePlayerFeatures(playerId, features);
@@ -356,6 +358,27 @@ namespace Services
             }
         
         }
+
+        //public async Task<List<int>> CheckObjectTimeForOpen(Guid playerId, int category)
+        //{ 
+            
+        //    List<int> result = new List<int>();
+        //    List<int> timeManagerIds = new List<int>(); 
+            
+        //        var playerTimeManagers = _suikaDbService.LeiaContext.PlayerTimeManager.Where(p => p.PlayerId == playerId && p.CategoryObjectId == (int)Enums.CategoriesObjectsEnum.Features && p.IsActive == true);
+        //        foreach (var timeManager in playerTimeManagers)
+        //        {
+        //            if (timeManager.EndTime >= DateTime.UtcNow)
+        //            {
+        //                result.Add(timeManager.TimeObjectId);
+        //                timeManagerIds.Add(timeManager.TimeManagerId);
+        //            }
+        //        }
+
+        //    var updated = _suikaDbService.UpdatePlayerTimeObject(timeManagerIds, playerId, result, category);
+           
+        //   return result;  
+        //}
         public async Task<List<int>> CheckPlayerFTUE(Guid playerId)
         {
 

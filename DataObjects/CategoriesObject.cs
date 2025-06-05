@@ -7,12 +7,10 @@ using System.Threading.Tasks;
 
 namespace DataObjects
 {
-    public class Feature
+    public class CategoriesObject
     {
         [Key]
-        public int FeatureId { get; set; }
-        public string Name { get; set; }
-        public int PlayerLevel { get; set; }
-        public int? OpenForTime { get; set; }    
+        public int CategoryObjectId { get; set; }
+        public string ObjectName { get; set; }
     }
 }

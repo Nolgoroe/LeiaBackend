@@ -21,5 +21,12 @@ namespace Services.Shared
             PurpleToken = 14,
             WheelTicket = 15
         }
+
+        public enum CategoriesObjectsEnum 
+        {
+            Features = 1,
+            Tournaments = 2,
+            Packages = 3
+        }
     }
 }

@@ -16,5 +16,6 @@ namespace DataObjects
         public int? NumberOfPlayers { get; set; }
         public List<Reward> Reward { get; set; }
         public double? EntryFee { get; set; }
+        public int? OpenForTime { get; set; }
     }
 }

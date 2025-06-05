@@ -736,7 +736,7 @@ namespace CustomMatching.Controllers
             }
         }
 
-        [HttpPost, Route("GetPlayerAchievement")]
+        [HttpPost, Route("GetPlayerAchievements")]
         public async Task<IActionResult> GetPlayerAchievement([FromBody] BaseAccountRequest request)
         {
             using (var context = new LeiaContext())
@@ -753,13 +753,13 @@ namespace CustomMatching.Controllers
                     if (achievement != null)
                     {
                         result.AchievementName = achievement.AchievementName;
-                        foreach (var element in achievement.AchievementElements)
+                        foreach (var element in achievement.GivenPlayerAchievements)
                         {
                             AchievementElementDTO achievementElement = new AchievementElementDTO();
-                            achievementElement.ElementNameId = element.ElementNameId;
-                            achievementElement.AmountNeeded = element.AmountNeeded;
-                            achievementElement.CurrentAmount = element.CurrentAmount;
-                            achievementElement.IsCompleted = element.IsCompleted;
+                            achievementElement.ElementNameId = element.AchievementElement.ElementNameId;
+                            achievementElement.AmountNeeded = element.AchievementElement.AmountNeeded;
+                            achievementElement.CurrentAmount = element.AchievementElement.CurrentAmount;
+                            achievementElement.IsCompleted = element.AchievementElement.IsCompleted;
                             result.AchievementElements.Add(achievementElement);
                         }
                     }

@@ -142,6 +142,9 @@ namespace Services
         public Task<bool> UpdatePlayerHourlyRewards(int hourlyRewardId);
         public Task<bool> AddPlayerHourlyRewards(Guid playerId);
         public Task<bool> UpdatePlayerLevel(Guid playerId, int level);
+        public Task<List<int>> CheckObjectTimeForOpen(Guid playerId, int category);
+        public Task<bool> UpdatePlayerTimeObject(List<int> timeManagerIds, Guid playerId, List<int> timeObjectIds, int category);
+        //public Task<bool> UpdateTimeObject(Guid playerId, List<int> timeObjectIds, int category);
         public LeiaContext LeiaContext { get; set; }
     }
 
@@ -584,10 +587,11 @@ namespace Services
 
         public async Task<List<HistoryDTO>> GetPlayerTournaments(LeiaContext context, Guid playerId)
         {
+            var closedTournaments = await CheckObjectTimeForOpen(playerId, (int)Enums.CategoriesObjectsEnum.Tournaments); // time objects 
             // We load all the tournament types and 100 of the most recent sessions of the current player
-            var allTournamentTypesById = await context.TournamentTypes.Include(t => t.Reward).ToDictionaryAsync(t => t.TournamentTypeId);
+            var allTournamentTypesById = await context.TournamentTypes.Where(t => !closedTournaments.Contains(t.TournamentTypeId)).Include(t => t.Reward).ToDictionaryAsync(t => t.TournamentTypeId);
             var allSessionsOfCurrentPlayer = context.PlayerTournamentSession
-                .Where(s => s.PlayerId == playerId)
+                .Where(s => s.PlayerId == playerId && !closedTournaments.Contains(s.TournamentTypeId))
                 .OrderByDescending(s => s.SubmitScoreTime)
                 .Take(100)
                 .ToList();
@@ -603,7 +607,8 @@ namespace Services
             // We convert and sort the sessions to leaderboards using the mixed-trounament leaderboard calculator
             return allSessionsOfCurrentPlayer.Select(s =>
             {
-                return GetPlayerTournamentsCalcLeaderboard(s.PlayerId, allPlayersById, allOtherSessionsByTournamentId[s.TournamentSessionId], allTournamentTypesById[s.TournamentTypeId], s.TournamentSessionId,
+                return 
+                GetPlayerTournamentsCalcLeaderboard(s.PlayerId, allPlayersById, allOtherSessionsByTournamentId[s.TournamentSessionId], allTournamentTypesById[s.TournamentTypeId], s.TournamentSessionId,
                     allTournamentsById[s.TournamentSessionId].GameTypeId);
             }).ToList();
         }
@@ -904,7 +909,117 @@ namespace Services
                 throw;
             }
         }
-       
+        public async Task<List<int>> CheckObjectTimeForOpen(Guid playerId, int category)
+        {
+
+            List<int> result = new List<int>();
+            List<int> timeManagerIds = new List<int>();
+
+            var playerTimeManagers = _leiaContext.PlayerTimeManager.Where(p => p.PlayerId == playerId && p.CategoryObjectId == (int)Enums.CategoriesObjectsEnum.Features && p.IsActive == true);
+            foreach (var timeManager in playerTimeManagers)
+            {
+                if (timeManager.EndTime != null && timeManager.EndTime >= DateTime.UtcNow)
+                {
+                    result.Add(timeManager.TimeObjectId);
+                    timeManagerIds.Add(timeManager.TimeManagerId);
+                }
+            }
+
+            var updated = UpdatePlayerTimeObject(timeManagerIds, playerId, result, category);
+
+            return result;
+        }
+        public async Task<bool> UpdatePlayerTimeObject(List<int> timeManagerIds, Guid playerId, List<int> timeObjectIds, int category)
+        {
+            try
+            {
+                var timeManagers = _leiaContext.PlayerTimeManager.Where(p => timeManagerIds.Contains(p.TimeManagerId)).ToList();
+                foreach ( var toUpdate in timeManagers)
+                {
+                    toUpdate.IsActive = false;
+                    var updated = _leiaContext.PlayerTimeManager.Update(toUpdate);
+                }
+
+                switch (category)
+                {
+                    case (int)Enums.CategoriesObjectsEnum.Features:
+
+                        var playerFeatures = _leiaContext.PlayerFeatures.Where(p => p.PlayerId == playerId).ToList();
+                        foreach (var feature in playerFeatures)
+                        {
+                            if (timeObjectIds.Contains(feature.FeatureId))
+                            {
+                                var removed = _leiaContext.PlayerFeatures.Remove(feature);
+                            }
+                        }
+                        break;
+
+                    case (int)Enums.CategoriesObjectsEnum.Tournaments:
+                        var playerTournaments = _leiaContext.PlayerTournamentSession.Where(p => p.PlayerId == playerId).ToList();
+                        foreach (var tournament in playerTournaments)
+                        {
+                            if (timeObjectIds.Contains(tournament.TournamentTypeId))
+                            {
+                                var removed = _leiaContext.PlayerTournamentSession.Remove(tournament);
+                            }
+                        }
+                        break;
+
+                    case (int)Enums.CategoriesObjectsEnum.Packages:
+                        break;
+                }
+
+                var saved = await _leiaContext.SaveChangesAsync();
+                return true;
+
+            }
+
+            catch (Exception ex)
+            {
+                Trace.WriteLine(ex.Message + "\n" + ex.InnerException?.Message);
+                throw;
+            }
+        }
+
+        //public async Task<bool> UpdateTimeObject(Guid playerId, List<int> timeObjectIds, int category)
+        //{
+        //    try
+        //    {
+        //        switch (category)
+        //        {
+        //            case (int)Enums.CategoriesObjectsEnum.Features:
+
+        //                var playerFeatures = _leiaContext.PlayerFeatures.Where(p => p.PlayerId == playerId).ToList();
+        //                foreach (var feature in playerFeatures)
+        //                {
+        //                    if (timeObjectIds.Contains(feature.FeatureId))
+        //                    {
+        //                        var removed = _leiaContext.PlayerFeatures.Remove(feature);
+        //                    }
+        //                }
+        //                break;
+
+        //            case (int)Enums.CategoriesObjectsEnum.Tournaments:
+        //                break;
+
+        //            case (int)Enums.CategoriesObjectsEnum.Packages:
+        //                break;
+        //        }
+                
+
+        //            var saved = await _leiaContext.SaveChangesAsync();
+        //        return true;
+
+        //    }
+
+        //    catch (Exception ex)
+        //    {
+        //        Trace.WriteLine(ex.Message + "\n" + ex.InnerException?.Message);
+        //        throw;
+        //    }
+        //}
+
+        
 
         public string GenerateUserCode()
         {

@@ -18,6 +18,6 @@ namespace DataObjects
         public int AchievementsElementId { get; set; }
         [ForeignKey(nameof(AchievementsElementId))]
         public AchievementElement AchievementElement { get; set; }
-        public DateTime GivenDate { get; set; }
+        public DateTime? GivenDate { get; set; }
     }
 }

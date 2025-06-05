@@ -19,6 +19,6 @@ namespace DataObjects
         public Player Player { get; set; }
 
         [JsonIgnore]
-        public List<AchievementElement> AchievementElements { get; set; } = [];
+        public List<GivenPlayerAchievement> GivenPlayerAchievements { get; set; } = [];
     }
 }
