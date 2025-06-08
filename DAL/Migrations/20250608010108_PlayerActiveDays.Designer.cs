@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DAL.Migrations
 {
     [DbContext(typeof(LeiaContext))]
-    [Migration("20250528073015_TransferLocalToBack")]
-    partial class TransferLocalToBack
+    [Migration("20250608010108_PlayerActiveDays")]
+    partial class PlayerActiveDays
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -267,6 +267,25 @@ namespace DAL.Migrations
                         });
                 });
 
+            modelBuilder.Entity("DataObjects.GeoLockLocation", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("CountryCode")
+                        .IsRequired()
+                        .HasMaxLength(2)
+                        .HasColumnType("nchar(2)")
+                        .IsFixedLength();
+
+                    b.HasKey("Id");
+
+                    b.ToTable("GeoLockLocations");
+                });
+
             modelBuilder.Entity("DataObjects.GivenPlayerEggReward", b =>
                 {
                     b.Property<int>("GivenEggRewordId")
@@ -388,9 +407,6 @@ namespace DAL.Migrations
                     b.Property<string>("Country")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("DeviceId")
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<string>("DeviceType")
                         .HasColumnType("nvarchar(max)");
 
@@ -430,12 +446,6 @@ namespace DAL.Migrations
                     b.Property<DateTime?>("RegistrationDate")
                         .HasColumnType("datetime2");
 
-                    b.Property<double?>("TotalExp")
-                        .HasColumnType("float");
-
-                    b.Property<string>("UserCode")
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<string>("UserType")
                         .HasColumnType("nvarchar(max)");
 
@@ -450,6 +460,27 @@ namespace DAL.Migrations
                     b.HasIndex("LeagueId");
 
                     b.ToTable("Players");
+                });
+
+            modelBuilder.Entity("DataObjects.PlayerActiveDay", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("Date")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("PlayerId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PlayerId");
+
+                    b.ToTable("PlayerActiveDays");
                 });
 
             modelBuilder.Entity("DataObjects.PlayerActiveTournament", b =>
@@ -1001,6 +1032,43 @@ namespace DAL.Migrations
                     b.ToTable("UserMainProgression");
                 });
 
+            modelBuilder.Entity("DataObjects.ZealyData", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("PlayerId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("PlayerName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("TaskDescription")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("TaskName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("XpAmount")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("ZealyData");
+                });
+
             modelBuilder.Entity("RewardTournamentType", b =>
                 {
                     b.Property<int>("RewardId")
@@ -1118,6 +1186,17 @@ namespace DAL.Migrations
                         .HasForeignKey("LeagueId");
 
                     b.Navigation("League");
+                });
+
+            modelBuilder.Entity("DataObjects.PlayerActiveDay", b =>
+                {
+                    b.HasOne("DataObjects.Player", "Player")
+                        .WithMany()
+                        .HasForeignKey("PlayerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Player");
                 });
 
             modelBuilder.Entity("DataObjects.PlayerAuthToken", b =>

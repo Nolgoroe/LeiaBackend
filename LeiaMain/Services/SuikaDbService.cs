@@ -68,6 +68,8 @@ namespace Services
         public Task<List<PlayerCurrencies?>?> GetAllPlayerBalances(Guid playerId);
         public Task<PlayerCurrencies?> UpdatePlayerBalance(Guid? playerId, int? currencyId, double? amount);
         public Task<League?> GetLeagueById(int leagueId);
+        public Task<bool> RecordActiveDayAsync(Guid playerId);
+        public Task<int> GetActiveDaysCountAsync(Guid playerId);
         public Task Log(string message);
 
         public Task Log(string message, Guid playerId);
@@ -1031,6 +1033,34 @@ namespace Services
 
         }
 
+
+
+
+
+        public async Task<bool> RecordActiveDayAsync(Guid playerId)
+        {
+            var today = DateTime.UtcNow.Date;
+            bool exists = await LeiaContext.PlayerActiveDays
+                .AnyAsync(a => a.PlayerId == playerId && a.Date == today);
+
+            if (!exists)
+            {
+                LeiaContext.PlayerActiveDays.Add(new PlayerActiveDay
+                {
+                    PlayerId = playerId,
+                    Date = today
+                });
+                await LeiaContext.SaveChangesAsync();
+                return true;
+            }
+
+            return false;
+        }
+        public Task<int> GetActiveDaysCountAsync(Guid playerId)
+        {
+            return LeiaContext.PlayerActiveDays
+                .CountAsync(a => a.PlayerId == playerId);
+        }
     }
 
 }

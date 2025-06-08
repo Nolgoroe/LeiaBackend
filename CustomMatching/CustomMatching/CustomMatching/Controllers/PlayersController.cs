@@ -65,6 +65,8 @@ namespace CustomMatching.Controllers
     {
         public class LoginResponse : Player
         {
+            public int ActiveDaysCount { get; set; }
+
             public int? ActiveTournamentSeed { get; set; }
             public int? ActiveTournamentId { get; set; }
             public TournamentType? ActiveTournamentType { get; set; }
@@ -195,6 +197,10 @@ namespace CustomMatching.Controllers
                 ActiveTournamentType = activeTournamentType,
                 AuthToken = AuthToken,
             };
+
+            await _suikaDbService.RecordActiveDayAsync(player.PlayerId);
+            loginResponse.ActiveDaysCount = await _suikaDbService.GetActiveDaysCountAsync(player.PlayerId);
+
             await _suikaDbService.Log($"Player login {player.Name} id={player.PlayerId}, activeTournament?={activeMatchMakeRecord?.TournamentId}", player.PlayerId);
             return loginResponse;
         }

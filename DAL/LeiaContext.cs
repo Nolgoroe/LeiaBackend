@@ -26,6 +26,7 @@ namespace DAL
         public DbSet<PlayerAuthToken> PlayerAuthToken { get; set; }
         public DbSet<PlayerGameRating> PlayerGameRatings { get; set; }
         public DbSet<ZealyData> ZealyData { get; set; }
+        public DbSet<PlayerActiveDay> PlayerActiveDays { get; set; }
 
         public DbSet<GeoLockLocation> GeoLockLocations { get; set; }
 

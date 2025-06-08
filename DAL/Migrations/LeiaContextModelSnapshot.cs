@@ -459,6 +459,27 @@ namespace DAL.Migrations
                     b.ToTable("Players");
                 });
 
+            modelBuilder.Entity("DataObjects.PlayerActiveDay", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("Date")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("PlayerId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PlayerId");
+
+                    b.ToTable("PlayerActiveDays");
+                });
+
             modelBuilder.Entity("DataObjects.PlayerActiveTournament", b =>
                 {
                     b.Property<Guid>("PlayerId")
@@ -1162,6 +1183,17 @@ namespace DAL.Migrations
                         .HasForeignKey("LeagueId");
 
                     b.Navigation("League");
+                });
+
+            modelBuilder.Entity("DataObjects.PlayerActiveDay", b =>
+                {
+                    b.HasOne("DataObjects.Player", "Player")
+                        .WithMany()
+                        .HasForeignKey("PlayerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Player");
                 });
 
             modelBuilder.Entity("DataObjects.PlayerAuthToken", b =>
