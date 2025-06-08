@@ -15,7 +15,7 @@ namespace DataObjects
         public decimal AmountUSD { get; set; }
         public decimal BonusAmountUSD { get; set; }
         public decimal Gems { get; set; }
-        public int? OpenForTime { get; set; }
+        public double? OpenForTime { get; set; }
        
         
     }
