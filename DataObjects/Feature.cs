@@ -13,6 +13,6 @@ namespace DataObjects
         public int FeatureId { get; set; }
         public string Name { get; set; }
         public int PlayerLevel { get; set; }
-        public int? OpenForTime { get; set; }    
+        public double? OpenForTime { get; set; }    
     }
 }

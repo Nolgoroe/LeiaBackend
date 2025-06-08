@@ -741,8 +741,18 @@ namespace Services
                 {
                     PlayerFeature playerFeature = new PlayerFeature();
                     playerFeature.PlayerId = playerId;
-                    playerFeature.Feature = feature;    
+                    playerFeature.FeatureId = feature.FeatureId;    
                     var isAdded = _leiaContext.PlayerFeatures.Add(playerFeature);
+
+                    PlayerTimeManager playerTimeManager = new PlayerTimeManager();
+                    playerTimeManager.PlayerId = playerId;  
+                    playerTimeManager.StartTime = DateTime.UtcNow;
+                    if(feature.OpenForTime != null)
+                    playerTimeManager.EndTime = DateTime.UtcNow.AddMinutes((double)feature.OpenForTime);
+                    playerTimeManager.CategoryObjectId = (int)Enums.CategoriesObjectsEnum.Features;
+                    playerTimeManager.IsActive = true;
+                    playerTimeManager.TimeObjectId = feature.FeatureId;
+                    var isTimeManagerAdded = _leiaContext.PlayerTimeManager.Add(playerTimeManager);
                 }
 
                 var saved = await _leiaContext.SaveChangesAsync();
