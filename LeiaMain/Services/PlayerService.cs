@@ -322,11 +322,12 @@ namespace Services
                 int playerLevel = _suikaDbService.LeiaContext.Players.Where(p => p.PlayerId == playerId).Select(p => p.Level).FirstOrDefault();
                 var closedFeatures = await _suikaDbService.CheckObjectTimeForOpen(playerId, (int)Enums.CategoriesObjectsEnum.Features);
                 var features = _suikaDbService.LeiaContext.Features.Where(f => f.PlayerLevel <= playerLevel && !closedFeatures.Contains(f.FeatureId)).OrderBy(f => f.PlayerLevel).ToList();
-                var playerFeatures = _suikaDbService.LeiaContext.PlayerFeatures.Where(p =>  p.PlayerId == playerId).ToList().Select(p => p.Feature);
+                var playerFeatures = _suikaDbService.LeiaContext.PlayerFeatures.Where(p =>  p.PlayerId == playerId).ToList().Select(p => p.Feature).ToList();
                 
-                if (playerFeatures == null) 
+                if ((playerFeatures == null || playerFeatures.Count == 0) && features != null && features.Count > 0) 
                 {
                     var added = _suikaDbService.UpdatePlayerFeatures(playerId, features);
+
                     return features;
                 }
                 else

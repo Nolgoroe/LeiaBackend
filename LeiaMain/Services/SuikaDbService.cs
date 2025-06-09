@@ -925,18 +925,20 @@ namespace Services
             List<int> result = new List<int>();
             List<int> timeManagerIds = new List<int>();
 
-            var playerTimeManagers = _leiaContext.PlayerTimeManager.Where(p => p.PlayerId == playerId && p.CategoryObjectId == (int)Enums.CategoriesObjectsEnum.Features && p.IsActive == true);
-            foreach (var timeManager in playerTimeManagers)
+            var playerTimeManagers = _leiaContext.PlayerTimeManager.Where(p => p.PlayerId == playerId && p.CategoryObjectId == (int)Enums.CategoriesObjectsEnum.Features && p.IsActive == true).ToList();
+            if (playerTimeManagers != null && playerTimeManagers.Count > 0)
             {
-                if (timeManager.EndTime != null && timeManager.EndTime >= DateTime.UtcNow)
+                foreach (var timeManager in playerTimeManagers)
                 {
-                    result.Add(timeManager.TimeObjectId);
-                    timeManagerIds.Add(timeManager.TimeManagerId);
+                    if (timeManager.EndTime != null && timeManager.EndTime >= DateTime.UtcNow)
+                    {
+                        result.Add(timeManager.TimeObjectId);
+                        timeManagerIds.Add(timeManager.TimeManagerId);
+                    }
                 }
+
+                var updated = UpdatePlayerTimeObject(timeManagerIds, playerId, result, category);
             }
-
-            var updated = UpdatePlayerTimeObject(timeManagerIds, playerId, result, category);
-
             return result;
         }
         public async Task<bool> UpdatePlayerTimeObject(List<int> timeManagerIds, Guid playerId, List<int> timeObjectIds, int category)
@@ -944,35 +946,45 @@ namespace Services
             try
             {
                 var timeManagers = _leiaContext.PlayerTimeManager.Where(p => timeManagerIds.Contains(p.TimeManagerId)).ToList();
-                foreach ( var toUpdate in timeManagers)
+                if (timeManagers.Count > 0)
                 {
-                    toUpdate.IsActive = false;
-                    var updated = _leiaContext.PlayerTimeManager.Update(toUpdate);
+                    foreach (var toUpdate in timeManagers)
+                    {
+                        toUpdate.IsActive = false;
+                        var updated = _leiaContext.PlayerTimeManager.Update(toUpdate);
+                    }
                 }
-
                 switch (category)
                 {
                     case (int)Enums.CategoriesObjectsEnum.Features:
 
                         var playerFeatures = _leiaContext.PlayerFeatures.Where(p => p.PlayerId == playerId).ToList();
-                        foreach (var feature in playerFeatures)
+                        if(playerFeatures.Count > 0)
                         {
-                            if (timeObjectIds.Contains(feature.FeatureId))
+                            foreach (var feature in playerFeatures)
                             {
-                                var removed = _leiaContext.PlayerFeatures.Remove(feature);
+                                if (timeObjectIds.Contains(feature.FeatureId))
+                                {
+                                    var removed = _leiaContext.PlayerFeatures.Remove(feature);
+                                }
                             }
                         }
+                        
                         break;
 
                     case (int)Enums.CategoriesObjectsEnum.Tournaments:
                         var playerTournaments = _leiaContext.PlayerTournamentSession.Where(p => p.PlayerId == playerId).ToList();
-                        foreach (var tournament in playerTournaments)
+                        if(playerTournaments.Count > 0)
                         {
-                            if (timeObjectIds.Contains(tournament.TournamentTypeId))
+                            foreach (var tournament in playerTournaments)
                             {
-                                var removed = _leiaContext.PlayerTournamentSession.Remove(tournament);
+                                if (timeObjectIds.Contains(tournament.TournamentTypeId))
+                                {
+                                    var removed = _leiaContext.PlayerTournamentSession.Remove(tournament);
+                                }
                             }
                         }
+                        
                         break;
 
                     case (int)Enums.CategoriesObjectsEnum.Packages:
