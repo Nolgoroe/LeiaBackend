@@ -5,7 +5,7 @@ namespace CustomMatching.Controllers
     
     public record LoginRequest (string accountSecret);
 
-    public record RegisterRequest(string name, string deviceId);
+    public record RegisterRequest(string name);
 
     public record BaseAccountRequest
     {
