@@ -664,10 +664,40 @@ namespace CustomMatching.Controllers
                 return (false, "Please provide a phone number and try again.");
             }
 
-            if (!phoneRegex.IsMatch(registrationData.phoneNumber))
+            var phoneLengthByCountry = new Dictionary<string, (int MinLength, int MaxLength)>
+            {
+                { "+1", (10, 10) },
+                { "+81", (9, 10) },
+                { "+972", (8, 10) },
+                { "+49", (10, 11) },
+                { "+33", (9, 9) },
+                { "+44", (10, 10) },
+                { "+234", (10, 10) }
+            };
+
+            var matchedCode = phoneLengthByCountry.Keys.FirstOrDefault(code => registrationData.phoneNumber.StartsWith(code));
+
+            if (matchedCode == null)
             {
                 return (false, "This country code is not supported at the moment.");
             }
+
+            string remainingDigits = registrationData.phoneNumber.Substring(matchedCode.Length);
+            if (!remainingDigits.All(char.IsDigit))
+            {
+                return (false, "Phone number contains invalid characters.");
+            }
+
+            var (minLength, maxLength) = phoneLengthByCountry[matchedCode];
+            if (remainingDigits.Length < minLength || remainingDigits.Length > maxLength)
+            {
+                return (false, "Phone number is too long or too short for the specified country code.");
+            }
+
+            //if (!phoneRegex.IsMatch(registrationData.phoneNumber))
+            //{
+            //    return (false, "This country code is not supported at the moment.");
+            //}
 
             return (true, "Validation successful.");
         }
