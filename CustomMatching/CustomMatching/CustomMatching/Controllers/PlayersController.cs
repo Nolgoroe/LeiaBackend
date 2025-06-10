@@ -283,7 +283,7 @@ namespace CustomMatching.Controllers
             var playerByPhoneNumber = await _suikaDbService.GetPlayerByPhoneNumber(registrationData.phoneNumber);
             if (playerByPhoneNumber is not null && playerByPhoneNumber.IsRegistered)
             {
-                return BadRequest("Phone number is already associated to a user");
+                return BadRequest("Phone number is already associated to a user, please login.");
             }
 
             await _phoneNumberVerificationService.SendVerificationCode(registrationData.phoneNumber);
@@ -332,7 +332,7 @@ namespace CustomMatching.Controllers
             string phoneNumber = request.phoneNumber;
             if (playerData.PhoneNumber is not null && playerData.PhoneNumber == phoneNumber)
             {
-                return BadRequest("Already logged-in");
+                return BadRequest("You are already logged in");
             }
 
             var playerDataByPhoneNumber = _suikaDbService.GetPlayerByPhoneNumber(phoneNumber);
@@ -364,7 +364,7 @@ namespace CustomMatching.Controllers
 
             if (playerData.PhoneNumber is not null && playerData.PhoneNumber == request.phoneNumber)
             {
-                return BadRequest("Already logged-in"); // and registered
+                return BadRequest("You are already logged in"); // and registered
             }
 
 
@@ -405,7 +405,7 @@ namespace CustomMatching.Controllers
 
             if (playerByPhoneNumber is not null)
             {
-                return BadRequest("Phone number is already associated to a user");
+                return BadRequest("Phone number is already associated to a user, please login.");
             }
 
             try
