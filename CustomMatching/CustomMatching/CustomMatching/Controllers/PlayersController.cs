@@ -14,6 +14,7 @@ using System.Text.RegularExpressions;
 
 using System.Net;
 using System.Net.Mail;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 // For more information on enabling Web API for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
 
@@ -272,9 +273,11 @@ namespace CustomMatching.Controllers
                 return NotFound("PlayerId was not provided");
             }
 
-            if (!VerifyPayerRegistrationData(registrationData))
+            var (isValid, message) = VerifyPayerRegistrationData(registrationData);
+
+            if (!isValid)
             {
-                return BadRequest("Registration details aren't valid");
+                return BadRequest(message);
             }
 
             var playerByPhoneNumber = await _suikaDbService.GetPlayerByPhoneNumber(registrationData.phoneNumber);
@@ -393,9 +396,11 @@ namespace CustomMatching.Controllers
             }
 
 
-            if (!VerifyPayerRegistrationData(registrationData))
+            var (isValid, message) = VerifyPayerRegistrationData(registrationData);
+
+            if (!isValid)
             {
-                return BadRequest("Registration details aren't valid");
+                return BadRequest(message);
             }
 
             if (playerByPhoneNumber is not null)
@@ -584,46 +589,47 @@ namespace CustomMatching.Controllers
             else return false;
         }
 
-        private bool VerifyPayerRegistrationData(RegistrationAsPayerData? registrationData)
+        private (bool IsValid, string Message) VerifyPayerRegistrationData(RegistrationAsPayerData? registrationData)
         {
             if (registrationData is null)
             {
-                return false;
+                return (false, "Registration data is null.");
             }
 
             // Validate first name and last name (non-empty, non-whitespace, and at least 2 characters long)
             if (string.IsNullOrWhiteSpace(registrationData.firstName) || registrationData.firstName.Length < 2)
             {
-                return false;
+                return (false, "First name is required and must be at least 2 characters long.");
             }
             if (string.IsNullOrWhiteSpace(registrationData.lastName) || registrationData.lastName.Length < 2)
             {
-                return false;
+                return (false, "Last name is required and must be at least 2 characters long.");
             }
-            if (string.IsNullOrWhiteSpace(registrationData.lastName)/* || registrationData.zipCode.Length < 5*/)
-            {
-                return false;
-            }
+            //if (string.IsNullOrWhiteSpace(registrationData.lastName)/* || registrationData.zipCode.Length < 5*/)
+            //{
+            //    return false;
+            //}
 
             // Validate country: must be exactly 2 characters
             if (string.IsNullOrWhiteSpace(registrationData.country) || registrationData.country.Length != 2)
             {
-                return false;
+                return (false, "Country code must be exactly 2 characters.");
             }
 
             // Validate email using a regular expression
             var emailRegex = new Regex("^[A-Z0-9._+-]+@[A-Z0-9._-]+\\.[A-Z]{2,}$", RegexOptions.IgnoreCase);
             if (string.IsNullOrWhiteSpace(registrationData.email) || !emailRegex.IsMatch(registrationData.email))
             {
-                return false;
+                return (false, "Email Address is invalid.");
             }
 
             // Validate birthday format using a regex for ISO format (yyyy-MM-dd)
             var birthdayRegex = new Regex(@"^\d{4}-\d{2}-\d{2}$");
             if (string.IsNullOrWhiteSpace(registrationData.birthday) || !birthdayRegex.IsMatch(registrationData.birthday))
             {
-                return false;
+                return (false, "Birthday must be in yyyy-MM-dd format.");
             }
+
             // Try to parse the birthday.
             if (!DateTime.TryParseExact(
                     registrationData.birthday,
@@ -632,7 +638,7 @@ namespace CustomMatching.Controllers
                     DateTimeStyles.None,
                     out DateTime birthday))
             {
-                return false;
+                return (false, "Invalid birthday format.");
             }
 
             // Verify the user is at least 18 years old (to the day)
@@ -640,7 +646,7 @@ namespace CustomMatching.Controllers
             DateTime minBirthdate = today.AddYears(-18);
             if (birthday > minBirthdate)
             {
-                return false;
+                return (false, "You must be at least 18 years old.");
             }
 
             // Validate phone number:
@@ -653,12 +659,17 @@ namespace CustomMatching.Controllers
             // Nigeria:+234 followed by exactly 10 digits.
 
             var phoneRegex = new Regex(@"^(?:\+1\d{10}|\+81\d{9,10}|\+972\d{8,10}|\+49\d{10,11}|\+33\d{9}|\+44\d{10}|\+234\d{10})$");
-            if (string.IsNullOrWhiteSpace(registrationData.phoneNumber) || !phoneRegex.IsMatch(registrationData.phoneNumber))
+            if (string.IsNullOrWhiteSpace(registrationData.phoneNumber))
             {
-                return false;
+                return (false, "Please provide a phone number and try again.");
             }
 
-            return true;
+            if (!phoneRegex.IsMatch(registrationData.phoneNumber))
+            {
+                return (false, "This country code is not supported at the moment.");
+            }
+
+            return (true, "Validation successful.");
         }
 
 
